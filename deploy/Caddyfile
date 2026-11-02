@@ -1,0 +1,9 @@
+# Replace this hostname with the domain pointing to this server.
+your-domain.example {
+ encode zstd gzip
+ reverse_proxy 127.0.0.1:3001 {
+  # Direct-to-Caddy deployment: overwrite untrusted client forwarding headers.
+  header_up X-Forwarded-For {remote_host}
+  header_up X-Forwarded-Proto {scheme}
+ }
+}

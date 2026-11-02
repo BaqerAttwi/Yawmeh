@@ -1,0 +1,26 @@
+[Unit]
+Description=Daywell personal tracking application
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=daywell
+Group=daywell
+WorkingDirectory=/opt/daywell
+EnvironmentFile=/etc/daywell/daywell.env
+ExecStartPre=/usr/bin/node server/scripts/check-production.js
+ExecStart=/usr/bin/node server/src/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=35
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/daywell/backups
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,51 @@
+// Translate supported templates only. Captured names, amounts and dates stay intact.
+export function arabicDetail(line){
+ const exact={
+  'Your access changed. This draft is no longer available.':'تغيّرت صلاحياتك. هالمسودة ما عادت متاحة.',
+  'I can change this draft to today, tomorrow, a YYYY-MM-DD date, or a positive money amount. Nothing was saved.':'فيني غيّر التاريخ لليوم أو بكرا أو تاريخ بصيغة YYYY-MM-DD، أو المبلغ لرقم موجب. ما انحفظ شي.',
+  'Prepare a draft first, then tell me what to change. Existing saved records must be edited in their app.':'حضّر مسودة أول شي، وبعدين قلّي شو بدّك تغيّر. العمليات المحفوظة بتتعدّل من تطبيقها.',
+  'No active budgets recorded. Add a spending limit in Money → Budgets.':'ما في ميزانيات مفعّلة. ضيف حدّ للمصروف من المصاري ← الميزانيات.',
+  'No expenses recorded in either period.':'ما في مصاريف مسجّلة بأي من الفترتين.',
+  'Only recorded, non-reversed expenses are included; missing records can affect the comparison.':'المقارنة بتشمل المصاريف المسجّلة وغير الملغاة بس. العمليات الناقصة ممكن تأثّر عالنتيجة.',
+  'Choose one. Estimates are approximate; scheduled commitments may affect when you can start.':'اختار مهمة وحدة. الوقت تقريبي؛ مواعيدك ممكن تأثّر على وقت البداية.',
+  'No unfinished tasks due by today have an estimate that fits. Add time estimates in Tasks, or break a larger task into a small subtask.':'ما في مهام معلّقة لليوم بوقت تقديري مناسب. ضيف تقديرات للوقت أو قسّم مهمة كبيرة لخطوة صغيرة.',
+  'How much would it cost? Ask “Can I afford $100?”':'قديش سعرها؟ مثلاً اسأل «فيني اصرف 100 دولار؟».',
+  'This exceeds your recorded spending balance.':'هالمبلغ بيتجاوز رصيد الصرف المسجّل.',
+  'Your recorded balance covers this purchase.':'رصيدك المسجّل بيغطّي هالمصروف.',
+  'No active spending budget is recorded. Add one to check this against your plan.':'ما في ميزانية مفعّلة. ضيف ميزانية لتقارن المصروف مع خطتك.',
+  'Recorded balances only; unpaid bills and future income are not deducted or predicted. Savings are not treated as spending money.':'الحساب حسب الأرصدة المسجّلة بس؛ الفواتير غير المدفوعة والدخل المستقبلي مش محسوبين. المدخرات مش جزء من رصيد الصرف.',
+  'No savings goals yet. Add a target in Money → Goals.':'ما في أهداف ادخار بعد. ضيف هدف من المصاري ← الأهداف.',
+  'No expenses recorded this month. Record purchases to identify useful savings opportunities.':'ما في مصاريف مسجّلة هالشهر. سجّل مشترياتك لتشوف وين في مجال للتوفير.',
+  'Please give one valid date as YYYY-MM-DD. For a budget range, use the budget form.':'حدّد تاريخ صحيح واحد بصيغة YYYY-MM-DD. لفترة ميزانية، استعمل نموذج الميزانية.',
+  'Please specify a clear time, such as 9 pm or 21:00. Nothing has been saved.':'حدّد وقت واضح مثل 9 المسا أو 21:00. ما انحفظ شي.',
+  'Budgets, subscription plans and saved items use USD in v1. For an LBP transaction, add income, expense or savings instead.':'الميزانيات وخطط الاشتراكات والعمليات المتكرّرة بالدولار بهالإصدار. لعملية بالليرة، ضيف دخل أو مصروف أو مدخرات.',
+  'Enter a positive amount, such as 15.50, or say cancel.':'اكتب مبلغ موجب مثل 15.50، أو قول «الغي».',
+  'I didn’t understand that action, so nothing was changed. Try “add task called football at 9 pm”, “add expense 15 for lunch”, or use a quick action below. Existing records can be edited in their app.':'ما فهمت العملية، فما تغيّر شي. جرّب «ذكرني فوتبول الساعة 9 المسا» أو «صرفت 15 دولار على الغدا»، أو استعمل الإضافة السريعة. العمليات المحفوظة بتتعدّل من تطبيقها.',
+  'I’m a free local helper, so I work with supported requests and your recorded data. Try “Plan my day”, “Can I afford $100?”, “How can I save more?”, “Review subscriptions”, “Savings goals”, or “I spent 15 for lunch”.':'أنا مساعد محلي مجاني، بشتغل مع طلبات محدّدة وسجلاتك. جرّب «رتّب يومي»، «فيني اصرف 100 دولار؟»، «كيف وفّر أكتر؟»، «راجع الاشتراكات»، «أهداف الادخار»، أو «صرفت 15 دولار على الغدا».',
+  'I’m your yawmeh.me companion. I can prepare tasks, expenses, income, savings withdrawals, budgets, subscriptions and frequent items, or report on your records. Try “add a task called football at 9 pm tomorrow” or “add expense 15 for lunch”. I open a draft for you to review and save; I never change your records silently.':'أنا مساعدك بيومي. فيني حضّر مهام ومصاريف ودخل وسحب مدخرات وميزانيات واشتراكات وعمليات متكرّرة، أو فرجيك تقاريرك. جرّب «ذكرني فوتبول بكرا الساعة 9 المسا» أو «صرفت 15 دولار على الغدا». كل عملية بتفتح كمسودة لتراجعها وتحفظها؛ ما بغيّر سجلاتك بلا تأكيد.',
+ };
+ if(exact[line])return exact[line];
+ if(/^Your account does not have (Tasks|Money) access\. Ask your administrator to enable it\.$/.test(line))return line.includes('Tasks')?'حسابك ما عنده صلاحية للمهام. اطلب من المسؤول يفعّلها.':'حسابك ما عنده صلاحية للمصاري. اطلب من المسؤول يفعّلها.';
+ const patterns=[
+  [/^Spending comparison: (.*?) versus (.*?) \(matching elapsed calendar days where possible\)\.$/,(_,now,before)=>`مقارنة المصاريف: ${now} مقابل ${before} (نفس عدد أيام الشهر المنقضية قدر الإمكان).`],
+  [/^Tasks due by today that individually fit (\d+) minutes:$/,(_,n)=>`مهام لليوم أو قبله، كل وحدة بتناسب ${n} دقيقة:`],
+  [/^• (.*?) — (\d+) minutes( · overdue)?$/,(_,name,n,late)=>`• ${name} — ${n} دقيقة${late?' · متأخرة':''}`],
+  [/^You have (.*?) available to spend in USD\. A (.*?) purchase would leave (.*?)\.$/,(_,available,cost,left)=>`المتاح للصرف بالدولار ${available}. مصروف بقيمة ${cost} بيخلّي ${left}.`],
+  [/^Your native LBP spending balance is (.*?) LBP\. This purchase costs (.*?) LBP\. Your LBP balance (does not cover|covers) it\. USD balances are separate; no currency exchange is performed\.$/,(_,available,cost,cover)=>`رصيد الصرف بالليرة ${available} LBP. هالمصروف بقيمة ${cost} LBP. الرصيد ${cover==='covers'?'بيغطّيه':'ما بيغطّيه'}. رصيد الدولار منفصل؛ ما صار تحويل عملات.`],
+  [/^(.*?): (.*?) remains through (\d{4}-\d{2}-\d{2})\. After this purchase: (.*?) remains\.$/,(_,name,left,date,after)=>`${name}: باقي ${left} لغاية ${date}. بعد هالمصروف: بيبقى ${after}.`],
+  [/^(.*?): (.*?) remains through (\d{4}-\d{2}-\d{2})\. This purchase would exceed that budget by (.*?)\.$/,(_,name,left,date,over)=>`${name}: باقي ${left} لغاية ${date}. هالمصروف بيتجاوز الميزانية بـ ${over}.`],
+  [/^(.*?): (≈ .*? \(USD estimate\)) of (≈ .*? \(USD estimate\)); (≈ .*? \(USD estimate\)) remaining\. (.*)$/,(_,name,held,target,left,tail)=>`${name}: ${held} من ${target}؛ باقي ${left}. ${tail.replace('Target reached.','وصلت للهدف.').replace('Set a monthly contribution to estimate time to target.','حدّد مساهمة شهرية لتقدير وقت الوصول.').replace(/^Approximately (\d+) monthly contributions at (.*?)\/month, assuming no withdrawals or interest\.$/,'تقريباً $1 مساهمات شهرية بقيمة $2 بالشهر، بافتراض ما في سحب أو فوائد.')}`],
+  [/^(.*?): (≈ .*? \(USD estimate\)) (weekly|monthly|yearly); approximately (.*?)\/year\. Next recorded renewal: (\d{4}-\d{2}-\d{2})( \(past due; check whether paid\))?\.( Marked rarely used — consider whether you still need it\.)?$/,(_,name,amount,cycle,year,date,late,rare)=>`${name}: ${amount} ${{weekly:'أسبوعياً',monthly:'شهرياً',yearly:'سنوياً'}[cycle]}؛ تقريباً ${year} بالسنة. التجديد المسجّل الجاي: ${date}${late?' (متأخّر؛ تأكّد إذا مدفوع)':''}.${rare?' استعماله قليل؛ راجع إذا بعدك بحاجته.':''}`],
+  [/^(.*?): (≈ .*? \(USD estimate\)) versus (≈ .*? \(USD estimate\)) — (.*)$/,(_,name,now,before,delta)=>`${name}: ${now} مقابل ${before} — ${delta.replace('unchanged','بلا تغيير').replace(' more',' زيادة').replace(' less',' أقل')}`],
+  [/^Largest spending categories this month through (\d{4}-\d{2}-\d{2}):$/,(_,date)=>`أكبر فئات المصروف هالشهر لغاية ${date}:`],
+  [/^• (.*?): (≈ .*? \(USD estimate\))$/,(_,name,amount)=>`• ${name}: ${amount}`],
+  [/^Review which purchases were optional\. If 10% of (.*?) spending were avoidable, that would free (.*?)\. This is an illustration, not a judgment about essential costs\. You can also ask me to review subscriptions\.$/,(_,name,amount)=>`راجع المشتريات الاختيارية. إذا 10% من مصروف ${name} قابل للتوفير، بيوفّر ${amount}. هيدا مثال؛ مش حكم على المصاريف الضرورية. فيك كمان تطلب مراجعة الاشتراكات.`],
+  [/^(.*?): (≈ .*? \(USD estimate\)) of (≈ .*? \(USD estimate\)) used( \(\d+%\))?\. (.*?)\. (Limit reached\.|Warning: at least 80% used\.|Below the 80% warning level\.) Through (\d{4}-\d{2}-\d{2}): (.*?)\/day if spread across the remaining (\d+) days, including today\. This is a budget allowance, not a cash balance\.$/,(_,name,spent,limit,percent,left,warning,date,day,n)=>`${name}: استعملت ${spent} من ${limit}${percent||''}. ${left.replace(/^Over budget by /,'تجاوزت الميزانية بـ ').replace(/ remaining$/,' باقي')}. ${{'Limit reached.':'وصلت للحدّ.','Warning: at least 80% used.':'تنبيه: استعملت 80% أو أكتر.','Below the 80% warning level.':'بعدك تحت عتبة التنبيه 80%.'}[warning]} لغاية ${date}: ${day} باليوم إذا توزّع الباقي على ${n} أيام، مع اليوم. هيدا حدّ ميزانية؛ مش رصيد نقدي.`],
+ ];
+ if(line.includes('\n')){
+  const rows=line.split('\n').map(arabicDetail);
+  if(rows.every(row=>row!==null))return rows.join('\n');
+ }
+ for(const [pattern,translate] of patterns)if(pattern.test(line))return line.replace(pattern,translate).replaceAll('(USD estimate)','(تقدير بالدولار)');
+ return null;
+}

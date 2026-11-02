@@ -1,0 +1,11 @@
+import {z} from 'zod';
+import {currencyCatalog,currencyDefinition,currencyCodeSchema,rateSchema} from '../../../../shared/currency.js';
+import {requireAccess} from '../auth/auth.js';
+import {PlannerError} from '../../../../shared/planner.js';
+export async function moneyPreferences(db,id){const [[settings]]=await db.query('SELECT current_rate,last_currency,custom_currencies,home_currency FROM users WHERE id=?',[id]);return settings||{};}
+export function mountCurrencies(app,ledgerTransaction){
+ const run=(req,res,action)=>ledgerTransaction(req.user.id,async db=>{try{return await action(db,await moneyPreferences(db,req.user.id));}catch(e){if(e instanceof z.ZodError||e.code)throw e;throw new PlannerError(e.message);}}).then(()=>res.json({ok:true}));
+ app.post('/api/currencies',requireAccess('money'),(req,res)=>run(req,res,async(db,settings)=>{const added=currencyDefinition(req.body,settings),custom=currencyCatalog(settings).slice(2);custom.push(added);await db.query('UPDATE users SET custom_currencies=? WHERE id=?',[JSON.stringify(custom),req.user.id]);}));
+ app.put('/api/currencies/home',requireAccess('money'),(req,res)=>run(req,res,async(db,settings)=>{const {currency}=z.object({currency:currencyCodeSchema}).strict().parse(req.body);if(!currencyCatalog(settings).some(c=>c.code===currency&&c.rate>0))throw new Error('Choose a configured currency with a rate.');await db.query('UPDATE users SET home_currency=? WHERE id=?',[currency,req.user.id]);}));
+ app.put('/api/currencies/rate',requireAccess('money'),(req,res)=>run(req,res,async(db,settings)=>{const {currency,rate,reference}=z.object({currency:currencyCodeSchema,rate:rateSchema,reference:currencyCodeSchema.default('USD')}).strict().parse(req.body);const catalog=currencyCatalog(settings),base=catalog.find(c=>c.code===reference),target=catalog.find(c=>c.code===currency);if(!base?.rate||!target)throw new Error('Choose configured currencies.');if(currency==='USD'||currency===reference)throw new Error('Choose a different reference currency; USD stays fixed.');const converted=rateSchema.parse(Math.round(rate*base.rate*1e6)/1e6);if(currency==='LBP')await db.query('UPDATE users SET current_rate=? WHERE id=?',[converted,req.user.id]);else {target.rate=converted;await db.query('UPDATE users SET custom_currencies=? WHERE id=?',[JSON.stringify(catalog.slice(2)),req.user.id]);}}));
+}

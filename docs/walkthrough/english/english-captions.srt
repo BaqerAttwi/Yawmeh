@@ -1,0 +1,43 @@
+1
+00:00:00,458 --> 00:00:12,365
+Welcome to Yawmeh, the Daywell personal tracking app. This English walkthrough uses sample data to show how you can organize tasks, track expenses, and get help from your companion.
+
+2
+00:00:14,493 --> 00:00:26,555
+Choose Try admin demo to explore safely. Overview brings together your next task, spending allowance, and upcoming payment. The amounts here belong to the demo workspace.
+
+3
+00:00:27,748 --> 00:00:38,861
+Open Tasks to see what is due and what you have finished. You can filter by status or category, search for a task, and break larger plans into smaller steps.
+
+4
+00:00:40,102 --> 00:00:53,514
+To add a task, give it a clear name and choose its due date. More options include time estimates, priority, repetition, subtasks, and reminders. Press Save task when you are ready.
+
+5
+00:00:54,888 --> 00:01:10,194
+Money keeps your transactions, budgets, subscriptions, and savings together. Record the actual currency and amount. Approximate combined totals use saved exchange rates, while native currency balances remain separate.
+
+6
+00:01:11,648 --> 00:01:24,606
+Open Sage to ask questions in everyday language. For example, say or type: I spent fifteen for lunch. The local helper prepares a draft with the amount, name, and date.
+
+7
+00:01:25,784 --> 00:01:39,491
+A draft has not been saved yet. Choose Review and save, check the name, currency, amount, and date, then press Save transaction. Here, we are saving only to the isolated demo.
+
+8
+00:01:40,925 --> 00:01:56,246
+Ask What can I ask to see examples. Try Recent expenses, Show overdue tasks, or What is my next task. The helper uses supported requests and your recorded data, rather than unrestricted conversation.
+
+9
+00:01:57,430 --> 00:02:16,381
+To dictate, select the microphone language in Voice settings, press Speak, and pause after talking. Review the recognized words, then press Send. Turn Voice on if you want replies read aloud. This recording demonstrates the controls without recording your microphone.
+
+10
+00:02:17,825 --> 00:02:28,967
+Back in Overview, use Dashboard, History, Weekly review, and Calendar to look at your progress from different angles. Check the selected dates before interpreting a report.
+
+11
+00:02:30,235 --> 00:02:46,416
+Start with one task and one expense, then ask your companion for your next step. Demo changes stay in this browser session. Real accounts need the database, and email or natural voice features need their corresponding service configuration.

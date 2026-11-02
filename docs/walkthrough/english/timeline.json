@@ -1,0 +1,79 @@
+[
+  {
+    "id": "01-welcome",
+    "title": "Welcome to your everyday workspace",
+    "text": "Welcome to Yawmeh, the Daywell personal tracking app. This English walkthrough uses sample data to show how you can organize tasks, track expenses, and get help from your companion.",
+    "duration": 11.907392290249433,
+    "start": 0.458
+  },
+  {
+    "id": "02-overview",
+    "title": "Start with Overview",
+    "text": "Choose Try admin demo to explore safely. Overview brings together your next task, spending allowance, and upcoming payment. The amounts here belong to the demo workspace.",
+    "duration": 12.0621768707483,
+    "start": 14.493
+  },
+  {
+    "id": "03-tasks",
+    "title": "Keep your plans in one place",
+    "text": "Open Tasks to see what is due and what you have finished. You can filter by status or category, search for a task, and break larger plans into smaller steps.",
+    "duration": 11.11251700680272,
+    "start": 27.748
+  },
+  {
+    "id": "04-new-task",
+    "title": "Create a task",
+    "text": "To add a task, give it a clear name and choose its due date. More options include time estimates, priority, repetition, subtasks, and reminders. Press Save task when you are ready.",
+    "duration": 13.41219954648526,
+    "start": 40.102
+  },
+  {
+    "id": "05-money",
+    "title": "Track money with context",
+    "text": "Money keeps your transactions, budgets, subscriptions, and savings together. Record the actual currency and amount. Approximate combined totals use saved exchange rates, while native currency balances remain separate.",
+    "duration": 15.306485260770975,
+    "start": 54.888
+  },
+  {
+    "id": "06-companion",
+    "title": "Ask your companion",
+    "text": "Open Sage to ask questions in everyday language. For example, say or type: I spent fifteen for lunch. The local helper prepares a draft with the amount, name, and date.",
+    "duration": 12.95750566893424,
+    "start": 71.648
+  },
+  {
+    "id": "07-save-expense",
+    "title": "Review before saving",
+    "text": "A draft has not been saved yet. Choose Review and save, check the name, currency, amount, and date, then press Save transaction. Here, we are saving only to the isolated demo.",
+    "duration": 13.707437641723356,
+    "start": 85.784
+  },
+  {
+    "id": "08-questions",
+    "title": "Discover more questions",
+    "text": "Ask What can I ask to see examples. Try Recent expenses, Show overdue tasks, or What is my next task. The helper uses supported requests and your recorded data, rather than unrestricted conversation.",
+    "duration": 15.321496598639456,
+    "start": 100.925
+  },
+  {
+    "id": "09-voice",
+    "title": "Use voice or type",
+    "text": "To dictate, select the microphone language in Voice settings, press Speak, and pause after talking. Review the recognized words, then press Send. Turn Voice on if you want replies read aloud. This recording demonstrates the controls without recording your microphone.",
+    "duration": 18.951292517006802,
+    "start": 117.43
+  },
+  {
+    "id": "10-review",
+    "title": "Review your progress",
+    "text": "Back in Overview, use Dashboard, History, Weekly review, and Calendar to look at your progress from different angles. Check the selected dates before interpreting a report.",
+    "duration": 11.142131519274377,
+    "start": 137.825
+  },
+  {
+    "id": "11-finish",
+    "title": "One small step at a time",
+    "text": "Start with one task and one expense, then ask your companion for your next step. Demo changes stay in this browser session. Real accounts need the database, and email or natural voice features need their corresponding service configuration.",
+    "duration": 16.18122448979592,
+    "start": 150.235
+  }
+]
