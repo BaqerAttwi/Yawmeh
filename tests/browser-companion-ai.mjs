@@ -33,7 +33,11 @@ try{
   await page.goto(base);await page.locator('.companion-launcher').click();
   await page.getByRole('button',{name:'Companion settings',exact:true}).click();
   const toggle=page.getByRole('checkbox',{name:'Understand requests with Gemini',exact:true});
-  assert.equal(await toggle.isChecked(),false,'AI must require user opt-in');
+  assert.equal(await toggle.isChecked(),true,'AI defaults on when no preference is saved');
+  await toggle.uncheck();
+  await page.reload();await page.locator('.companion-launcher').click();
+  await page.getByRole('button',{name:'Companion settings',exact:true}).click();
+  assert.equal(await toggle.isChecked(),false,'An explicit opt-out survives reload');
   await toggle.check();await page.getByRole('button',{name:'Companion settings',exact:true}).click();
   const before=records.tasks.length;intent='draft';
   const ask=async text=>{await page.locator('#companion-question').fill(text);await page.getByRole('button',{name:'Send message',exact:true}).click();};
