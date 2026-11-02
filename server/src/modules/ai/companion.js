@@ -15,7 +15,7 @@ export function companionAILimits(env){
   if(!text)return ceiling;
   return /^\d+$/.test(text)&&Number.isSafeInteger(Number(text))?Math.min(Number(text),ceiling):0;
  };
- return {daily:count(env.COMPANION_AI_DAILY_LIMIT,30),monthly:count(env.COMPANION_AI_MONTHLY_LIMIT,1000)};
+ return {daily:count(env.COMPANION_AI_DAILY_LIMIT,10),monthly:count(env.COMPANION_AI_MONTHLY_LIMIT,1000)};
 }
 export const companionAIAvailable=env=>env.COMPANION_AI_ENABLED==='true'&&!!env.GEMINI_API_KEY&&Object.values(companionAILimits(env)).every(value=>value>0);
 const limits=companionAILimits;

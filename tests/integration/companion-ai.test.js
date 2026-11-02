@@ -40,12 +40,12 @@ test('AI only interprets requests; calculations/records remain private and outpu
  assert.doesNotMatch(wire,/Private task stays on server|private-email|server-only-test-key/);
  assert.equal(request.body.generationConfig.maxOutputTokens,512);
  assert.equal(request.body.tools,undefined);assert.deepEqual(f.loads,[1]);
- assert.deepEqual(f.reservations[0].limits,{daily:30,monthly:1000});
+ assert.deepEqual(f.reservations[0].limits,{daily:10,monthly:1000});
 });
 
 test('zero and invalid quota settings disable paid calls instead of silently using defaults',async t=>{
- assert.deepEqual(companionAILimits({}),{daily:30,monthly:1000});
- assert.deepEqual(companionAILimits({COMPANION_AI_DAILY_LIMIT:'999',COMPANION_AI_MONTHLY_LIMIT:'99999'}),{daily:30,monthly:1000});
+ assert.deepEqual(companionAILimits({}),{daily:10,monthly:1000});
+ assert.deepEqual(companionAILimits({COMPANION_AI_DAILY_LIMIT:'999',COMPANION_AI_MONTHLY_LIMIT:'99999'}),{daily:10,monthly:1000});
  for(const setting of ['0','-1','NaN','Infinity','2.5','typo','9007199254740992']){
   const env={COMPANION_AI_ENABLED:'true',GEMINI_API_KEY:'test',COMPANION_AI_MONTHLY_LIMIT:setting};
   assert.equal(companionAIAvailable(env),false,setting);
@@ -104,4 +104,10 @@ test('persistent quota reserves monthly first and rolls back both counters on de
  assert.equal(await store.reserve(3,'2026-11-01',limits),false);
  assert.equal(await store.reserve(1,'2026-12-01',limits),true);
  assert.equal(commits,3);assert.equal(rollbacks,2);
+ const dailyTen={daily:10,monthly:1000};
+ for(let i=0;i<10;i++)assert.equal(await store.reserve(7,'2027-01-01',dailyTen),true);
+ assert.equal(await store.reserve(7,'2027-01-01',dailyTen),false,'the eleventh request is denied');
+ assert.equal(rows.get('user:7:2027-01-01'),10,'denial must not consume another request');
+ assert.equal(await store.reserve(8,'2027-01-01',dailyTen),true,'another account has its own allowance');
+ assert.equal(await store.reserve(7,'2027-01-02',dailyTen),true,'a new calendar day restores the allowance');
 });
