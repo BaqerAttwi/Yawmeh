@@ -1,4 +1,4 @@
-import {mountRecovery} from './recovery.js';
+import {mountRecovery,recoveryConfigured,sendWelcome} from './recovery.js';
 import {ownerUsage} from './owner.js';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -12,7 +12,7 @@ const email = z.string().trim().email().max(254).transform(v => v.toLowerCase())
 const access = z.array(z.enum(APP_ACCESS)).min(1, 'Select at least one app.').max(3).transform(v => [...new Set(v)]);
 export const userSchema = z.object({
   name: z.string().trim().min(1).max(100), email,
-  password: z.string().min(12, 'Use at least 12 characters.').max(128), permissions: access,
+  password: z.string().min(12, 'Use at least 12 characters.').max(128).optional(), permissions: access,
 }).strict();
 const permissionsSchema = z.object({permissions: access, active: z.boolean(), password:z.string().min(12,'Use at least 12 characters.').max(128).optional()}).strict();
 const cookieName = 'daywell_session';
@@ -120,8 +120,19 @@ export function createAuth(store = mysqlAuthStore(), recoveryOptions) {
   admin.post('/users',async(req,res)=>{
     const input=userSchema.parse(req.body);
     const {password,...value}=input;
-    const id=await store.create({...value,password_hash:await hashPassword(password),reminder_email:value.email});
-    res.status(201).json({id});
+    const canInvite=!!recoveryOptions?.recovery&&(recoveryOptions.configured||recoveryConfigured)();
+    if(!canInvite&&!password)return res.status(503).json({error:'Configure email invitations first, or provide an initial password for manual account setup.'});
+    const id=await store.create({...value,password_hash:await hashPassword(password||randomBytes(48).toString('hex')),reminder_email:value.email});
+    let invitation='not_configured';
+    if(canInvite){
+      try{
+        const token=randomBytes(32).toString('hex');
+        await recoveryOptions.recovery.issue(id,tokenHash(token));
+        await (recoveryOptions.sendWelcome||sendWelcome)(value.email,token,value.name);
+        invitation='sent';
+      }catch{invitation='failed';console.error('Welcome email delivery failed.');}
+    }
+    res.status(201).json({id,invitation});
   });
   admin.patch('/users/:id',async(req,res)=>{
     const id=z.coerce.number().int().positive().parse(req.params.id);

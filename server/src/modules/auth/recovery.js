@@ -25,6 +25,19 @@ export function recoveryStore(db){
  };
 }
 export function recoveryConfigured(){return !!(process.env.SMTP_HOST&&process.env.SMTP_FROM&&process.env.APP_ORIGIN);}
+const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function welcomeMessage(name,token,origin=process.env.APP_ORIGIN){
+ const url=new URL(origin);url.pathname='/';url.search='';url.hash='reset='+token;
+ const link=url.toString();
+ return {subject:'Welcome to Yawmeh — set your password',
+  text:`Hi ${name},\n\nYour Yawmeh account is ready. Set your password to start organizing your day:\n${link}\n\nThis secure link expires in 30 minutes and works once. Never share it. If it expires, use Forgot password on the sign-in page to request a new link.\n\nIf you were not expecting this invitation, ignore this email.\n\nThe Yawmeh team`,
+  html:`<div style="background:#f4f6f8;padding:32px 16px;font-family:Arial,sans-serif;color:#172c35"><div style="max-width:520px;margin:auto;background:white;padding:32px;border-radius:16px"><p style="font-size:14px;color:#427364">YAWMEH</p><h1 style="font-size:26px">Welcome to Yawmeh</h1><p>Hi ${escapeHTML(name)},</p><p>Your account is ready. Choose your password to start organizing your tasks and finances.</p><p style="margin:28px 0"><a href="${escapeHTML(link)}" style="display:inline-block;background:#205e50;color:white;padding:14px 24px;border-radius:8px;text-decoration:none">Set your password</a></p><p>This link expires in <strong>30 minutes</strong> and works once. Never share it.</p><p>If it expires, select <strong>Forgot password</strong> on the sign-in page to request another link.</p><p style="font-size:13px;color:#596b73">If you were not expecting this invitation, you can ignore this email.</p><hr style="border:0;border-top:1px solid #e3e8eb"><p style="font-size:13px;color:#596b73">The Yawmeh team</p></div></div>`};
+}
+export async function sendWelcome(email,token,name){
+ const transport=nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:process.env.SMTP_SECURE==='true',auth:process.env.SMTP_USER?{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD}:undefined,connectionTimeout:15000,socketTimeout:20000});
+ const result=await transport.sendMail({from:process.env.SMTP_FROM,to:email,...welcomeMessage(name,token)});
+ if(!result.accepted?.length)throw new Error('Invitation not accepted');
+}
 export async function sendReset(email,token){
  const url=new URL(process.env.APP_ORIGIN);url.pathname='/';url.search='';url.hash='reset='+token;
  const transport=nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:process.env.SMTP_SECURE==='true',auth:process.env.SMTP_USER?{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD}:undefined,connectionTimeout:15000,socketTimeout:20000});
