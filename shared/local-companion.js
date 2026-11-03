@@ -9,10 +9,12 @@ import {normalizeLebanese} from './lebanese-companion.js';
 import {everydayCompanion} from './companion-everyday.js';
 import {draftCorrection,normalizeFollowupText,followupCurrency,followupClock} from './companion-followup.js';
 import {companionDraftSchema} from './companion-ai.js';
+import {guidanceGoal,guidanceReply} from './companion-guidance.js';
 const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100)+' (USD estimate)';
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
 export function localCompanion(data,user,question,current,selected,context=null){
+ const goal=guidanceGoal(question,context);if(goal)return guidanceReply(user,goal);
  const correction=draftCorrection(question);
  if(correction)return correctCompanionDraft(data,user,correction,current,context);
  const translated=normalizeLebanese(question);
@@ -156,7 +158,8 @@ function localCompanionCore(data,user,question,current,selected,context=null){
  if(/^and (?:this |last )?(?:week|month|today|yesterday)\??$/i.test(q)&&context?.topic)reportQuestion=context.topic+' '+q;
  const topic=/sav|spend|money|income|expense|balance/i.test(reportQuestion)?'money':/task|plan|schedule/i.test(reportQuestion)?'tasks':'report';
  const answer=chatReport(data,user,reportQuestion,current,selected);
- return {answer:answer.startsWith('I can report')?'I’m a free local helper, so I work with supported requests and your recorded data. Try “Plan my day”, “Can I afford $100?”, “How can I save more?”, “Review subscriptions”, “Savings goals”, or “I spent 15 for lunch”.':answer,context:{topic}};
+ if(answer.startsWith('I can report'))return guidanceReply(user,'choose_topic');
+ return {answer,context:{topic}};
 }
 export function finishDraft(draft){
  const field=!draft.initial.title?'title':draft.type==='task'&&!draft.initial.due?'date':draft.type!=='task'&&!draft.initial.amount?'amount':['expense','income','opening','withdrawal'].includes(draft.type)&&!draft.initial.currency?'currency':null;

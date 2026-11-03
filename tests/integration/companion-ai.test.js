@@ -59,6 +59,12 @@ test('AI time clarifications return a validated pending task instead of losing t
  const denied=await f.call({...input,question:'take a break at 1'},{token:'b'});assert.equal((await denied.json()).context,undefined);
 });
 
+test('AI broad goals return fixed choices without reading private records or permitting writes',async t=>{
+ const f=await fixture(t,{intent:{intent:'guide',goal:'tasks'}}),response=await f.call({...input,question:'My plans feel impossible to manage'});
+ const reply=await response.json();assert.equal(response.status,200);assert.equal(reply.context.goal,'tasks');assert.equal(reply.action,undefined);assert.deepEqual(f.loads,[]);
+ const denied=await f.call({...input,language:'ar'},{token:'b'});assert.equal((await denied.json()).context,undefined);
+});
+
 test('zero and invalid quota settings disable paid calls instead of silently using defaults',async t=>{
  assert.deepEqual(companionAILimits({}),{daily:10,monthly:1000});
  assert.deepEqual(companionAILimits({COMPANION_AI_DAILY_LIMIT:'999',COMPANION_AI_MONTHLY_LIMIT:'99999'}),{daily:10,monthly:1000});

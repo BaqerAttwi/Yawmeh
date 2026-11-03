@@ -3,6 +3,7 @@ import React,{useState,useRef,useEffect} from 'react';
 import {X,Settings2,Plus,CalendarDays,ArrowUp,ChevronRight,RotateCw,Check,FileText,History,MessageSquarePlus,Trash2} from 'lucide-react';
 import {localCompanion} from '../../../../shared/local-companion.js';
 import {isLocalCompanionFollowup} from '../../../../shared/companion-followup.js';
+import {guidanceChoices,guidanceGoal} from '../../../../shared/companion-guidance.js';
 import {hasAccess} from '../../../../shared/access.js';
 import {companionLanguage,draftFields,presentReply,replyMetrics} from '../../../../shared/companion-presentation.js';
 import {readCompanionHistory,writeCompanionHistory,rememberConversation,historyKey,historyScope} from '../../../../shared/companion-history.js';
@@ -24,13 +25,14 @@ function BidiText({text}) {
  return text.split(/(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}|[-−]?[\$€£][\d,]+\.\d{2})/g).map((part,i)=>i%2?<bdi key={i}>{part}</bdi>:part);
 }
 
-function Reply({message,avatar,t,onReview,onDismiss}) {
+function Reply({message,avatar,t,onReview,onDismiss,onChoose,user}) {
  const {action,answer,language}=message;
  const lines=answer.split('\n'),long=lines.length>5,visibleAnswer=long?lines.slice(0,3).join('\n'):answer;
  return <article className="companion-reply" dir={language==='ar'?'rtl':'ltr'}>
   <div className="companion-message-author"><span style={{background:avatar.color}}/>{avatar.name}<small>{message.engine==='gemini'?t('AI-assisted · app records','بمساعدة AI · سجلات التطبيق'):t('From your records','من سجلاتك')}</small></div>
   {message.hasEnglishDetails&&<small className="companion-language-note">بعض التفاصيل المفصّلة بعدها بالإنكليزي.</small>}
   <div className="companion-reply-sections">{visibleAnswer.split(/\n\n+/).filter(Boolean).map((part,i)=>{const metrics=replyMetrics(part,language);return metrics?<section className="companion-metrics" key={i}><small><BidiText text={metrics.caption}/></small><dl>{metrics.items.map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl></section>:<p dir="auto" key={i}><BidiText text={part}/></p>;})}{long&&<details className="companion-full-reply"><summary>{language==='ar'?'شوف باقي الجواب والملاحظات':'Show the rest and notes'}</summary>{lines.slice(3).join('\n').split(/\n\n+/).filter(Boolean).map((part,i)=><p dir="auto" key={i}><BidiText text={part}/></p>)}</details>}</div>
+  {message.context?.goal&&onChoose&&<div className="companion-guidance-choices">{guidanceChoices(message.context.goal,user,language).map(choice=><button type="button" key={choice.question} onClick={()=>onChoose(choice.question,choice.label)}>{choice.label}</button>)}</div>}
   {action&&<section className="companion-draft" aria-label={t('Draft to review','مسودة للمراجعة')}>
    <div className="companion-draft-heading"><FileText size={16}/><strong>{actionNames[action.type]?.[language==='ar'?1:0]||action.type}</strong><span>{t('DRAFT','مسودة')}</span></div>
    <dl>{draftFields(action,language).map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl>
@@ -90,7 +92,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
  function deleteChat(id){const next=historyRef.current.filter(s=>s.id!==id);historyRef.current=next;setHistory(next);try{localStorage.setItem(historyKey(key),writeCompanionHistory(next,user));}catch{setStorageError(true);}if(id===sessionId)newChat();}
 
  function clearDrafts(){conversation.current=null;setMessages(old=>old.map(m=>({...m,action:undefined})));}
- function ask(question,displayQuestion=question){
+ function ask(question,displayQuestion=question,forceLocal=false){
   if(!question.trim()||thinking||inFlight.current)return;
   inFlight.current=true;const generation=++requestGeneration.current;
   const nextLanguage=companionLanguage(preference,displayQuestion,lastLanguage);
@@ -99,10 +101,10 @@ function CompanionSession({data,user,date,mode,onAction}) {
   pending.current=setTimeout(async()=>{
    try{
     const prepared=localCompanion(data,user,question,date,{start,end},conversation.current);
-    const localDraft=!!prepared.action||(!conversation.current?.draft&&!!prepared.context?.draft);
+    const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(!conversation.current?.draft&&!!prepared.context?.draft);
     let result=localDraft?prepared:undefined,reply;
     const localFollowup=isLocalCompanionFollowup(question,conversation.current);
-    if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft){
+    if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft&&!forceLocal){
      const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),15000);
      try{
       const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question)})});
@@ -146,7 +148,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
    <div className="companion-chat-log" hidden={tools==='history'} role="log" aria-label={t('Conversation','المحادثة')} aria-live="polite" aria-busy={thinking}>
     {restored&&<p className="companion-restored-note">{t('Reopened chat · Previous answers show saved snapshots. New questions use your current records. Review dates before saving an unfinished draft.','محادثة سابقة · الأجوبة القديمة بتعكس وقت السؤال. الأسئلة الجديدة بتستعمل سجلاتك الحالية. راجع التواريخ قبل حفظ أي مسودة.')}</p>}
     {!messages.length&&<div className="companion-welcome"><span className="companion-eyebrow">{t('A LITTLE CLARITY, EVERY DAY','شوي وضوح، كل يوم')}</span><h2>{t(`Hi, I’m ${avatar.name}.`,`أهلا، أنا ${avatar.name}.`)}</h2><p>{t(avatar.intro,avatar.ar)}</p><small>{t('Plan your day, check your money, or prepare something to add.','رتّب نهارك، راجع مصاريك، أو حضّر عملية جديدة.')}</small></div>}
-    {messages.map((message,i)=><React.Fragment key={i}><div className="companion-question" dir="auto"><span className="sr-only">{t('You','أنت')}: </span>{message.question}</div><Reply message={message} avatar={avatar} t={t} onReview={()=>{close();onAction(message.action.type,message.action.initial,message.language,()=>{conversation.current=null;setMessages(old=>old.map(m=>m.id===message.id?{...m,action:undefined,saved:true}:m));});}} onDismiss={()=>{conversation.current=null;setMessages(old=>old.map((m,index)=>index===i?{...m,action:undefined,dismissed:true}:m));input.current?.focus();}}/></React.Fragment>)}
+    {messages.map((message,i)=><React.Fragment key={i}><div className="companion-question" dir="auto"><span className="sr-only">{t('You','أنت')}: </span>{message.question}</div><Reply message={message} avatar={avatar} t={t} user={user} onChoose={i===messages.length-1&&!thinking?(question,label)=>ask(question,label,true):undefined} onReview={()=>{close();onAction(message.action.type,message.action.initial,message.language,()=>{conversation.current=null;setMessages(old=>old.map(m=>m.id===message.id?{...m,action:undefined,saved:true}:m));});}} onDismiss={()=>{conversation.current=null;setMessages(old=>old.map((m,index)=>index===i?{...m,action:undefined,dismissed:true}:m));input.current?.focus();}}/></React.Fragment>)}
     {thinking&&<div className="companion-thinking"><span/><span/><span/><small>{stateLabel}</small></div>}
     <span ref={bottom}/>
    </div>
