@@ -106,17 +106,17 @@ test('user cannot modify someone else’s task or spoof record ownership',async 
 test('only admin creates accounts; checkboxes support one, two or all apps without role escalation',async t=>{
   const f=await fixture(t),cookie=await f.login('admin@test.local');
   for(const permissions of [['tasks'],['money','assistant'],APP_ACCESS]){
-    const email='user'+permissions.length+'@test.local';const r=await f.call('/admin/users',{cookie,method:'POST',body:{name:'New member',email,password:f.password,permissions}});
-    assert.equal(r.status,201);const user=f.users.find(u=>u.email===email);assert.equal(user.role,'user');assert.notEqual(user.password_hash,f.password);assert.deepEqual(user.permissions,permissions);
+    const email='user'+permissions.length+'@test.local';const r=await f.call('/admin/users',{cookie,method:'POST',body:{name:'New member',email,password:'new account password',permissions}});
+    assert.equal(r.status,201);const user=f.users.find(u=>u.email===email);assert.equal(user.role,'user');assert.notEqual(user.password_hash,'new account password');assert.deepEqual(user.permissions,permissions);
   }
   assert.equal((await f.call('/admin/users',{cookie,method:'POST',body:{name:'Bad',email:'bad@test.local',password:f.password,permissions:[],role:'admin'}})).status,400);
   const list=await f.call('/admin/users',{cookie});assert.equal(list.status,200);assert.equal(list.body.users.some(u=>u.password_hash),false);
 });
 test('permission changes, disabling and password reset revoke sessions; admin cannot be disabled here',async t=>{
   const f=await fixture(t),member=await f.login('sam@test.local'),admin=await f.login('admin@test.local');
-  assert.equal((await f.call('/admin/users/2',{cookie:admin,method:'PATCH',body:{permissions:['money','tasks'],active:true,password:'new sufficiently long secret'}})).status,200);
+  assert.equal((await f.call('/admin/users/2',{cookie:admin,method:'PATCH',body:{permissions:['money','tasks'],active:true,password:'new account secret'}})).status,200);
   assert.equal((await f.call('/data',{cookie:member})).status,401);
-  assert.equal(await verifyPassword('new sufficiently long secret',f.users[1].password_hash),true);
+  assert.equal(await verifyPassword('new account secret',f.users[1].password_hash),true);
   assert.equal((await f.call('/admin/users/1',{cookie:admin,method:'PATCH',body:{permissions:['tasks'],active:false}})).status,404);
   assert.equal((await f.call('/admin/users/2',{cookie:admin,method:'PATCH',body:{permissions:['tasks'],active:false}})).status,200);
   assert.equal(f.users[1].active,false);

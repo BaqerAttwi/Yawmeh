@@ -18,9 +18,10 @@ test('password change requires current secret; recovery tokens are hashed, singl
  assert.equal(await verifyPassword('replacement password 123',user.password_hash),true);
  const missing=await call('forgot-password',{email:'missing@example.com'}),known=await call('forgot-password',{email:user.email});assert.deepEqual(missing,known);assert.equal(pending.hash,tokenHash(delivered));assert.notEqual(pending.hash,delivered);
  assert.equal((await call('reset-password',{token:delivered,newPassword:'short'})).status,400);
- assert.equal((await call('reset-password',{token:delivered,newPassword:'reset password secret'})).status,200);assert.equal(revoked,2);
+ assert.equal((await call('reset-password',{token:delivered,newPassword:'x'.repeat(25)})).status,400);
+ assert.equal((await call('reset-password',{token:delivered,newPassword:'12345678'})).status,200);assert.equal(revoked,2);
  assert.equal((await call('reset-password',{token:delivered,newPassword:'another password secret'})).status,400);
  await call('forgot-password',{email:user.email});pending.expires=0;
  assert.equal((await call('reset-password',{token:delivered,newPassword:'another password secret'})).status,400);
- assert.equal(await verifyPassword('reset password secret',user.password_hash),true);
+ assert.equal(await verifyPassword('12345678',user.password_hash),true);
 });

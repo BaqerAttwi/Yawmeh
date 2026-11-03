@@ -1,3 +1,4 @@
+import {newPasswordSchema} from '../../../../shared/password-policy.js';
 import {mountRecovery,recoveryConfigured,sendWelcome} from './recovery.js';
 import {ownerUsage} from './owner.js';
 import express from 'express';
@@ -12,9 +13,9 @@ const email = z.string().trim().email().max(254).transform(v => v.toLowerCase())
 const access = z.array(z.enum(APP_ACCESS)).min(1, 'Select at least one app.').max(3).transform(v => [...new Set(v)]);
 export const userSchema = z.object({
   name: z.string().trim().min(1).max(100), email,
-  password: z.string().min(12, 'Use at least 12 characters.').max(128).optional(), permissions: access,
+  password: newPasswordSchema.optional(), permissions: access,
 }).strict();
-const permissionsSchema = z.object({permissions: access, active: z.boolean(), password:z.string().min(12,'Use at least 12 characters.').max(128).optional()}).strict();
+const permissionsSchema = z.object({permissions: access, active: z.boolean(), password:newPasswordSchema.optional()}).strict();
 const cookieName = 'daywell_session';
 const cookieOptions = () => ({httpOnly: true, sameSite: 'strict', secure: process.env.COOKIE_SECURE === 'true', path: '/'});
 const publicUser = u => ({id:u.id, name:u.name, email:u.email, role:u.role, active:!!u.active, permissions:u.role === 'admin' ? [...APP_ACCESS] : (typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions)});

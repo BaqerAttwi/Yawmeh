@@ -1,3 +1,4 @@
+import {newPasswordSchema} from '../../shared/password-policy.js';
 import {resetTableSQL} from '../src/modules/auth/recovery.js';
 import {companionUsageSQL} from '../src/modules/ai/companion-usage.js';
 import {migrateOwner} from '../src/modules/auth/owner.js';
@@ -38,7 +39,7 @@ export async function migrate() {
   const [[existingAdmin]]=await pool.query("SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1");
   let adminId=existingAdmin?.id;
   if(!adminId) {
-    const credentials=z.object({email:z.string().email(),password:z.string().min(12).max(128).refine(p=>!p.startsWith('replace-'),'Choose your own admin password.')}).parse({email:process.env.ADMIN_EMAIL,password:process.env.ADMIN_PASSWORD});
+    const credentials=z.object({email:z.string().email(),password:newPasswordSchema.refine(p=>!p.startsWith('replace-'),'Choose your own admin password.')}).parse({email:process.env.ADMIN_EMAIL,password:process.env.ADMIN_PASSWORD});
     const [[legacy]]=await pool.query('SELECT name,email FROM settings WHERE id=1');
     const [created]=await pool.query('INSERT INTO users SET ?',{
       name:process.env.ADMIN_NAME||legacy.name||'Administrator',email:credentials.email.toLowerCase(),

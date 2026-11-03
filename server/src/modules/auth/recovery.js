@@ -1,3 +1,4 @@
+import {newPasswordSchema} from '../../../../shared/password-policy.js';
 import nodemailer from 'nodemailer';
 import {randomBytes} from 'node:crypto';
 import rateLimit from 'express-rate-limit';
@@ -44,7 +45,7 @@ export async function sendReset(email,token){
  await transport.sendMail({from:process.env.SMTP_FROM,to:email,subject:'Reset your yawmeh.me password',text:`Open this link to choose a new password:\n${url}\n\nThis link expires in 30 minutes and works once. If you did not request this, ignore this email.`});
 }
 export function mountRecovery(router,{store,recovery,authenticate,clearCookie,send=sendReset,configured=recoveryConfigured}){
- const password=z.string().min(12,'Use at least 12 characters.').max(128);
+ const password=newPasswordSchema;
  const limit=()=>rateLimit({windowMs:15*60000,limit:10,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many password attempts. Try again in 15 minutes.'}});
  router.post('/change-password',limit(),authenticate,async(req,res)=>{
   const input=z.object({currentPassword:z.string().min(1).max(128),newPassword:password}).strict().parse(req.body);

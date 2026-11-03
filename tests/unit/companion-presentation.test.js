@@ -16,6 +16,9 @@ test('language follows explicit preference or Arabic/Arabizi input in automatic 
  assert.equal(companionLanguage('auto','plan my day','ar'),'en');
  assert.equal(companionLanguage('auto','','ar'),'ar');
  assert.equal(companionLanguage('auto','15.50','ar'),'ar');
+ for(const question of ['baddi a3ref masare','kifak','ana 3ande task','zakerni bokra','hello شو عندي اليوم','ﷲ شو عندي'])assert.equal(companionLanguage('auto',question),'ar',question);
+ for(const question of ['okay','thanks','15 USD'])assert.equal(companionLanguage('auto',question,'ar'),'ar');
+ assert.equal(companionLanguage('auto','show my expenses','ar'),'en');
 });
 
 test('localized report preserves amounts, dates, user titles, and permission boundaries',()=>{

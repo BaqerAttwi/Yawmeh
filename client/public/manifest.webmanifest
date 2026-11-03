@@ -3,5 +3,5 @@
  "description":"Your money and your plans, together.",
  "start_url":"/", "scope":"/", "display":"standalone",
  "background_color":"#f7f8fa", "theme_color":"#426e57",
- "icons":[{"src":"/branding/app-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+ "icons":[{"src":"/branding/app-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}]
 }

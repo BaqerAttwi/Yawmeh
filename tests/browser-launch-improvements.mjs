@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {isAbsolute} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {mkdir} from 'node:fs/promises';
+import {createApp} from '../server/src/app.js';
+
+const module=process.env.PLAYWRIGHT_MODULE||'playwright';
+const {chromium}=await import(isAbsolute(module)?pathToFileURL(module).href:module);
+const server=createApp({db:{},authStore:{session:async()=>null},recoveryOptions:null}).listen(0,'127.0.0.1');
+await once(server,'listening');
+const base=`http://127.0.0.1:${server.address().port}`;
+const browser=await chromium.launch({headless:true,channel:'msedge'}),errors=[];
+await mkdir('test-results',{recursive:true});
+try{
+ const home=await fetch(base);assert.equal(home.headers.get('cache-control'),'no-cache');
+ const html=await home.text(),asset=html.match(/src="(\/assets\/[^\"]+\.js)"/)[1];
+ const cached=await fetch(base+asset);assert.match(cached.headers.get('cache-control'),/max-age=31536000, immutable/);
+ const privateResponse=await fetch(base+'/api/data');assert.equal(privateResponse.headers.get('cache-control'),'no-store');
+ for(const width of [375,1440]){
+  const page=await browser.newPage({viewport:{width,height:900}});page.on('pageerror',e=>errors.push(e.message));
+  let release;const hold=new Promise(resolve=>{release=resolve;});const requests=[];
+  page.on('request',r=>{if(r.url().includes('/api/'))requests.push(new URL(r.url()).pathname);});
+  await page.route('**/api/data',async route=>{await hold;await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Please sign in.'})});});
+  await page.goto(base);
+  await page.locator('.workspace-loading img').waitFor();
+  assert.equal(await page.locator('.workspace-loading strong').innerText(),'yawmeh.me');
+  await page.screenshot({path:`test-results/loading-${width}.png`});release();
+  await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
+  assert.deepEqual(requests,['/api/data'],'startup uses one account request');
+  const password=page.locator('input[name=password]');await password.fill('testpass');
+  await page.getByRole('button',{name:'Show password',exact:true}).click();assert.equal(await password.getAttribute('type'),'text');
+  await page.getByRole('button',{name:'Hide password',exact:true}).click();assert.equal(await password.getAttribute('type'),'password');
+  await page.goto(base+'/#reset='+'a'.repeat(64));await page.reload();
+  const newPassword=page.locator('input[name=newPassword]');await newPassword.waitFor();
+  assert.equal(await newPassword.getAttribute('minlength'),'8');assert.equal(await newPassword.getAttribute('maxlength'),'24');
+  await newPassword.fill('12345678');await page.locator('input[name=confirm]').fill('12345678');
+  assert.equal(await newPassword.evaluate(el=>el.checkValidity()),true);
+  await page.getByRole('button',{name:'Show password',exact:true}).first().click();assert.equal(await newPassword.getAttribute('type'),'text');
+  assert.equal(await page.locator('input[name=confirm]').getAttribute('type'),'password');
+  await page.goto(base);await page.reload();await page.getByRole('button',{name:'Try admin demo'}).click();
+  await page.locator('.companion-launcher').click();
+  await page.locator('#companion-question').fill('شو عندي اليوم');
+  await page.getByRole('button',{name:'إرسال الرسالة',exact:true}).click();
+  await page.locator('.companion-reply[dir=rtl]').waitFor();
+  await page.locator('#companion-question').fill('baddi a3ref masare');
+  await page.getByRole('button',{name:'إرسال الرسالة',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelectorAll('.companion-reply[dir=rtl]').length===2);
+  assert.ok(await page.locator('.companion-reply').last().innerText().then(text=>/[\u0600-\u06ff]/.test(text)));
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.close();
+ }
+ const page=await browser.newPage();
+ await page.route('**/api/data',()=>{});
+ await page.goto(base);await page.locator('.workspace-loading').waitFor();
+ await page.getByRole('button',{name:'Sign in',exact:true}).waitFor({timeout:25000});
+ assert.match(await page.locator('.error').innerText(),/taking too long/);
+ assert.equal(errors.length,0,JSON.stringify(errors));
+ console.log(JSON.stringify({passed:true,widths:[375,1440],singleStartupRequest:true,timeoutRecovery:true,browserErrors:errors}));
+}finally{await browser.close();server.closeAllConnections();server.close();}

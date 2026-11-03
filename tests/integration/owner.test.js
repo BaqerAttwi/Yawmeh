@@ -23,7 +23,7 @@ test('only the owner sees family usage metadata, without workspace records or se
  const response=await call('/usage');assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
  const result=await response.json();assert.equal(result.mode,'family');assert.equal(result.paymentsEnabled,false);assert.equal(result.counts.accounts,2);assert.equal(result.ai_requests_month,7);
  assert.doesNotMatch(JSON.stringify(result),/private-hash|password|member@test|tasks|entries|sessions|token_hash/);
- const input={name:'Family test member',email:'family@test.local',password:'a unique family test password',permissions:['tasks']};
+ const input={name:'Family test member',email:'family@test.local',password:'unique family password',permissions:['tasks']};
  assert.equal((await call('/users','b','POST',input)).status,403);
  assert.equal((await call('/users','a','POST',{...input,role:'admin'})).status,400);
  assert.equal((await call('/users','a','POST',{...input,plan:'paid'})).status,400);
