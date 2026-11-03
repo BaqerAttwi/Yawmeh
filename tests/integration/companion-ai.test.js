@@ -43,6 +43,15 @@ test('AI only interprets requests; calculations/records remain private and outpu
  assert.deepEqual(f.reservations[0].limits,{daily:10,monthly:1000});
 });
 
+test('Arabic AI replies localize headings and keep private account titles on the server',async t=>{
+ const f=await fixture(t,{intent:{intent:'tasks'}});
+ const response=await f.call({...input,language:'ar',question:'بدي اعرف شو عندي اليوم'});
+ assert.equal(response.status,200);const reply=await response.json();assert.equal(reply.language,'ar');assert.match(reply.answer,/\p{Script=Arabic}/u);
+ assert.doesNotMatch(reply.answer,/Tasks for the next|No matching tasks/);
+ assert.doesNotMatch(JSON.stringify(f.requests),/Private task stays on server/);
+ assert.deepEqual(f.reservations[0].limits,{daily:10,monthly:1000});
+});
+
 test('zero and invalid quota settings disable paid calls instead of silently using defaults',async t=>{
  assert.deepEqual(companionAILimits({}),{daily:10,monthly:1000});
  assert.deepEqual(companionAILimits({COMPANION_AI_DAILY_LIMIT:'999',COMPANION_AI_MONTHLY_LIMIT:'99999'}),{daily:10,monthly:1000});

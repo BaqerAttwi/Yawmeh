@@ -1,6 +1,29 @@
 // Translate supported templates only. Captured names, amounts and dates stay intact.
 export function arabicDetail(line){
  const exact={
+  '':'',
+  'Here are things you can ask:':'فيك تسألني:',
+  '• What is my next task?':'• شو المهمة الجاية؟',
+  '• Show overdue tasks':'• فرجيني المهام المتأخرة',
+  '• What have I completed today?':'• شو خلّصت اليوم؟',
+  '• Upcoming tasks':'• المهام الجاية',
+  '• Add task call the dentist tomorrow':'• ذكرني اتصل بطبيب الأسنان بكرا',
+  '• Recent expenses':'• آخر المصاريف',
+  '• Largest expense this month':'• أكبر مصروف هالشهر',
+  '• Which subscriptions are due?':'• شو الاشتراكات المستحقة؟',
+  '• Can you add expenses?':'• فيك تضيف مصروف؟',
+  '• I spent 15 for lunch':'• صرفت 15 دولار على الغدا',
+  'New entries are drafts. Review and save to record them.':'العمليات الجديدة مسودات. راجعها واحفظها لتتسجّل.',
+  'No matching tasks recorded.':'ما في مهام مسجّلة مطابقة.',
+  'Latest 5 recorded expenses:':'آخر 5 مصاريف مسجّلة:',
+  'No expenses recorded.':'ما في مصاريف مسجّلة.',
+  'Largest expense this month, separately for each currency:':'أكبر مصروف هالشهر، بكل عملة لحالها:',
+  'Active subscriptions past due or due in the next 7 days:':'الاشتراكات المتأخرة أو المستحقة خلال 7 أيام:',
+  'None recorded.':'ما في سجلات مطابقة.',
+  'Check whether past-due renewals were already paid. See Subscriptions for all renewals.':'تأكّد إذا التجديدات المتأخرة اندفعت. شوف كل التجديدات بتطبيق الاشتراكات.',
+  'Showing the first 10. See Tasks for the full list.':'عم نعرض أول 10. شوف اللائحة الكاملة بتطبيق المهام.',
+  'Tell me a clear date, amount, currency, title or time for this draft. Nothing was saved.':'حدّد تاريخ أو مبلغ أو عملة أو اسم أو وقت واضح لهالمسودة. ما انحفظ شي.',
+  'That value is not valid for this draft. Nothing was saved.':'هالقيمة مش صالحة لهالمسودة. ما انحفظ شي.',
   'Your access changed. This draft is no longer available.':'تغيّرت صلاحياتك. هالمسودة ما عادت متاحة.',
   'I can change this draft to today, tomorrow, a YYYY-MM-DD date, or a positive money amount. Nothing was saved.':'فيني غيّر التاريخ لليوم أو بكرا أو تاريخ بصيغة YYYY-MM-DD، أو المبلغ لرقم موجب. ما انحفظ شي.',
   'Prepare a draft first, then tell me what to change. Existing saved records must be edited in their app.':'حضّر مسودة أول شي، وبعدين قلّي شو بدّك تغيّر. العمليات المحفوظة بتتعدّل من تطبيقها.',
@@ -24,9 +47,12 @@ export function arabicDetail(line){
   'I’m a free local helper, so I work with supported requests and your recorded data. Try “Plan my day”, “Can I afford $100?”, “How can I save more?”, “Review subscriptions”, “Savings goals”, or “I spent 15 for lunch”.':'أنا مساعد محلي مجاني، بشتغل مع طلبات محدّدة وسجلاتك. جرّب «رتّب يومي»، «فيني اصرف 100 دولار؟»، «كيف وفّر أكتر؟»، «راجع الاشتراكات»، «أهداف الادخار»، أو «صرفت 15 دولار على الغدا».',
   'I’m your yawmeh.me companion. I can prepare tasks, expenses, income, savings withdrawals, budgets, subscriptions and frequent items, or report on your records. Try “add a task called football at 9 pm tomorrow” or “add expense 15 for lunch”. I open a draft for you to review and save; I never change your records silently.':'أنا مساعدك بيومي. فيني حضّر مهام ومصاريف ودخل وسحب مدخرات وميزانيات واشتراكات وعمليات متكرّرة، أو فرجيك تقاريرك. جرّب «ذكرني فوتبول بكرا الساعة 9 المسا» أو «صرفت 15 دولار على الغدا». كل عملية بتفتح كمسودة لتراجعها وتحفظها؛ ما بغيّر سجلاتك بلا تأكيد.',
  };
- if(exact[line])return exact[line];
+ if(Object.hasOwn(exact,line))return exact[line];
  if(/^Your account does not have (Tasks|Money) access\. Ask your administrator to enable it\.$/.test(line))return line.includes('Tasks')?'حسابك ما عنده صلاحية للمهام. اطلب من المسؤول يفعّلها.':'حسابك ما عنده صلاحية للمصاري. اطلب من المسؤول يفعّلها.';
  const patterns=[
+  [/^(Suggested next task|Overdue tasks|Tasks for the next 7 days|Completed today) \((\d{4}-\d{2}-\d{2})\):$/,(_,kind,date)=>`${{'Suggested next task':'المهمة الجاية المقترحة','Overdue tasks':'المهام المتأخرة','Tasks for the next 7 days':'مهام السبعة أيام الجايين','Completed today':'المهام المكتملة اليوم'}[kind]} (${date}):`],
+  [/^• (.+) — (\d{4}-\d{2}-\d{2})(.*)$/,(_,name,date,tail)=>`• ${name} — ${date}${tail.replace(/ at /g,' الساعة ')}`],
+  [/^• (.+) — (.+) · (\d{4}-\d{2}-\d{2})$/,(_,name,value,date)=>`• ${name} — ${value} · ${date}`],
   [/^Spending comparison: (.*?) versus (.*?) \(matching elapsed calendar days where possible\)\.$/,(_,now,before)=>`مقارنة المصاريف: ${now} مقابل ${before} (نفس عدد أيام الشهر المنقضية قدر الإمكان).`],
   [/^Tasks due by today that individually fit (\d+) minutes:$/,(_,n)=>`مهام لليوم أو قبله، كل وحدة بتناسب ${n} دقيقة:`],
   [/^• (.*?) — (\d+) minutes( · overdue)?$/,(_,name,n,late)=>`• ${name} — ${n} دقيقة${late?' · متأخرة':''}`],

@@ -1,4 +1,5 @@
 import {createVoicePlayer} from './voice-player.js';
+import {microphoneLocale,replyLocale,selectDeviceVoice} from '../../../../shared/companion-voice-language.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {Mic,MicOff,Volume2,VolumeX,Square,SlidersHorizontal} from 'lucide-react';
 
@@ -36,7 +37,8 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
  useEffect(()=>()=>onStateChange?.('idle'),[onStateChange]);
  useEffect(()=>{stopSpeech();},[conversationId]);
  useEffect(()=>{if(busy){stopListening();stopSpeech();setStatus('');}},[busy]);
- useEffect(()=>{stopListening();stopSpeech();setStatus('');},[language]);
+ // Interim transcription can switch the chat language; keep recording until it finishes.
+ useEffect(()=>{stopSpeech();},[language]);
  useEffect(()=>{
   if(mode!=='live')return;const controller=new AbortController();fetch('/api/companion/voice',{credentials:'same-origin',signal:controller.signal}).then(r=>r.ok?r.json():null).then(value=>{if(!controller.signal.aborted)setNaturalAvailable(value?.available===true);}).catch(()=>{});return()=>controller.abort();
  },[mode]);
@@ -46,8 +48,7 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
  function deviceSpeak(value,previewLanguage){
   if(!synth||!value)return;
   const spokenLanguage=previewLanguage||(/[\u0600-\u06ff]/.test(value)?'ar-LB':'en-US');
-  const matching=voices.filter(v=>v.lang.toLowerCase().startsWith(spokenLanguage.slice(0,2)));
-  const selected=matching.find(v=>v.voiceURI===voiceChoices[spokenLanguage])||matching.find(v=>v.lang.toLowerCase()===spokenLanguage.toLowerCase())||matching.find(v=>v.default)||matching[0];
+  const selected=selectDeviceVoice(voices,spokenLanguage,voiceChoices[spokenLanguage]);
   if(!selected){setStatus(spokenLanguage==='ar-LB'?'No Arabic voice is available on this device. Install an Arabic speech voice in your device settings, then reopen this chat.':'No English voice is available on this device. Install an English speech voice, then reopen this chat.');return;}
   const line=new SpeechSynthesisUtterance(value);line.voice=selected;line.lang=selected.lang;line.rate=speed;
   utterance.current=line;
@@ -69,11 +70,11 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
   player.current.play(value,{language:(previewLanguage||(/[\u0600-\u06ff]/.test(value)?'ar-LB':'en-US')).slice(0,2),voice:naturalVoice,avatar,speed});
  }
  useEffect(()=>{if(!synth)return;const refresh=()=>setVoices(synth.getVoices());refresh();synth.addEventListener('voiceschanged',refresh);return()=>synth.removeEventListener('voiceschanged',refresh);},[synth]);
- useEffect(()=>{if(response?.id!==previous.current){previous.current=response?.id;stopListening();if(enabled&&answer)speak(answer);}},[response]);
+ useEffect(()=>{if(response?.id!==previous.current){previous.current=response?.id;stopListening();if(enabled&&answer)speak(answer,replyLocale(response,language));}},[response]);
  useEffect(()=>{const hide=()=>{if(document.hidden){stopListening();stopSpeech();}};document.addEventListener('visibilitychange',hide);return()=>{clearTimeout(speechTimer.current);document.removeEventListener('visibilitychange',hide);stopListening();utterance.current=null;synth?.cancel();player.current?.stop();};},[]);
  function listen(){
   if(listening){stopListening();setStatus('Microphone stopped.');return;}
-  if(!Recognition)return;stopSpeech();const inputLanguage=microphoneLanguage==='auto'?(ar?'ar-LB':'en-US'):microphoneLanguage;setStatus(inputLanguage==='ar-LB'?'Listening… احكي لبناني.':'Listening… Speak in English.');
+  if(!Recognition)return;stopSpeech();const inputLanguage=microphoneLocale(microphoneLanguage,language);setStatus(inputLanguage==='ar-LB'?'Listening… احكي لبناني.':'Listening… Speak in English.');
   const active=new Recognition();recognition.current=active;active.lang=inputLanguage;active.continuous=false;active.interimResults=true;
   let heard=false;
   active.onresult=e=>{if(recognition.current!==active)return;const results=Array.from(e.results),words=results.map(r=>r[0].transcript).join(' ').trim().slice(0,1000);if(!words)return;heard=true;onTranscript(words);if(results.every(r=>r.isFinal)){stopListening();setStatus('Check your words, then press Send.');}else setStatus(t('Hearing your words… Pause when finished, then press Send.','عم اسمع كلامك… وقف شوي لما تخلّص، وبعدها اضغط إرسال.'));};
@@ -88,12 +89,14 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
    {(speaking||preparing)&&<button className="companion-stop" type="button" onClick={()=>{stopSpeech();setStatus('');}}><Square size={14}/>{t('Stop','وقف')}</button>}
    <button type="button" className="companion-voice-settings-button" aria-label={t('Voice settings','إعدادات الصوت')} aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(!settingsOpen)}><SlidersHorizontal size={17}/></button>
   </div>
+  {Recognition&&<div className="companion-microphone-languages" role="group" aria-label={t('Microphone language shortcuts','اختصارات لغة الميكروفون')}><small>{t('Microphone','الميكروفون')}:</small>{[['auto',t('Follow chat','حسب الدردشة')],['ar-LB','العربية'],['en-US','English']].map(([value,label])=><button key={value} type="button" disabled={busy} aria-pressed={microphoneLanguage===value} onClick={()=>{stopListening();setMicrophoneLanguage(value);setStatus('');}}>{label}</button>)}</div>}
   {!Recognition&&<small>{t('Microphone unavailable in this browser. You can type below.','الميكروفون مش متاح بهالمتصفح. فيك تكتب تحت.')}</small>}
   {settingsOpen&&<div className="companion-voice-settings"><label className="companion-voice-choice">{t('Voice quality','نوع الصوت')}<select aria-label={t('Voice quality','نوع الصوت')} value={source} onChange={e=>{stopSpeech();setSource(e.target.value);}}><option value="device">{t('Device voices','أصوات الجهاز')}</option><option value="natural" disabled={!naturalAvailable}>{t('Natural voice · OpenAI','صوت طبيعي · OpenAI')}</option></select></label>{!naturalAvailable&&<small>{t('Natural voice needs an enabled live server and an OpenAI API key.','الصوت الطبيعي بدّه خادم مفعّل بوضع الحساب الفعلي ومفتاح OpenAI.')}</small>}{source==='natural'&&<><small>{t('AI-generated voice. Reply text is sent to OpenAI when played; API usage is billed to the configured account. A Lebanese accent may vary.','صوت مولّد بالذكاء الاصطناعي. نص الرد بينبعت لـOpenAI عند التشغيل، والكلفة على الحساب المُعدّ. اللهجة اللبنانية ممكن تختلف.')}</small><label className="companion-voice-choice">{t('Natural voice','الصوت الطبيعي')}<select aria-label={t('Natural voice','الصوت الطبيعي')} value={naturalVoice} onChange={e=>{stopSpeech();setNaturalVoice(e.target.value);}}><option value="marin">Marin</option><option value="cedar">Cedar</option></select></label></>}
    <label className="companion-voice-choice">{t('Microphone language','لغة الميكروفون')}<select aria-label={t('Microphone language','لغة الميكروفون')} value={microphoneLanguage} onChange={e=>{stopListening();setMicrophoneLanguage(e.target.value);setStatus('');}}><option value="auto">{t('Match chat language','حسب لغة المحادثة')}</option><option value="en-US">English</option><option value="ar-LB">لبناني · Lebanese Arabic</option></select></label>
+   <small>{t('Follow chat uses the current chat language; browsers do not reliably detect the spoken language. Choose Arabic or English before recording if needed.','حسب الدردشة بيستعمل لغة المحادثة الحالية؛ المتصفح ما بيكتشف لغة الحكي بشكل مضمون. اختار العربي أو الإنكليزي قبل التسجيل إذا لزم.')}</small>
    {(synth||naturalAvailable)?<>{source==='device'&&[['en-US',t('English voice','الصوت الإنكليزي')],['ar-LB',t('Arabic voice','الصوت العربي')]].map(([code,label])=><label key={code} className="companion-voice-choice">{label}<select aria-label={label} value={voiceChoices[code]||''} onChange={e=>{stopSpeech();setVoiceChoices(old=>({...old,[code]:e.target.value}));}}><option value="">{t('Automatic · best language match','تلقائي · حسب اللغة')}</option>{voices.filter(v=>v.lang.toLowerCase().startsWith(code.slice(0,2))).map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>)}
    <label className="companion-voice-choice">{t('Speaking speed','سرعة الكلام')}<select aria-label={t('Speaking speed','سرعة الكلام')} value={speed} onChange={e=>{stopSpeech();setSpeed(Number(e.target.value));}}><option value={0.85}>{t('Relaxed','هادي')}</option><option value={1}>{t('Normal','عادي')}</option><option value={1.1}>{t('Lively','سريع')}</option></select></label>
-   <div className="companion-voice-controls"><button type="button" onClick={()=>speak('Hi! I’m here to help you plan your day.','en-US')}>{t('Preview English','جرّب الإنكليزي')}</button><button type="button" onClick={()=>speak('أهلا! أنا هون لساعدك ترتّب نهارك. شو بدّك نعمل اليوم؟','ar-LB')}>{t('Preview Arabic','جرّب العربي')}</button><button type="button" disabled={!answer||busy} onClick={()=>speak(answer)}>{t('Read last reply','اسمع آخر رد')}</button></div>
+   <div className="companion-voice-controls"><button type="button" onClick={()=>speak('Hi! I’m here to help you plan your day.','en-US')}>{t('Preview English','جرّب الإنكليزي')}</button><button type="button" onClick={()=>speak('أهلا! أنا هون لساعدك ترتّب نهارك. شو بدّك نعمل اليوم؟','ar-LB')}>{t('Preview Arabic','جرّب العربي')}</button><button type="button" disabled={!answer||busy} onClick={()=>speak(answer,replyLocale(response,language))}>{t('Read last reply','اسمع آخر رد')}</button></div>
    </>:<p>{t('Spoken replies are unavailable in this browser.','قراءة الردود مش متاحة بهالمتصفح.')}</p>}
    <small>{t('Voices depend on your device; a Lebanese accent is not guaranteed. Your browser may process speech online. Audio is not stored by Yawmeh.','الأصوات حسب جهازك، واللهجة اللبنانية مش مضمونة. المتصفح ممكن يعالج الصوت أونلاين. يومي ما بيحفظ الصوت.')}</small>
   </div>}

@@ -7,10 +7,14 @@ import {chatReport} from './companion-chat.js';
 import {daySchema} from './daily.js';
 import {normalizeLebanese} from './lebanese-companion.js';
 import {everydayCompanion} from './companion-everyday.js';
+import {draftCorrection,normalizeFollowupText,followupCurrency,followupClock} from './companion-followup.js';
+import {companionDraftSchema} from './companion-ai.js';
 const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100)+' (USD estimate)';
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
 export function localCompanion(data,user,question,current,selected,context=null){
+ const correction=draftCorrection(question);
+ if(correction)return correctCompanionDraft(data,user,correction,current,context);
  const translated=normalizeLebanese(question);
  if(translated.answer)return {answer:translated.answer,context};
  if(translated.arabic&&!context?.field&&!/^(?:ضيف|اضف|سجل|ذكرني|صرفت|دفعت|قبضت)\s/.test(question.trim())){const everyday=everydayCompanion(data,user,question,current,true);if(everyday)return everyday;}
@@ -23,6 +27,28 @@ export function localCompanion(data,user,question,current,selected,context=null)
  else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='currency'?'بأي عملة؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.':result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':'قديش المبلغ؟ اكتبه بالارقام، مثلا 15.50. فيك تقول «الغي» لنوقف.';
  else if(translated.arabic&&translated.question==='cancel')result.answer='لغيت المسودة. ما انحفظ شي.';
  return result;
+}
+function correctCompanionDraft(data,user,{field,value},current,context){
+ if(!context?.draft)return {answer:'Prepare a draft first, then tell me what to change. Existing saved records must be edited in their app.'};
+ const draft=structuredClone(context.draft);
+ if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
+ const raw=normalizeFollowupText(value),catalog=currencyCatalog(data.settings),currency=followupCurrency(raw,catalog);
+ const day={today:current,tomorrow:addDays(current,1),yesterday:addDays(current,-1),اليوم:current,بكرا:addDays(current,1),بكرة:addDays(current,1),مبارح:addDays(current,-1),bokra:addDays(current,1),bukra:addDays(current,1),lyoum:current,elyoum:current,mbarah:addDays(current,-1)}[raw.toLowerCase()]||raw;
+ const validDate=daySchema.safeParse(day).success;
+ const amount=raw.match(/^\$?(\d+(?:\.\d{1,2})?)\s*(USD|LBP|EUR|GBP|دولار|ليرة|ليره)?$/i);
+ const clock=followupClock(raw);
+ if(field==='auto')field=currency?'currency':validDate?'date':amount?'amount':clock?'time':'unknown';
+ if(field==='date'&&validDate&&draft.type!=='item')draft.initial[draft.type==='task'?'due':draft.type==='subscription'?'renewal':draft.type==='budget'?'start':'date']=day;
+ else if(field==='amount'&&draft.type!=='task'&&amount&&Number(amount[1])>0){
+  draft.initial.amount=Number(amount[1]);
+  if(amount[2]){const code=followupCurrency(amount[2],catalog);if(!code)return {answer:'Choose one configured currency: '+catalog.map(c=>c.code).join(', ')+'. Nothing was saved.',context};draft.initial.currency=code;}
+ }else if(field==='currency'&&draft.type!=='task'&&currency)draft.initial.currency=currency;
+ else if(field==='title'&&value.trim()&&value.trim().length<=160)draft.initial.title=value.trim();
+ else if(field==='time'&&draft.type==='task'&&clock)draft.initial.scheduled_time=clock;
+ else return {answer:'Tell me a clear date, amount, currency, title or time for this draft. Nothing was saved.',context};
+ if(!companionDraftSchema.safeParse(draft).success)return {answer:'That value is not valid for this draft. Nothing was saved.',context};
+ if(!['task','expense','income','opening','withdrawal'].includes(draft.type)&&draft.initial.currency&&draft.initial.currency!=='USD')return {answer:'Budgets, subscription plans and saved items use USD in v1. For an LBP transaction, add income, expense or savings instead.',context};
+ return finishDraft(draft);
 }
 function localCompanionCore(data,user,question,current,selected,context=null){
  let q=question.trim();
@@ -51,10 +77,9 @@ function localCompanionCore(data,user,question,current,selected,context=null){
   const draft=structuredClone(context.draft);
   if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
   if(context.field==='currency'){
-   const alias={دولار:'USD',dollar:'USD',dolar:'USD','$':'USD',ليرة:'LBP',ليره:'LBP',lira:'LBP'}[q.toLowerCase()]||q;
-   const matches=currencyCatalog(data.settings).filter(c=>[c.code,c.name,c.symbol].some(v=>v&&v.toLowerCase()===alias.toLowerCase()));
-   if(matches.length!==1)return {answer:'Choose one configured currency: '+currencyCatalog(data.settings).map(c=>c.code).join(', ')+'. Nothing was saved.',context};
-   draft.initial.currency=matches[0].code;return finishDraft(draft);
+   const currency=followupCurrency(q,currencyCatalog(data.settings));
+   if(!currency)return {answer:'Choose one configured currency: '+currencyCatalog(data.settings).map(c=>c.code).join(', ')+'. Nothing was saved.',context};
+   draft.initial.currency=currency;return finishDraft(draft);
   }
   if(context.field==='title')draft.initial.title=q.slice(0,160);
   else {if(!/^\$?\d+(\.\d{1,2})?$/.test(q)||Number(q.replace('$',''))<=0)return {answer:'Enter a positive amount, such as 15.50, or say cancel.',context};draft.initial.amount=Number(q.replace('$',''));}

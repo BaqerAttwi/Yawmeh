@@ -2,6 +2,7 @@ import {randomId} from '../../../../shared/id.js';
 import React,{useState,useRef,useEffect} from 'react';
 import {X,Settings2,Plus,CalendarDays,ArrowUp,ChevronRight,RotateCw,Check,FileText,History,MessageSquarePlus,Trash2} from 'lucide-react';
 import {localCompanion} from '../../../../shared/local-companion.js';
+import {isLocalCompanionFollowup} from '../../../../shared/companion-followup.js';
 import {hasAccess} from '../../../../shared/access.js';
 import {companionLanguage,draftFields,presentReply,replyMetrics} from '../../../../shared/companion-presentation.js';
 import {readCompanionHistory,writeCompanionHistory,rememberConversation,historyKey,historyScope} from '../../../../shared/companion-history.js';
@@ -25,10 +26,11 @@ function BidiText({text}) {
 
 function Reply({message,avatar,t,onReview,onDismiss}) {
  const {action,answer,language}=message;
+ const lines=answer.split('\n'),long=lines.length>5,visibleAnswer=long?lines.slice(0,3).join('\n'):answer;
  return <article className="companion-reply" dir={language==='ar'?'rtl':'ltr'}>
   <div className="companion-message-author"><span style={{background:avatar.color}}/>{avatar.name}<small>{message.engine==='gemini'?t('AI-assisted · app records','بمساعدة AI · سجلات التطبيق'):t('From your records','من سجلاتك')}</small></div>
   {message.hasEnglishDetails&&<small className="companion-language-note">بعض التفاصيل المفصّلة بعدها بالإنكليزي.</small>}
-  <div className="companion-reply-sections">{answer.split(/\n\n+/).filter(Boolean).map((part,i)=>{const metrics=replyMetrics(part,language);return metrics?<section className="companion-metrics" key={i}><small><BidiText text={metrics.caption}/></small><dl>{metrics.items.map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl></section>:<p dir="auto" key={i}><BidiText text={part}/></p>;})}</div>
+  <div className="companion-reply-sections">{visibleAnswer.split(/\n\n+/).filter(Boolean).map((part,i)=>{const metrics=replyMetrics(part,language);return metrics?<section className="companion-metrics" key={i}><small><BidiText text={metrics.caption}/></small><dl>{metrics.items.map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl></section>:<p dir="auto" key={i}><BidiText text={part}/></p>;})}{long&&<details className="companion-full-reply"><summary>{language==='ar'?'شوف باقي الجواب والملاحظات':'Show the rest and notes'}</summary>{lines.slice(3).join('\n').split(/\n\n+/).filter(Boolean).map((part,i)=><p dir="auto" key={i}><BidiText text={part}/></p>)}</details>}</div>
   {action&&<section className="companion-draft" aria-label={t('Draft to review','مسودة للمراجعة')}>
    <div className="companion-draft-heading"><FileText size={16}/><strong>{actionNames[action.type]?.[language==='ar'?1:0]||action.type}</strong><span>{t('DRAFT','مسودة')}</span></div>
    <dl>{draftFields(action,language).map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl>
@@ -51,7 +53,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
  const [viewport,setViewport]=useState({height:window.visualViewport?.height||window.innerHeight,gap:0,keyboard:false});
  const [avatarId,setAvatar]=useState(()=>read(key,'sage'));
  const [preference,setPreference]=useState(()=>{const value=read(key+':language','auto');return ['en','ar','auto'].includes(value)?value:'auto';});
- const [lastLanguage,setLastLanguage]=useState(()=>navigator.language?.startsWith('ar')?'ar':'en');
+ const [lastLanguage,setLastLanguage]=useState(()=>read(key+':last-language',navigator.language?.startsWith('ar')?'ar':'en'));
  const [open,setOpen]=useState(false),[voiceState,setVoiceState]=useState('idle'),[thinking,setThinking]=useState(false),[tools,setTools]=useState(null);
  const [moving,setMoving]=useState(()=>read(key+':motion','moving')!=='paused');
  const [useAI,setUseAI]=useState(()=>read(key+':ai','on')==='on'),[aiAvailable,setAIAvailable]=useState(false),[aiNotice,setAINotice]=useState('');
@@ -84,7 +86,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
  },[messages,text,start,end,sessionId]);
  function cancelPending(){clearTimeout(pending.current);remote.current?.abort();remote.current=null;requestGeneration.current++;inFlight.current=false;setThinking(false);}
  function newChat(){cancelPending();setAINotice('');conversation.current=null;setMessages([]);setText('');setSessionId(randomId());setStart(date);setEnd(date);setRestored(false);setTools(null);}
- function restoreChat(saved){cancelPending();conversation.current=saved.context;setMessages(saved.messages);setText(saved.text);setStart(saved.start);setEnd(saved.end);setSessionId(saved.id);sequence.current=Math.max(0,...saved.messages.map(m=>m.id));setRestored(true);setTools(null);}
+ function restoreChat(saved){cancelPending();const restoredLanguage=saved.messages.at(-1)?.language;if(restoredLanguage){setLastLanguage(restoredLanguage);save(key+':last-language',restoredLanguage);}conversation.current=saved.context;setMessages(saved.messages);setText(saved.text);setStart(saved.start);setEnd(saved.end);setSessionId(saved.id);sequence.current=Math.max(0,...saved.messages.map(m=>m.id));setRestored(true);setTools(null);}
  function deleteChat(id){const next=historyRef.current.filter(s=>s.id!==id);historyRef.current=next;setHistory(next);try{localStorage.setItem(historyKey(key),writeCompanionHistory(next,user));}catch{setStorageError(true);}if(id===sessionId)newChat();}
 
  function clearDrafts(){conversation.current=null;setMessages(old=>old.map(m=>({...m,action:undefined})));}
@@ -92,12 +94,12 @@ function CompanionSession({data,user,date,mode,onAction}) {
   if(!question.trim()||thinking||inFlight.current)return;
   inFlight.current=true;const generation=++requestGeneration.current;
   const nextLanguage=companionLanguage(preference,displayQuestion,lastLanguage);
-  setLastLanguage(nextLanguage);setThinking(true);setText('');
+  setLastLanguage(nextLanguage);save(key+':last-language',nextLanguage);setThinking(true);setText('');
   // Yield once so the activity indicator paints while preparing a local reply.
   pending.current=setTimeout(async()=>{
    try{
     let result,reply;
-    const localFollowup=conversation.current?.field||/^(cancel|never mind|الغي|إلغي|change (?:that|the amount) to)\b/i.test(question.trim());
+    const localFollowup=isLocalCompanionFollowup(question,conversation.current);
     if(mode==='live'&&useAI&&aiAvailable&&!localFollowup){
      const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),15000);
      try{
