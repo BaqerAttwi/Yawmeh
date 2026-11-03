@@ -23,7 +23,7 @@ export async function sendReminders() {
     db=await pool.getConnection();
     const [[lock]]=await db.query("SELECT GET_LOCK('daywell_reminders',0) AS acquired");
     if(!lock.acquired) return;
-    const [users]=await db.query("SELECT id,name,role,permissions FROM users WHERE active=1 AND reminder_email<>''");
+    const [users]=await db.query("SELECT id,name,role,permissions FROM users WHERE active=1 AND (role='admin' OR access_expires_at IS NULL OR access_expires_at>UTC_TIMESTAMP()) AND reminder_email<>''");
     const transport=nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:process.env.SMTP_SECURE==='true',auth:process.env.SMTP_USER?{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD}:undefined,connectionTimeout:15000,socketTimeout:20000});
     for(const user of users) {
      try {

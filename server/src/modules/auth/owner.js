@@ -10,9 +10,9 @@ export async function migrateOwner(db){
 
 export async function ownerUsage(db){
  const [[totals]]=await db.query(`SELECT COUNT(*) AS accounts,
-  COALESCE(SUM(active=1),0) AS enabled,
-  COALESCE(SUM(active=1 AND last_seen_at>=UTC_TIMESTAMP()-INTERVAL 5 MINUTE),0) AS active_5m,
-  COALESCE(SUM(active=1 AND last_seen_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY),0) AS active_7d,
+  COALESCE(SUM(active=1 AND (role='admin' OR access_expires_at IS NULL OR access_expires_at>UTC_TIMESTAMP())),0) AS enabled,
+  COALESCE(SUM(active=1 AND (role='admin' OR access_expires_at IS NULL OR access_expires_at>UTC_TIMESTAMP()) AND last_seen_at>=UTC_TIMESTAMP()-INTERVAL 5 MINUTE),0) AS active_5m,
+  COALESCE(SUM(active=1 AND (role='admin' OR access_expires_at IS NULL OR access_expires_at>UTC_TIMESTAMP()) AND last_seen_at>=UTC_TIMESTAMP()-INTERVAL 7 DAY),0) AS active_7d,
   COALESCE(SUM(login_count),0) AS sign_ins FROM users`);
  const [activity]=await db.query('SELECT id,last_seen_at,last_login_at,login_count FROM users ORDER BY id');
  const [[ai]]=await db.query('SELECT requests FROM companion_usage WHERE scope=?',[`month:${today(process.env.TIMEZONE||'Asia/Beirut').slice(0,7)}`]);

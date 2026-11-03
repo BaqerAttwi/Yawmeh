@@ -1,5 +1,5 @@
 // Required columns for the current Daywell application.
-export const REQUIRED_SCHEMA = { password_resets: ["token_hash","user_id","expires_at"],
+export const REQUIRED_SCHEMA = { signup_verifications:["token_hash","user_id","expires_at"], oauth_states:["state_hash","code_verifier","nonce","expires_at"], password_resets: ["token_hash","user_id","expires_at"],
   "companion_usage": ["scope","requests"],
   "settings": [
     "id",
@@ -19,6 +19,10 @@ export const REQUIRED_SCHEMA = { password_resets: ["token_hash","user_id","expir
     "role",
     "permissions",
     "active",
+    "payment_status",
+    "access_expires_at",
+    "google_sub",
+    "email_verified",
     "last_seen_at",
     "last_login_at",
     "login_count",

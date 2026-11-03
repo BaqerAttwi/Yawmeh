@@ -24,7 +24,7 @@ import {createAuth,mysqlAuthStore,protectMutation,requireAccess,requireAdmin} fr
 import {mountPlanner} from './modules/planning/routes.js';
 import {PlannerError,checkUnassignedWithdrawal} from '../../shared/planner.js';
 
-export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions={recovery:recoveryStore(db)},speechOptions,companionOptions,trustProxy=trustedProxies()}={}) {
+export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions={recovery:recoveryStore(db)},signupOptions,speechOptions,companionOptions,trustProxy=trustedProxies()}={}) {
  const app=express();
  app.set('trust proxy',trustProxy);
  app.disable('x-powered-by');
@@ -34,7 +34,7 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
  app.use('/api',protectMutation);
  app.use(express.json({limit:'64kb'}));
  app.get('/api/health',async(req,res)=>{try{await db.query('SELECT id FROM users LIMIT 1');res.json({database:true});}catch{res.status(503).json({database:false});}});
- const auth=createAuth(authStore,recoveryOptions);
+ const auth=createAuth(authStore,recoveryOptions,signupOptions);
  app.use('/api/auth',auth.router);
  app.use('/api',auth.authenticate);
  app.use('/api/admin',auth.admin);

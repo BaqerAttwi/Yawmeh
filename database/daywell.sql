@@ -25,7 +25,11 @@ CREATE TABLE IF NOT EXISTS `users` (
  `password_hash` VARCHAR(200) NOT NULL,
  `role` ENUM('admin','user') NOT NULL DEFAULT 'user',
  `permissions` JSON NOT NULL,
- `active` BOOLEAN NOT NULL DEFAULT TRUE,
+ `active` BOOLEAN NOT NULL DEFAULT FALSE,
+ `payment_status` ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid',
+ `access_expires_at` DATETIME NULL,
+ `google_sub` VARCHAR(255) NULL UNIQUE,
+ `email_verified` BOOLEAN NOT NULL DEFAULT TRUE,
  `last_seen_at` DATETIME NULL,
  `last_login_at` DATETIME NULL,
  `login_count` BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -191,4 +195,19 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
  `user_id` INT NOT NULL UNIQUE,
  `expires_at` DATETIME NOT NULL,
  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS `oauth_states` (
+ `state_hash` CHAR(64) PRIMARY KEY,
+ `code_verifier` VARCHAR(128) NOT NULL,
+ `nonce` VARCHAR(128) NOT NULL,
+ `expires_at` DATETIME NOT NULL,
+ INDEX (`expires_at`)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS `signup_verifications` (
+ `token_hash` CHAR(64) PRIMARY KEY,
+ `user_id` INT NOT NULL UNIQUE,
+ `expires_at` DATETIME NOT NULL,
+ FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;

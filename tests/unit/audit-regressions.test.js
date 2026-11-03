@@ -32,5 +32,5 @@ test('a password reset racing sign-in cannot issue a cookie',async t=>{
  const server=express().use(express.json()).use(router).listen(0,'127.0.0.1');
  await once(server,'listening');t.after(()=>{server.closeAllConnections();server.close();});
  const response=await fetch(`http://127.0.0.1:${server.address().port}/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'user@example.com',password})});
- assert.equal(response.status,401);assert.equal(response.headers.get('set-cookie'),null);
+ assert.equal(response.status,403);assert.equal(response.headers.get('set-cookie'),null);
 });

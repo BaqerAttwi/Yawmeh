@@ -27,7 +27,7 @@ try{
   assert.equal(await page.locator('.workspace-loading strong').innerText(),'yawmeh.me');
   await page.screenshot({path:`test-results/loading-${width}.png`});release();
   await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
-  assert.deepEqual(requests,['/api/data'],'startup uses one account request');
+  assert.deepEqual(requests.filter(path=>path!=='/api/auth/options'),['/api/data'],'startup uses one account request');
   const password=page.locator('input[name=password]');await password.fill('testpass');
   await page.getByRole('button',{name:'Show password',exact:true}).click();assert.equal(await password.getAttribute('type'),'text');
   await page.getByRole('button',{name:'Hide password',exact:true}).click();assert.equal(await password.getAttribute('type'),'password');

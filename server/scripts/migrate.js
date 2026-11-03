@@ -1,4 +1,5 @@
 import {newPasswordSchema} from '../../shared/password-policy.js';
+import {migrateSignup} from '../src/modules/auth/signup.js';
 import {resetTableSQL} from '../src/modules/auth/recovery.js';
 import {companionUsageSQL} from '../src/modules/ai/companion-usage.js';
 import {migrateOwner} from '../src/modules/auth/owner.js';
@@ -35,6 +36,7 @@ export async function migrate() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
   await pool.query(resetTableSQL);
+  await migrateSignup(pool);
   await migrateOwner(pool);
   const [[existingAdmin]]=await pool.query("SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1");
   let adminId=existingAdmin?.id;

@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Play,Pause,RotateCcw,ChevronLeft,ChevronRight,X,Check,Plus,Mail,Wallet,ShieldCheck,CheckSquare,Sparkles,Grid3X3} from 'lucide-react';
 const scenes=[
-  {title:'Your apps. Your access.',caption:'Your administrator creates your account and ticks the apps you can use. Sign in with the email and password they give you.',icon:ShieldCheck,label:'01 · SIGN IN',kind:'access'},
+  {title:'Your apps. Your access.',caption:'Create an account with your email or Google. New accounts stay inactive until the owner grants access. Your owner chooses which apps you can use.',icon:ShieldCheck,label:'01 · SIGN IN',kind:'access'},
   {title:'One place for your next small win.',caption:'Open Tasks, press Add task, give it a name, pick a category and choose a due date. Set a priority so you know what needs your attention.',icon:Plus,label:'02 · MAKE A PLAN',kind:'task'},
   {title:'Let a reminder do the remembering.',caption:'Choose an optional email reminder date when creating a task. Add your reminder email in Settings. Email delivery needs the server’s email setup.',icon:Mail,label:'03 · GET A NUDGE',kind:'reminder'},
   {title:'Tick it off. See your progress.',caption:'Click the checkbox beside a finished task. Your totals and progress chart update. Click it again if you need to reopen the task.',icon:CheckSquare,label:'04 · SMALL WINS',kind:'complete'},

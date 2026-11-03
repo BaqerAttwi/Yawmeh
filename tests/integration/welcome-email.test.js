@@ -14,19 +14,19 @@ test('welcome email escapes names and includes an expiring setup link, never a p
  assert.match(message.text,/Forgot password/);
 });
 
-test('owner invitations hash tokens, report send failure without losing accounts, and require configured email for passwordless creation',async t=>{
+test('owner-created accounts are inactive, receive greetings and survive email failure',async t=>{
  const created=[],issued=[],sent=[];let configured=true,fail=false;
  const owner={id:1,name:'Owner',email:'owner@test.local',role:'admin',active:true,permissions:[]};
  const authStore={session:async()=>owner,create:async value=>{created.push(value);return created.length+1;}};
- const server=createApp({db:{},authStore,recoveryOptions:{configured:()=>configured,recovery:{issue:async(...args)=>issued.push(args)},sendWelcome:async(...args)=>{if(fail)throw new Error('provider secret');sent.push(args);}}}).listen(0,'127.0.0.1');
+ const server=createApp({db:{},authStore,recoveryOptions:{configured:()=>configured,recovery:{issue:async(...args)=>issued.push(args)}},signupOptions:{sendGreeting:async(...args)=>{if(fail)throw new Error('provider secret');sent.push(args);return true;}}}).listen(0,'127.0.0.1');
  await once(server,'listening');t.after(()=>{server.closeAllConnections();server.close();});
  const call=async()=>{
   const response=await fetch(`http://127.0.0.1:${server.address().port}/api/admin/users`,{method:'POST',headers:{'content-type':'application/json',cookie:'daywell_session='+'a'.repeat(64)},body:JSON.stringify({name:'Member',email:'member@test.local',permissions:['tasks']})});
   return {status:response.status,body:await response.json()};
  };
  const success=await call();assert.equal(success.status,201);assert.equal(success.body.invitation,'sent');
- assert.equal(issued[0][1],tokenHash(sent[0][1]));assert.notEqual(issued[0][1],sent[0][1]);
- assert.equal(sent[0][0],'member@test.local');assert.equal(sent[0][2],'Member');
+ assert.equal(issued.length,0,'New inactive accounts get a greeting, not a password reset token');assert.equal(created[0].active,false);assert.equal(created[0].payment_status,'unpaid');
+ assert.equal(sent[0][0],'member@test.local');assert.equal(sent[0][1],'Member');
  assert.doesNotMatch(JSON.stringify(success.body),/password|token|secret/);
  assert.ok(created[0].password_hash);
  fail=true;const failure=await call();assert.equal(failure.status,201);assert.equal(failure.body.invitation,'failed');assert.equal(created.length,2);

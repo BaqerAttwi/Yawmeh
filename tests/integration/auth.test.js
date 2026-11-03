@@ -82,7 +82,8 @@ test('unknown emails, wrong passwords and disabled accounts all fail sign in',as
   const a=await f.call('/auth/login',{method:'POST',body:{email:'nobody@test.local',password:f.password}});
   const b=await f.call('/auth/login',{method:'POST',body:{email:'sam@test.local',password:'wrong'}});
   f.users[1].active=false;const c=await f.call('/auth/login',{method:'POST',body:{email:'sam@test.local',password:f.password}});
-  for(const r of [a,b,c]){assert.equal(r.status,401);assert.deepEqual(r.body,{error:'Email or password is incorrect.'});}
+  assert.equal(c.status,403);assert.equal(c.body.code,'ACCOUNT_INACTIVE');
+  for(const r of [a,b]){assert.equal(r.status,401);assert.deepEqual(r.body,{error:'Email or password is incorrect.'});}
 });
 test('Tasks-only users cannot invoke money, AI or administrator routes',async t=>{
   const f=await fixture(t),cookie=await f.login('sam@test.local');
