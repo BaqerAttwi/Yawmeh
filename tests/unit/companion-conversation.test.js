@@ -67,3 +67,25 @@ test('voice locale follows explicit microphone choice and declared reply languag
  assert.equal(selectDeviceVoice(voices,'ar-LB').voiceURI,'ar-lb');assert.equal(selectDeviceVoice(voices,'ar-LB','ar-online').voiceURI,'ar-online');
  assert.equal(selectDeviceVoice(voices.slice(0,3),'ar-LB').voiceURI,'ar-local');assert.equal(selectDeviceVoice(voices,'fr-FR'),undefined);
 });
+
+test('an ambiguous task time retains the task and accepts a short follow-up',()=>{
+ for(const prefix of ['add task','add to task','add to my tasks','create a new task','make a task','remind me to','remind me']){
+  const first=ask(prefix+' take a breake at 1');
+  assert.equal(first.action,undefined,prefix);assert.equal(first.context?.field,'time',prefix);
+  assert.equal(first.context.draft.initial.title,'take a breake',prefix);
+  assert.equal(first.context.draft.initial.due,date);
+  const stillAmbiguous=ask('at 1',first.context);assert.equal(stillAmbiguous.context.field,'time');assert.equal(stillAmbiguous.action,undefined);
+  for(const time of ['at 1 pm','1 pm','13:00','at 1 p.m.','الساعة ١ المسا']){
+   const reply=ask(time,first.context);assert.equal(reply.action?.initial.scheduled_time,'13:00',prefix+' / '+time);assert.equal(reply.action.initial.title,'take a breake');assert.equal(reply.action.initial.due,date);
+  }
+ }
+ const ready=ask('add to task take a breake at 1 pm');assert.equal(ready.action.initial.scheduled_time,'13:00');
+ assert.equal(ask('cancel',ask('add task rest at 1').context).context,undefined);
+ assert.equal(ask('1 pm',ask('add task rest at 1').context,{role:'user',permissions:['money']}).action,undefined);
+});
+
+test('invalid task dates retain title and time until a valid date is supplied',()=>{
+ const first=ask('add task take a break on 2026-02-30 at 1 pm');assert.equal(first.context?.field,'date');assert.equal(first.action,undefined);
+ const reply=ask('tomorrow',first.context);assert.equal(reply.action.initial.title,'take a break');assert.equal(reply.action.initial.due,'2026-11-04');assert.equal(reply.action.initial.scheduled_time,'13:00');
+ assert.equal(ask('2026-02-30',first.context).action,undefined);
+});

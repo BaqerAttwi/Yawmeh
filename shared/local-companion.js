@@ -24,7 +24,7 @@ export function localCompanion(data,user,question,current,selected,context=null)
   const draft=structuredClone(result.action||result.context.draft);delete draft.initial.currency;result=finishDraft(draft);
  }
  if(translated.arabic&&result.action){const d=result.action.initial;result.answer=`حضرتلك مسودة: ${d.title}${d.amount?' · '+d.amount+' '+(d.currency||'USD'):''} · ${d.due||d.date||''}${d.scheduled_time?' · '+d.scheduled_time:''}. راجع التفاصيل واضغط حفظ. بعد ما انحفظ شي.`;}
- else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='currency'?'بأي عملة؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.':result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':'قديش المبلغ؟ اكتبه بالارقام، مثلا 15.50. فيك تقول «الغي» لنوقف.';
+ else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='time'?'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة.':result.context.field==='date'?'بأي تاريخ؟ قلّي اليوم أو بكرا أو اكتب YYYY-MM-DD.':result.context.field==='currency'?'بأي عملة؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.':result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':'قديش المبلغ؟ اكتبه بالارقام، مثلا 15.50. فيك تقول «الغي» لنوقف.';
  else if(translated.arabic&&translated.question==='cancel')result.answer='لغيت المسودة. ما انحفظ شي.';
  return result;
 }
@@ -76,6 +76,12 @@ function localCompanionCore(data,user,question,current,selected,context=null){
  if(context?.draft&&context.field){
   const draft=structuredClone(context.draft);
   if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
+  if(context.field==='time'){
+   const clock=followupClock(q);
+   if(!clock)return {answer:'Please specify a clear time, such as 9 pm or 21:00. Nothing has been saved.',context};
+   draft.initial.scheduled_time=clock;return finishDraft(draft);
+  }
+  if(context.field==='date')return correctCompanionDraft(data,user,{field:'date',value:q},current,context);
   if(context.field==='currency'){
    const currency=followupCurrency(q,currencyCatalog(data.settings));
    if(!currency)return {answer:'Choose one configured currency: '+currencyCatalog(data.settings).map(c=>c.code).join(', ')+'. Nothing was saved.',context};
@@ -85,7 +91,7 @@ function localCompanionCore(data,user,question,current,selected,context=null){
   else {if(!/^\$?\d+(\.\d{1,2})?$/.test(q)||Number(q.replace('$',''))<=0)return {answer:'Enter a positive amount, such as 15.50, or say cancel.',context};draft.initial.amount=Number(q.replace('$',''));}
   return finishDraft(draft);
  }
- const normalized=q.replace(/^i (?:spent|paid)\s+/i,'add expense ').replace(/^remind me to\s+/i,'add task ').replace(/^i (?:earned|received)\s+/i,'add income ');
+ const normalized=q.replace(/^i (?:spent|paid)\s+/i,'add expense ').replace(/^remind me\s+(?:to\s+)?/i,'add task ').replace(/^i (?:earned|received)\s+/i,'add income ');
  const everyday=everydayCompanion(data,user,normalized,current);
  const intent=/^(?:help|what (?:else )?can (?:i ask|you do)|show (?:me )?examples)[?!. ]*$/i.test(normalized)?everyday:companionIntent(normalized,user,current);
  if(intent){if(intent.action&&['expense','income','opening','withdrawal'].includes(intent.action.type))intent.action.initial.currency??=data.settings?.last_currency||'USD';return intent.action?finishDraft(intent.action):intent;}
@@ -153,7 +159,8 @@ function localCompanionCore(data,user,question,current,selected,context=null){
  return {answer:answer.startsWith('I can report')?'I’m a free local helper, so I work with supported requests and your recorded data. Try “Plan my day”, “Can I afford $100?”, “How can I save more?”, “Review subscriptions”, “Savings goals”, or “I spent 15 for lunch”.':answer,context:{topic}};
 }
 export function finishDraft(draft){
- const field=!draft.initial.title?'title':draft.type!=='task'&&!draft.initial.amount?'amount':['expense','income','opening','withdrawal'].includes(draft.type)&&!draft.initial.currency?'currency':null;
+ const field=!draft.initial.title?'title':draft.type==='task'&&!draft.initial.due?'date':draft.type!=='task'&&!draft.initial.amount?'amount':['expense','income','opening','withdrawal'].includes(draft.type)&&!draft.initial.currency?'currency':null;
+ if(field==='date')return {answer:'Which date should I use? Say today, tomorrow, or enter YYYY-MM-DD. Your task draft is still here.',context:{draft,field}};
  if(field)return {answer:field==='currency'?'Which currency? Enter USD, LBP, or a currency name from Settings. Nothing was saved.':field==='title'?`What should I call this ${draft.type}? Say cancel to stop.`:'What is the amount? Enter a number such as 15.50, or say cancel.',context:{draft,field}};
  return {answer:`Your ${draft.type==='opening'?'existing savings':draft.type} draft is ready: ${draft.initial.title}${draft.initial.amount?' · '+formatMoney(cents(draft.initial.amount),draft.initial.currency||'USD'):''} · ${draft.initial.due||draft.initial.date||draft.initial.renewal||draft.initial.start||'review date in form'}. You can say “change that to tomorrow”${draft.type!=='task'?' or “change the amount to 25”':''}. Review and save when ready. Nothing has been saved yet.`,action:draft,context:{draft}};
 }

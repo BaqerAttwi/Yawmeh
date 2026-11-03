@@ -41,6 +41,16 @@ try{
   await toggle.check();await page.getByRole('button',{name:'Companion settings',exact:true}).click();
   const before=records.tasks.length;intent='draft';
   const ask=async text=>{await page.locator('#companion-question').fill(text);await page.getByRole('button',{name:'Send message',exact:true}).click();};
+  const callsBefore=calls;
+  await ask('add task take a breake at 1');
+  await page.getByText('What time? For example, 1 pm or 13:00. Your task draft is still here; nothing has been saved.',{exact:true}).waitFor();
+  await ask('at 1 pm');await page.locator('.companion-draft').waitFor();
+  assert.match(await page.locator('.companion-draft').innerText(),/take a breake/);
+  assert.match(await page.locator('.companion-draft').innerText(),/13:00/);
+  await ask('add to task take a breake at 1 pm');
+  await page.waitForFunction(()=>document.querySelectorAll('.companion-reply').length===3);
+  assert.equal(calls,callsBefore,'Known task commands and their time clarification use no AI requests');
+  assert.equal(records.tasks.length,before,'Clarification never saves automatically');
   await ask('Prepare a small task for today');
   await page.locator('.companion-draft').waitFor();assert.equal(records.tasks.length,before,'AI must not write');
   await page.getByRole('button',{name:'Review & save',exact:true}).click();

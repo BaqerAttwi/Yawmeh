@@ -37,7 +37,7 @@ export function followupCurrency(value,catalog){
 }
 
 export function followupClock(value){
- const q=normalizeFollowupText(value).replace(/^(?:at|الساعة|عالساعة)\s*/i,'').replace(/(?:المسا|مسا|بالليل)$/,'pm').replace(/(?:الصبح|صباحا|صباح)$/,'am');
+ const q=normalizeFollowupText(value).replace(/^(?:at|الساعة|عالساعة)\s*/i,'').replace(/\b([ap])\.\s*m\.?$/i,'$1m').replace(/(?:المسا|مسا|بالليل)$/,'pm').replace(/(?:الصبح|صباحا|صباح)$/,'am');
  const match=q.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);if(!match)return null;
  let hour=Number(match[1]);const minute=Number(match[2]||0);if(minute>59)return null;
  if(match[3]){if(hour<1||hour>12)return null;hour=hour%12+(match[3].toLowerCase()==='pm'?12:0);}

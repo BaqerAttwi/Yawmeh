@@ -31,6 +31,8 @@ export function replyMetrics(text,language='en') {
 
 export function presentReply(result,language) {
  if(language!=='ar'){
+  if(result.context?.field==='time')return {...result,language:'en',answer:'What time? For example, 1 pm or 13:00. Your task draft is still here; nothing has been saved.'};
+  if(result.context?.field==='date')return {...result,language:'en',answer:'Which date? Say today, tomorrow, or enter YYYY-MM-DD. Your task draft is still here; nothing has been saved.'};
   if(result.action)return {...result,language:'en',answer:'Your draft is ready. Review the details below before saving.'};
   if(result.context?.field&&/^(على شو|قديش المبلغ|بأي عملة)/.test(result.answer))return {...result,language:'en',answer:{title:'What should I call this entry? Say cancel to stop.',amount:'What is the amount? Enter a number such as 15.50, or say cancel.',currency:'Which currency? Enter a configured currency code, such as USD or LBP.'}[result.context.field]};
   const known={
@@ -42,6 +44,8 @@ export function presentReply(result,language) {
  }
  if(result.action)return {...result,language:'ar',answer:'المسودة جاهزة. راجع التفاصيل قبل الحفظ؛ بعد ما انحفظ شي.'};
  if(result.context?.field){
+  if(result.context.field==='time')return {...result,language:'ar',answer:'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة؛ ما انحفظ شي بسجلاتك.'};
+  if(result.context.field==='date')return {...result,language:'ar',answer:'بأي تاريخ؟ قلّي اليوم أو بكرا، أو اكتب تاريخ مثل 2026-11-04. ما انحفظ شي.'};
   const prompts={title:'شو اسم العملية؟ فيك تقول «الغي» لنوقف.',amount:'قديش المبلغ؟ اكتب رقم مثل 15.50، أو «الغي» لنوقف.',currency:'بأي عملة؟ اكتب رمز عملة من العملات اللي ضفتها، مثل USD أو LBP.'};
   // Preserve validation feedback instead of replacing it with a generic prompt.
   if(result.answer.startsWith('Choose one configured currency: '))return {...result,language:'ar',answer:result.answer.replace('Choose one configured currency: ','اختار عملة من العملات المضافة: ').replace('. Nothing was saved.','. ما انحفظ شي.')};

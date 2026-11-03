@@ -52,6 +52,13 @@ test('Arabic AI replies localize headings and keep private account titles on the
  assert.deepEqual(f.reservations[0].limits,{daily:10,monthly:1000});
 });
 
+test('AI time clarifications return a validated pending task instead of losing the request',async t=>{
+ const f=await fixture(t,{intent:{intent:'clarify',draft:{type:'task',initial:{title:'take a breake',due:'2026-11-03'}},clarificationField:'time'}});
+ const response=await f.call({...input,question:'Please remind me about taking a break at 1'}),reply=await response.json();
+ assert.equal(response.status,200);assert.equal(reply.context.field,'time');assert.equal(reply.context.draft.initial.title,'take a breake');assert.equal(reply.action,undefined);
+ const denied=await f.call({...input,question:'take a break at 1'},{token:'b'});assert.equal((await denied.json()).context,undefined);
+});
+
 test('zero and invalid quota settings disable paid calls instead of silently using defaults',async t=>{
  assert.deepEqual(companionAILimits({}),{daily:10,monthly:1000});
  assert.deepEqual(companionAILimits({COMPANION_AI_DAILY_LIMIT:'999',COMPANION_AI_MONTHLY_LIMIT:'99999'}),{daily:10,monthly:1000});

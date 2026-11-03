@@ -98,9 +98,11 @@ function CompanionSession({data,user,date,mode,onAction}) {
   // Yield once so the activity indicator paints while preparing a local reply.
   pending.current=setTimeout(async()=>{
    try{
-    let result,reply;
+    const prepared=localCompanion(data,user,question,date,{start,end},conversation.current);
+    const localDraft=!!prepared.action||(!conversation.current?.draft&&!!prepared.context?.draft);
+    let result=localDraft?prepared:undefined,reply;
     const localFollowup=isLocalCompanionFollowup(question,conversation.current);
-    if(mode==='live'&&useAI&&aiAvailable&&!localFollowup){
+    if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft){
      const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),15000);
      try{
       const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question)})});
@@ -112,7 +114,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
      finally{clearTimeout(timeout);if(remote.current===controller)remote.current=null;}
     }
     if(generation!==requestGeneration.current)return;
-    result??=localCompanion(data,user,question,date,{start,end},conversation.current);
+    result??=prepared;
     conversation.current=result.context||null;
     reply??=presentReply(result,nextLanguage);
     setMessages(old=>[...old.map(m=>({...m,action:undefined})),{...reply,question:displayQuestion,id:++sequence.current}].slice(-20));
