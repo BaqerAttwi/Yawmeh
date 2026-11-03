@@ -12,6 +12,10 @@ try{
   const page=await browser.newPage({viewport:{width,height:width===375?740:900}}),media=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('request',request=>{if(request.url().includes('/guides/'))media.push(request.url());});
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'Try admin demo'}).click();
+  await page.locator('.sidebar').getByRole('button',{name:'Video tutorials',exact:true}).click();
+  const tutorials=page.getByRole('dialog',{name:'Video tutorials',exact:true});await tutorials.waitFor();
+  assert.equal(await tutorials.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).count(),2);
+  await tutorials.getByRole('button',{name:'Close video tutorials',exact:true}).click();
   await page.locator('.companion-launcher').click();await page.locator('#companion-question').fill('I need help');await page.getByRole('button',{name:'Send message',exact:true}).click();
   let choices=page.locator('.companion-guidance-choices');await choices.getByRole('button',{name:'Tasks',exact:true}).click();
   await choices.getByRole('button',{name:'Add a task',exact:true}).click();
