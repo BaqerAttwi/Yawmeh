@@ -49,6 +49,24 @@ export function mysqlAuthStore(db = pool) {
     async revokeSession(userId,id){const [result]=await db.query('DELETE FROM sessions WHERE user_id=? AND token_hash=?',[userId,id]);return !!result.affectedRows;},
     async list() {const [rows] = await db.query('SELECT id,name,email,role,permissions,active FROM users ORDER BY id'); return rows;},
     async create(value) {const [result] = await db.query('INSERT INTO users SET ?', {...value, permissions:JSON.stringify(value.permissions), role:'user'}); return result.insertId;},
+    async remove(id, email) {
+      const cx=await db.getConnection();
+      try{
+        await cx.beginTransaction();
+        const [[member]]=await cx.query('SELECT id,email,role FROM users WHERE id=? FOR UPDATE',[id]);
+        if(!member||member.role!=='user'||member.email!==email){await cx.rollback();return false;}
+        for(const [table,prefix] of [['tasks','task:'],['subscriptions','subscription:']]){
+          await cx.query(`DELETE log FROM reminder_log AS log JOIN ${table} AS record ON log.reminder_key LIKE CONCAT(?,record.id,':%') WHERE record.user_id=?`,[prefix,id]);
+        }
+        for(const table of ['sessions','password_resets','subtasks','goal_moves','inbox','day_plans','entries','items','budgets','subscriptions','tasks','goals']){
+          await cx.query(`DELETE FROM ${table} WHERE user_id=?`,[id]);
+        }
+        await cx.query('DELETE FROM companion_usage WHERE scope LIKE ?',[`user:${id}:%`]);
+        const [result]=await cx.query("DELETE FROM users WHERE id=? AND role='user'",[id]);
+        if(!result.affectedRows){await cx.rollback();return false;}
+        await cx.commit();return true;
+      }catch(error){await cx.rollback();throw error;}finally{cx.release();}
+    },
     async update(id, value) {
       const dbx = await db.getConnection();
       try {
@@ -141,6 +159,13 @@ export function createAuth(store = mysqlAuthStore(), recoveryOptions) {
     const {password,...update}=value;
     if(password)update.password_hash=await hashPassword(password);
     if(!await store.update(id,update))return res.status(404).json({error:'Member account not found. Administrator access cannot be changed here.'});
+    res.json({ok:true});
+  });
+  admin.delete('/users/:id',async(req,res)=>{
+    if(!/^[1-9]\d*$/.test(req.params.id)||!Number.isSafeInteger(Number(req.params.id)))return res.status(400).json({error:'Choose a valid account ID.'});
+    const id=Number(req.params.id),input=z.object({email}).strict().parse(req.body);
+    if(id===req.user.id)return res.status(403).json({error:'The owner account cannot be deleted.'});
+    if(!await store.remove(id,input.email))return res.status(404).json({error:'Member account not found or confirmation does not match. Owner accounts cannot be deleted.'});
     res.json({ok:true});
   });
   return {router,admin,authenticate};
