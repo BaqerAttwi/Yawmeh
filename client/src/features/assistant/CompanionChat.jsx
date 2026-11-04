@@ -1,3 +1,4 @@
+import {companionStatusMessage} from '../../../../shared/companion-status.js';
 import {randomId} from '../../../../shared/id.js';
 import React,{useState,useRef,useEffect} from 'react';
 import {X,Settings2,Plus,CalendarDays,ArrowUp,ChevronRight,RotateCw,Check,FileText,History,MessageSquarePlus,Trash2} from 'lucide-react';
@@ -58,14 +59,14 @@ function CompanionSession({data,user,date,mode,onAction}) {
  const [lastLanguage,setLastLanguage]=useState(()=>read(key+':last-language',navigator.language?.startsWith('ar')?'ar':'en'));
  const [open,setOpen]=useState(false),[voiceState,setVoiceState]=useState('idle'),[thinking,setThinking]=useState(false),[tools,setTools]=useState(null);
  const [moving,setMoving]=useState(()=>read(key+':motion','moving')!=='paused');
- const [useAI,setUseAI]=useState(()=>read(key+':ai','on')==='on'),[aiAvailable,setAIAvailable]=useState(false),[aiNotice,setAINotice]=useState('');
+ const [useAI,setUseAI]=useState(()=>read(key+':ai','on')==='on'),[aiAvailable,setAIAvailable]=useState(false),[aiReason,setAIReason]=useState(null),[aiNotice,setAINotice]=useState('');
  const remote=useRef(),requestGeneration=useRef(0),inFlight=useRef(false);
  useEffect(()=>{
   if(mode!=='live')return;
   const controller=new AbortController();
-  fetch('/api/companion/ai',{credentials:'same-origin',signal:controller.signal}).then(r=>r.ok?r.json():null).then(r=>{if(!controller.signal.aborted)setAIAvailable(!!r?.available);}).catch(()=>{});
+  fetch('/api/companion/ai',{credentials:'same-origin',signal:controller.signal}).then(r=>r.ok?r.json():null).then(r=>{if(!controller.signal.aborted){setAIAvailable(!!r?.available);setAIReason(r?.reason||(!r?'unavailable':null));}}).catch(()=>{if(!controller.signal.aborted){setAIAvailable(false);setAIReason('unavailable');}});
   return()=>controller.abort();
- },[mode]);
+ },[mode,open]);
  const [text,setText]=useState(''),[start,setStart]=useState(date),[end,setEnd]=useState(date),[messages,setMessages]=useState([]),[promptPage,setPromptPage]=useState(0);
  const conversation=useRef(null),pending=useRef(null),sequence=useRef(0),input=useRef(),launcher=useRef(),bottom=useRef();
  const avatar=avatars.find(a=>a.id===avatarId)||avatars[0];
@@ -101,18 +102,18 @@ function CompanionSession({data,user,date,mode,onAction}) {
   pending.current=setTimeout(async()=>{
    try{
     const prepared=localCompanion(data,user,question,date,{start,end},conversation.current);
-    const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(!conversation.current?.draft&&!!prepared.context?.draft);
+    const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(!!prepared.context?.field&&!!prepared.context?.draft);
     let result=localDraft?prepared:undefined,reply;
     const localFollowup=isLocalCompanionFollowup(question,conversation.current);
     if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft&&!forceLocal){
-     const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),15000);
+     const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),30000);
      try{
-      const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question),dialogue:messages.slice(-4).map(m=>({question:m.question.slice(0,1000),answer:m.answer.slice(0,3000)}))})});
-      if(!response.ok)throw new Error('unavailable');
+      const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question),dialogue:messages.slice(-4).map(m=>({question:m.question.slice(0,1000),answer:m.engine==='gemini'?m.answer.slice(0,3000):'[Local app result not shared]'}))})});
+      if(!response.ok){const failure=await response.json().catch(()=>({}));throw new Error(failure.code||(response.status===429?'rate_limited':'unavailable'));}
       const received=await response.json();
       if(generation!==requestGeneration.current)return;
       result=received;reply=result;setAINotice('');
-     }catch{if(generation!==requestGeneration.current)return;setAINotice(t('AI unavailable or allowance reached. Using local responses.','AI مش متوفّر أو خلص الحد. عم نستعمل الردود المحلية.'));}
+     }catch(error){if(generation!==requestGeneration.current)return;setAINotice(companionStatusMessage(controller.signal.aborted?'timeout':error.message,nextLanguage));}
      finally{clearTimeout(timeout);if(remote.current===controller)remote.current=null;}
     }
     if(generation!==requestGeneration.current)return;
@@ -140,8 +141,9 @@ function CompanionSession({data,user,date,mode,onAction}) {
     {[['en','English'],['ar','عربي'],['auto',t('Auto','تلقائي')]].map(([value,label])=><button key={value} type="button" aria-pressed={preference===value} onClick={()=>{setPreference(value);save(key+':language',value);}}>{label}</button>)}
     <small>{t('Your everyday companion','رفيق نهارك')}</small>
    </div>
-   {tools==='settings'&&<section className="companion-tools"><label className="companion-motion-option"><input type="checkbox" disabled={!aiAvailable||mode!=='live'} checked={useAI&&aiAvailable&&mode==='live'} onChange={e=>{cancelPending();setUseAI(e.target.checked);save(key+':ai',e.target.checked?'on':'off');setAINotice('');}}/>{t('Understand requests with Gemini','فهم الطلبات مع Gemini')}</label><small>{aiAvailable?t('Sends your message, recent questions and pending draft to Google. Account records stay in this app. 10 AI requests/day; local chat continues after the limit. Shared monthly allowance.','بيبعت رسالتك، الأسئلة الأخيرة والمسودة لـGoogle. سجلاتك بتضل بالتطبيق. ١٠ طلبات AI باليوم، وبعدها بتكمّل الدردشة المحلية. في حد شهري مشترك.'):t('Gemini is not configured. Local responses remain available.','Gemini مش مفعّل. الردود المحلية متوفّرة.')}</small></section>}
+   {tools==='settings'&&<section className="companion-tools"><label className="companion-motion-option"><input type="checkbox" disabled={!aiAvailable||mode!=='live'} checked={useAI&&aiAvailable&&mode==='live'} onChange={e=>{cancelPending();setUseAI(e.target.checked);save(key+':ai',e.target.checked?'on':'off');setAINotice('');}}/>{t('Understand requests with Gemini','فهم الطلبات مع Gemini')}</label><small>{aiAvailable?t('Sends your message, recent questions and pending draft to Google. Account records stay in this app. 10 AI requests/day; local chat continues after the limit. Shared monthly allowance.','بيبعت رسالتك، الأسئلة الأخيرة والمسودة لـGoogle. سجلاتك بتضل بالتطبيق. ١٠ طلبات AI باليوم، وبعدها بتكمّل الدردشة المحلية. في حد شهري مشترك.'):companionStatusMessage(aiReason||'unavailable',language)}</small></section>}
    {mode==='live'&&useAI&&aiAvailable&&tools!=='settings'&&<small className="companion-chat-note">{t('AI is on. Messages, recent questions and pending drafts are sent to Google. Turn off in companion settings.','الذكاء الاصطناعي مفعّل. الرسائل والأسئلة الأخيرة والمسودات بتنبعت لـGoogle. فيك تطفّيه من إعدادات المساعد.')}</small>}
+   {mode==='live'&&useAI&&!aiAvailable&&aiReason&&<small className="companion-chat-note" role="status">{companionStatusMessage(aiReason,language)}</small>}
    {aiNotice&&<small className="companion-chat-note" role="status">{aiNotice}</small>}
    {tools==='settings'&&<section className="companion-tools" aria-label={t('Companion settings','إعدادات المساعد')}><label>{t('Your companion','مساعدك')}<select value={avatar.id} onChange={e=>{setAvatar(e.target.value);save(key,e.target.value);}}>{avatars.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label className="companion-motion-option"><input type="checkbox" checked={moving} onChange={e=>{setMoving(e.target.checked);save(key+':motion',e.target.checked?'moving':'paused');}}/>{t('Animate companion','حركة المساعد')}</label><p>{t(avatar.intro,avatar.ar)}</p></section>}
    {tools==='history'&&<section className="companion-tools companion-history" aria-label={t('Recent chats','المحادثات الأخيرة')}><div className="companion-history-heading"><strong>{t('Recent chats','المحادثات الأخيرة')}</strong><button type="button" onClick={newChat}><MessageSquarePlus size={15}/>{t('New chat','محادثة جديدة')}</button></div><small>{t('Saved on this browser for 30 days. Previous answers are snapshots.','محفوظة بهالمتصفح لـ٣٠ يوم. الأجوبة السابقة بتعكس وقت السؤال.')}</small>{history.length?history.map(saved=><div className="companion-history-row" key={saved.id}><button type="button" onClick={()=>restoreChat(saved)}><strong dir="auto">{saved.messages[0]?.question||saved.text||t('Unfinished chat','محادثة غير مكتملة')}</strong><small>{new Date(saved.updated).toLocaleDateString(ar?'ar-LB':'en-GB')} · {saved.context?.draft?t('Unfinished draft','مسودة غير محفوظة'):t('Conversation','محادثة')}</small></button><button type="button" aria-label={t('Delete chat','حذف المحادثة')} onClick={()=>deleteChat(saved.id)}><Trash2 size={14}/></button></div>):<p>{t('Your chats will appear here.','محادثاتك رح تظهر هون.')}</p>}</section>}

@@ -1,6 +1,7 @@
 // Translate supported templates only. Captured names, amounts and dates stay intact.
 export function arabicDetail(line){
  const exact={
+  'No expenses recorded this month.':'ما في مصاريف مسجّلة هالشهر.',
   'Let’s make this manageable. Would you like a plan from your tasks, to add a task, or to review overdue work? Nothing changes until you confirm.':'خلّينا نسهّلها. بدّك نرتّب نهارك من مهامك، نضيف مهمة، أو نراجع المتأخر؟ ما بيتغيّر شي بلا تأكيدك.',
   'What would help most: check your budget, record an expense, or find saving opportunities from your records? Nothing changes until you confirm.':'شو بيساعدك أكتر: نراجع ميزانيتك، نسجّل مصروف، أو نشوف وين فيك توفّر من سجلاتك؟ ما بيتغيّر شي بلا تأكيدك.',
   'What would you like help with: your tasks or your money? Choose one, or describe what you want to achieve.':'بشو بدّك مساعدة: مهامك أو مصرياتك؟ اختار وحدة أو قلّي شو هدفك.',

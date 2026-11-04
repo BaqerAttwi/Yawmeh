@@ -11,11 +11,13 @@ export function normalizeLebanese(input){
  if(!arabic)return {question:q,arabic:arabizi};
  if(/^(مرحبا|اهلا|هاي|كيفك|شكرا|يسلمو)[!؟?. ]*$/.test(q))return {arabic,answer:'اهلا! كيف فيني ساعدك اليوم؟ فيك تقلي «ذكرني العب فوتبول بكرا الساعة 9 المسا» او «صرفت 15 دولار على الغدا».'};
  if(/^(الغي|الغيها|خلص بلاش|بلاها|الغاء)$/.test(q))return {arabic,question:'cancel'};
+ q=q.replace(/^انا\s+/,'');
+ if(/^(?:استلفت|اقترضت|سلفت)\s/.test(q))return {arabic,answer:'تقصد مبلغ استلفته أو سلّفته لحدا؟ التطبيق ما فيه سجل ديون مستقل. فيك تسجّل حركة المصاري بعد ما توضّح إذا دخل أو مصروف، وما انحفظ شي.'};
  q=q.replace(/^(?:(?:لو سمحت|بليز|بدي|بدّي|ممكن)\s+)+/,'').replace(/^اعرف\s+/,'');
  if(/^(?:ضيف|اضف|سجل) مصروف[؟? ]*$/.test(q))return {arabic,question:'add expense',needsCurrency:true};
- const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|ضيف مصروف|سجل مصروف|قبضت|ضيف دخل|سجل دخل)\s+(.+)$/);
+ const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|انفقت|ضيف مصروف|سجل مصروف|قبضت|استلمت|ضيف دخل|سجل دخل|ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)\s+(.+)$/);
  if(command){
-  const type=/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة)$/.test(command[1])?'task':/^(قبضت|ضيف دخل|سجل دخل)$/.test(command[1])?'income':'expense';
+  const type=/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة)$/.test(command[1])?'task':/^(قبضت|استلمت|ضيف دخل|سجل دخل)$/.test(command[1])?'income':/^(ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)$/.test(command[1])?'savings':'expense';
   let rest=command[2].replace(/بعد بكرا/g,'__AFTER_TOMORROW__');
   if(rest.includes('__AFTER_TOMORROW__'))return {arabic,answer:'لبعد بكرا، حدد التاريخ بصيغة YYYY-MM-DD كرمال ما اغلط بالموعد. ما انحفظ شي.'};
   rest=rest.replace(/بكرا|بكرة/g,' tomorrow ').replace(/اليوم/g,' today ').replace(/مبارح|امبارح/g,' yesterday ')

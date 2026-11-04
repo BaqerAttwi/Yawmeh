@@ -4,7 +4,7 @@ import {hasAccess} from './access.js';
 
 // Drafts only: existing forms validate and persist after the user presses Save.
 export function companionIntent(question,user,current) {
- const text=question.trim(),q=text.toLowerCase();
+ const text=question.trim().replace(/^(?:put|deposit)\s+(\$?[\d,.]+(?:\s*(?:USD|LBP|dollars?))?)\s+(?:in(?:to)?|to)\s+(?:my\s+)?savings?\b/i,'add savings $1').replace(/^((?:please\s+)?(?:add|create|record|log|schedule|make)\s+(?:to\s+)?(?:(?:my|the|a|an|new|quick)\s+)*)saving\b/i,'$1savings'),q=text.toLowerCase();
  if(/^(what are you|who are you|what can you do|help)[?.! ]*$/.test(q))return {answer:'I’m your yawmeh.me companion. I can prepare tasks, expenses, income, savings withdrawals, budgets, subscriptions and frequent items, or report on your records. Try “add a task called football at 9 pm tomorrow” or “add expense 15 for lunch”. I open a draft for you to review and save; I never change your records silently.'};
  if(/^(hi|hello|hey|thanks|thank you)[!. ]*$/.test(q))return {answer:'Hi! What would help today? I can prepare a task or money entry, or show your plans and savings. Use a quick action below or tell me what to add.'};
  const command=text.match(/^(?:please\s+)?(?:add|create|record|log|schedule|make)\s+(?:to\s+)?(?:(?:my|the|a|an|new|quick)\s+)*(tasks?|to-do|todo|expense|purchase|income|savings|withdrawal|budget|subscription|item)\b\s*(.*)$/i);
@@ -43,6 +43,7 @@ export function companionIntent(question,user,current) {
   const amount=rest.match(/(?:^|\s)(?:\$\s*)?(\d+(?:\.\d{1,2})?)(?:\s*(?:usd|dollars|lbp))?(?=\s|$)/i);
   if(amount){initial.amount=Number(amount[1]);rest=rest.replace(amount[0],' ');}
   initial.title=rest.trim().replace(/^(?:called|named|for|from|of)\s+/i,'').trim();
+  if(type==='opening'&&!initial.title&&initial.amount)initial.title='Existing savings';
  }
  return {action:{type,initial},answer:`Draft ready. Review the ${type==='opening'?'existing savings':type} details below, then press Save. Nothing has been saved yet.`};
 }

@@ -36,9 +36,9 @@ test('AI only interprets requests; calculations/records remain private and outpu
  const request=f.requests[0],wire=JSON.stringify(request.body);
  assert.equal(request.headers['x-goog-api-key'],'server-only-test-key');
  assert.equal(request.redirect,'error','credentials must never follow provider redirects');
- assert.match(request.url,/gemini-3\.1-flash-lite:generateContent$/);
+ assert.match(request.url,/gemini-3\.8-flash:generateContent$/);
  assert.doesNotMatch(wire,/Private task stays on server|private-email|server-only-test-key/);
- assert.equal(request.body.generationConfig.maxOutputTokens,2048);
+ assert.equal(request.body.generationConfig.maxOutputTokens,8192);
  assert.equal(request.body.tools,undefined);assert.deepEqual(f.loads,[1]);
  assert.deepEqual(f.reservations[0].limits,{daily:10,monthly:1000});
 });
@@ -144,4 +144,21 @@ test('conversational replies preserve Lebanese Arabic, remember dialogue and do 
  assert.equal(reply.answer,answer);assert.equal(reply.language,'ar');assert.equal(reply.action,undefined);assert.deepEqual(f.loads,[]);
  const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);assert.deepEqual(sent.dialogue,dialogue);
  const missing=await fixture(t,{intent:{intent:'conversation'}});assert.equal((await missing.call()).status,503);
+});
+
+
+test('AI capability and failure codes distinguish configuration, allowance and provider failures',async t=>{
+ for(const [options,expected] of [[{enabled:false},'disabled'],[{env:{GEMINI_API_KEY:''}},'missing_key'],[{env:{COMPANION_AI_DAILY_LIMIT:'0'}},'allowance_disabled']]){
+  const f=await fixture(t,options);const capability=await (await f.call(input,{path:'ai'})).json();assert.equal(capability.available,false);assert.equal(capability.reason,expected);assert.equal((await (await f.call()).json()).code,expected);
+ }
+ for(const [status,code] of [[401,'provider_auth'],[403,'provider_auth'],[404,'model_unavailable'],[429,'provider_quota'],[500,'unavailable']]){
+  const f=await fixture(t,{providerStatus:status,raw:'PRIVATE server-only-test-key'});const reply=await (await f.call()).json();assert.equal(reply.code,code);assert.doesNotMatch(JSON.stringify(reply),/PRIVATE|server-only/);
+ }
+ const limited=await fixture(t,{quota:false});assert.equal((await (await limited.call()).json()).code,'allowance_reached');
+ const malformed=await fixture(t,{raw:'broken JSON'});assert.equal((await (await malformed.call()).json()).code,'invalid_response');
+});
+
+test('companion model is configurable without accepting arbitrary URLs or forcing minimal reasoning',async t=>{
+ const f=await fixture(t,{env:{COMPANION_AI_MODEL:'gemini-3.1-flash-lite'}});assert.equal((await f.call()).status,200);assert.match(f.requests[0].url,/models\/gemini-3\.1-flash-lite:generateContent$/);assert.equal(f.requests[0].body.generationConfig.thinkingConfig,undefined);
+ const invalid=await fixture(t,{env:{COMPANION_AI_MODEL:'https://attacker.example'}});assert.equal((await (await invalid.call()).json()).code,'model_unavailable');assert.equal(invalid.requests.length,0);
 });

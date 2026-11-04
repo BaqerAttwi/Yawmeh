@@ -7,13 +7,16 @@ import {chatReport} from './companion-chat.js';
 import {daySchema} from './daily.js';
 import {normalizeLebanese} from './lebanese-companion.js';
 import {everydayCompanion} from './companion-everyday.js';
-import {draftCorrection,normalizeFollowupText,followupCurrency,followupClock} from './companion-followup.js';
+import {draftCorrection,normalizeFollowupText,followupCurrency,followupClock,isLocalCompanionFollowup} from './companion-followup.js';
 import {companionDraftSchema} from './companion-ai.js';
 import {guidanceGoal,guidanceReply} from './companion-guidance.js';
 const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100)+' (USD estimate)';
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
 export function localCompanion(data,user,question,current,selected,context=null){
+ const meta=normalizeFollowupText(question).toLowerCase();
+ if(/^why\b.*(?:ask|question)|^ليش.*(?:بتسال|عم تسال|اسئل)/.test(meta))return {answer:/[\u0600-\u06ff]/.test(meta)?'بسأل عن التفاصيل الناقصة كرمال ما سجّل مبلغ أو عملة غلط. فيك تعطيني الاسم والمبلغ والعملة بجملة وحدة، مثل «صرفت 15 دولار على الغدا». بجهّز مسودة وبتراجعها قبل الحفظ.': 'I ask for missing details so I do not record the wrong amount or currency. You can give the title, amount and currency together, like “I spent 15 USD for lunch”. I prepare a draft for you to review before saving.',context};
+ if(context?.field&&!isLocalCompanionFollowup(question,context))context=null;
  const goal=guidanceGoal(question,context);if(goal)return guidanceReply(user,goal);
  const correction=draftCorrection(question);
  if(correction)return correctCompanionDraft(data,user,correction,current,context);

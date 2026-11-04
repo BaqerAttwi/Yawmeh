@@ -26,7 +26,10 @@ export function draftCorrection(text){
 }
 
 export function isLocalCompanionFollowup(text,context){
- return !!context?.field||!!draftCorrection(text)||/^(?:cancel|never mind|nevermind|الغي|الغيها|خلص بلاش|بلاها|لغّي|الغاء)[.!؟?\s]*$/i.test(normalizeFollowupText(text));
+ const q=normalizeFollowupText(text);
+ // A fresh request must escape an unfinished form instead of becoming its title.
+ if(/^(?:(?:please|can you|could you)\s+)?(?:add|create|record|log|schedule|what|why|how|tell me|explain|i (?:spent|paid|earned|received))\b/i.test(q)||/^(?:انا\s+)?(?:صرفت|دفعت|قبضت|استلمت|استلفت|وفرت|ضيف|اضف|سجل|شو|ليش|كيف)\s/.test(q))return false;
+ return !!context?.field||!!draftCorrection(text)||/^(?:cancel|never mind|nevermind|الغي|الغيها|خلص بلاش|بلاها|لغّي|الغاء)[.!؟?\s]*$/i.test(q);
 }
 
 export function followupCurrency(value,catalog){
