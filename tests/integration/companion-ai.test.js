@@ -9,10 +9,10 @@ import {companionAILimits,companionAIAvailable} from '../../server/src/modules/a
 
 const input={question:'Please help me organize what I should do',language:'en',avatar:'sage',start:'2026-11-01',end:'2026-11-01',history:[]};
 const data={settings:{current_rate:90000},entries:[],tasks:[{id:1,title:'Private task stays on server',due:'2026-01-01',priority:'high',completed:0}],subscriptions:[],budgets:[],goals:[],goal_moves:[],day_plans:[],inbox:[],subtasks:[]};
-async function fixture(t,{intent={intent:'plan'},enabled=true,quota=true,providerStatus=200,raw,finishReason='STOP',env={},fetchOverride}={}){
+async function fixture(t,{intent={intent:'plan'},enabled=true,quota=true,providerStatus=200,raw,finishReason='STOP',env={},fetchOverride,usageError=false,loadError=false}={}){
  const requests=[],reservations=[],loads=[];
  const users=new Map(['a','b','c'].map((letter,index)=>[tokenHash(letter.repeat(64)),{id:index+1,name:'Member',email:'private-email@example.local',role:'user',active:true,permissions:index===0?['tasks']:index===1?['money']:[]}]));
- const options={env:{COMPANION_AI_ENABLED:enabled?'true':'false',GEMINI_API_KEY:'server-only-test-key',TIMEZONE:'Asia/Beirut',...env},usage:{async reserve(id,day,limits){reservations.push({id,day,limits});return quota;}},loadData:async user=>{loads.push(user.id);return structuredClone(data);},fetchAI:async(url,options)=>{requests.push({url,...options,body:JSON.parse(options.body)});if(fetchOverride)return fetchOverride(url,options);return new Response(raw??JSON.stringify({candidates:[{finishReason,content:{parts:[{text:JSON.stringify(intent)}]}}]}),{status:providerStatus,headers:{'Content-Type':'application/json'}});}};
+ const options={env:{COMPANION_AI_ENABLED:enabled?'true':'false',GEMINI_API_KEY:'server-only-test-key',TIMEZONE:'Asia/Beirut',...env},usage:{async reserve(id,day,limits){if(usageError)throw new Error('PRIVATE DATABASE FAILURE');reservations.push({id,day,limits});return quota;}},loadData:async user=>{if(loadError)throw new Error('PRIVATE RECORDS FAILURE');loads.push(user.id);return structuredClone(data);},fetchAI:async(url,options)=>{requests.push({url,...options,body:JSON.parse(options.body)});if(fetchOverride)return fetchOverride(url,options);return new Response(raw??JSON.stringify({candidates:[{finishReason,content:{parts:[{text:JSON.stringify(intent)}]}}]}),{status:providerStatus,headers:{'Content-Type':'application/json'}});}};
  const server=createApp({db:{},authStore:{session:async hash=>users.get(hash)},recoveryOptions:null,companionOptions:options}).listen(0,'127.0.0.1');await once(server,'listening');
  t.after(()=>{server.closeAllConnections();server.close();});
  const call=(body=input,{token='a',path='chat',origin}={})=>fetch(`http://127.0.0.1:${server.address().port}/api/companion/${path}`,{method:path==='ai'?'GET':'POST',headers:{'Content-Type':'application/json',...(token?{Cookie:'daywell_session='+token.repeat(64)}:{}),...(origin?{Origin:origin}:{})},...(path==='ai'?{}:{body:JSON.stringify(body)})});
@@ -151,7 +151,7 @@ test('AI capability and failure codes distinguish configuration, allowance and p
  for(const [options,expected] of [[{enabled:false},'disabled'],[{env:{GEMINI_API_KEY:''}},'missing_key'],[{env:{COMPANION_AI_DAILY_LIMIT:'0'}},'allowance_disabled']]){
   const f=await fixture(t,options);const capability=await (await f.call(input,{path:'ai'})).json();assert.equal(capability.available,false);assert.equal(capability.reason,expected);assert.equal((await (await f.call()).json()).code,expected);
  }
- for(const [status,code] of [[401,'provider_auth'],[403,'provider_auth'],[404,'model_unavailable'],[429,'provider_quota'],[500,'unavailable']]){
+ for(const [status,code] of [[401,'provider_auth'],[403,'provider_auth'],[404,'model_unavailable'],[429,'provider_quota'],[400,'provider_request'],[500,'provider_busy']]){
   const f=await fixture(t,{providerStatus:status,raw:'PRIVATE server-only-test-key'});const reply=await (await f.call()).json();assert.equal(reply.code,code);assert.doesNotMatch(JSON.stringify(reply),/PRIVATE|server-only/);
  }
  const limited=await fixture(t,{quota:false});assert.equal((await (await limited.call()).json()).code,'allowance_reached');
@@ -161,4 +161,11 @@ test('AI capability and failure codes distinguish configuration, allowance and p
 test('companion model is configurable without accepting arbitrary URLs or forcing minimal reasoning',async t=>{
  const f=await fixture(t,{env:{COMPANION_AI_MODEL:'gemini-3.1-flash-lite'}});assert.equal((await f.call()).status,200);assert.match(f.requests[0].url,/models\/gemini-3\.1-flash-lite:generateContent$/);assert.equal(f.requests[0].body.generationConfig.thinkingConfig,undefined);
  const invalid=await fixture(t,{env:{COMPANION_AI_MODEL:'https://attacker.example'}});assert.equal((await (await invalid.call()).json()).code,'model_unavailable');assert.equal(invalid.requests.length,0);
+});
+
+
+test('database and record failures are distinct from AI transport failures',async t=>{
+ for(const [options,code] of [[{usageError:true},'usage_unavailable'],[{loadError:true},'records_unavailable']]){
+  const f=await fixture(t,options),response=await f.call();assert.equal(response.status,503);const reply=await response.json();assert.equal(reply.code,code);assert.doesNotMatch(JSON.stringify(reply),/PRIVATE|FAILURE/);
+ }
 });

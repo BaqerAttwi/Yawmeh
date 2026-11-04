@@ -92,12 +92,17 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
   const current=today(env.TIMEZONE||'Asia/Beirut');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
   const cancel=()=>controller.abort();req.on('aborted',cancel);res.on('close',cancel);
+  let phase='request',providerStatus;
   try{
    const request=geminiCompanionRequest(input,req.user,current,env);
+   phase='allowance';
    if(!await usage.reserve(req.user.id,current,limits(env)))return res.status(429).json({code:'allowance_reached',error:companionStatusMessage('allowance_reached',input.language)});
    if(controller.signal.aborted||res.destroyed)return;
+   phase='provider';
    const response=await fetchAI(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'});
-   if(!response.ok)throw new Error(response.status===429?'provider_quota':[401,403].includes(response.status)?'provider_auth':response.status===404?'model_unavailable':'unavailable');
+   providerStatus=response.status;
+   if(!response.ok)throw new Error(response.status===429?'provider_quota':[401,403].includes(response.status)?'provider_auth':response.status===404?'model_unavailable':response.status===400?'provider_request':response.status>=500?'provider_busy':'unavailable');
+   phase='response';
    const chunks=[];let bytes=0;
    for await(const chunk of response.body){bytes+=chunk.length;if(bytes>32768){controller.abort();throw new Error('size');}chunks.push(Buffer.from(chunk));}
    const result=JSON.parse(Buffer.concat(chunks).toString('utf8')),candidate=result.candidates?.[0];
@@ -105,11 +110,12 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    const intent=companionIntentSchema.parse(JSON.parse(candidate.content.parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('')));
    if(intent.intent==='conversation'?!intent.answer:intent.answer!==undefined)throw new Error('answer-intent');
    if(controller.signal.aborted||res.destroyed)return;
+   phase='records';
    const data=['off_topic','clarify','guide','conversation'].includes(intent.intent)?{}:await loadData(req.user);
    const executed=executeCompanionIntent(intent,data,req.user,input,current);
    const reply=intent.intent==='conversation'?executed:brief(presentReply(executed,input.language));
    if(!res.destroyed)res.json({...reply,engine:'gemini'});
-  }catch(error){const code=controller.signal.aborted?'timeout':['provider_quota','provider_auth','model_unavailable','unavailable'].includes(error.message)?error.message:error instanceof SyntaxError||error instanceof z.ZodError||['incomplete','size','answer-intent'].includes(error.message)?'invalid_response':'unavailable';if(!res.destroyed)res.status(503).json({code,error:companionStatusMessage(code,input.language)});}
+  }catch(error){const code=controller.signal.aborted?(error.message==='size'?'invalid_response':'timeout'):phase==='allowance'?'usage_unavailable':phase==='records'?'records_unavailable':['provider_quota','provider_auth','model_unavailable','provider_request','provider_busy','unavailable'].includes(error.message)?error.message:error instanceof SyntaxError||error instanceof z.ZodError||['incomplete','size','answer-intent'].includes(error.message)?'invalid_response':'unavailable';console.warn('[companion-ai]',JSON.stringify({code,phase,providerStatus}));if(!res.destroyed)res.status(503).json({code,error:companionStatusMessage(code,input.language)});}
   finally{clearTimeout(timer);req.off('aborted',cancel);res.off('close',cancel);}
  });
 }

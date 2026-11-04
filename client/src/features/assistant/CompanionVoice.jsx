@@ -1,4 +1,5 @@
 import {createVoiceRecorder} from './voice-recorder.js';
+import {speechTranscript} from '../../../../shared/speech-transcript.js';
 import {createVoicePlayer} from './voice-player.js';
 import {microphoneLocale,replyLocale,selectDeviceVoice} from '../../../../shared/companion-voice-language.js';
 import React,{useEffect,useRef,useState} from 'react';
@@ -87,7 +88,7 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
   if(!Recognition)return;stopSpeech();const inputLanguage=microphoneLocale(microphoneLanguage,language);setStatus(inputLanguage==='ar-LB'?'Listening… احكي لبناني.':'Listening… Speak in English.');
   const active=new Recognition();recognition.current=active;active.lang=inputLanguage;active.continuous=true;active.interimResults=true;active.maxAlternatives=3;
   let heard=false;
-  active.onresult=e=>{if(recognition.current!==active)return;const results=Array.from(e.results),words=results.map(r=>r[0].transcript).join(' ').trim().slice(0,1000);if(!words)return;heard=true;onTranscript(words);setStatus(t('Hearing your words… Tap Stop mic when finished, then Send.','عم اسمع كلامك… وقف شوي لما تخلّص، وبعدها اضغط إرسال.'));};
+  active.onresult=e=>{if(recognition.current!==active)return;const words=speechTranscript(e.results);if(!words)return;heard=true;onTranscript(words);setStatus(t('Hearing your words… Tap Stop mic when finished, then Send.','عم اسمع كلامك… اضغط وقف التسجيل لما تخلّص، وبعدها إرسال.'));};
   active.onerror=e=>{if(recognition.current!==active)return;stopListening();setStatus(e.error==='not-allowed'?'Microphone permission was denied. Allow it in your browser settings, or type below.':e.error==='no-speech'?'No speech heard. Try again or type below.':e.error==='audio-capture'?'No microphone is available. You can still type below.':'Voice recognition is unavailable. Check your connection or type below.');};
   active.onend=()=>{if(recognition.current===active){clearTimeout(listenTimer.current);recognition.current=null;setListening(false);setStatus(s=>heard?'Check your words, then press Send.':s.startsWith('Listening')?'No speech heard. Try again or type below.':s);}};
   try{active.start();setListening(true);listenTimer.current=setTimeout(()=>{if(recognition.current!==active)return;stopListening();setStatus(heard?'Check your words, then press Send.':t('No words were recognized. Check your browser microphone and the microphone language in Voice settings, then try again.','ما تعرّفنا على الكلام. تأكّد من ميكروفون المتصفح ولغة الميكروفون بإعدادات الصوت وجرّب مرة تانية.'));},60000);}catch{stopListening();setStatus('Could not start the microphone. Try your regular browser or type below.');}

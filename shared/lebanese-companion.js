@@ -14,17 +14,21 @@ export function normalizeLebanese(input){
  q=q.replace(/^انا\s+/,'');
  if(/^(?:استلفت|اقترضت|سلفت)\s/.test(q))return {arabic,answer:'تقصد مبلغ استلفته أو سلّفته لحدا؟ التطبيق ما فيه سجل ديون مستقل. فيك تسجّل حركة المصاري بعد ما توضّح إذا دخل أو مصروف، وما انحفظ شي.'};
  q=q.replace(/^(?:(?:لو سمحت|بليز|بدي|بدّي|ممكن)\s+)+/,'').replace(/^اعرف\s+/,'');
+ q=q.replace(/^(?:زيدي|زيد|ضيفي|اضيفي|اضيف)\s+(?:ع(?:لى)?(?:ال|\s+ال)?|الى\s+ال)?(?:سبسكريبشن|سابسكريبشن|اشتراك|الاشتراك)\s*/,'ضيف اشتراك ').replace(/^(?:ضيف|اضف|سجل)\s+(?:سبسكريبشن|سابسكريبشن)\s*/,'ضيف اشتراك ');
  if(/^(?:ضيف|اضف|سجل) مصروف[؟? ]*$/.test(q))return {arabic,question:'add expense',needsCurrency:true};
- const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|انفقت|ضيف مصروف|سجل مصروف|قبضت|استلمت|ضيف دخل|سجل دخل|ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)\s+(.+)$/);
+ const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|انفقت|ضيف مصروف|سجل مصروف|قبضت|استلمت|ضيف دخل|سجل دخل|ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت|ضيف اشتراك|اضف اشتراك|سجل اشتراك)\s+(.+)$/);
  if(command){
-  const type=/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة)$/.test(command[1])?'task':/^(قبضت|استلمت|ضيف دخل|سجل دخل)$/.test(command[1])?'income':/^(ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)$/.test(command[1])?'savings':'expense';
+  const type=/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة)$/.test(command[1])?'task':/^(قبضت|استلمت|ضيف دخل|سجل دخل)$/.test(command[1])?'income':/^(ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)$/.test(command[1])?'savings':/اشتراك/.test(command[1])?'subscription':'expense';
   let rest=command[2].replace(/بعد بكرا/g,'__AFTER_TOMORROW__');
   if(rest.includes('__AFTER_TOMORROW__'))return {arabic,answer:'لبعد بكرا، حدد التاريخ بصيغة YYYY-MM-DD كرمال ما اغلط بالموعد. ما انحفظ شي.'};
+  rest=rest.replace(/\s+ب\s*(?=\d)/g,' ').replace(/\s+ب\s*(?=\$)/g,' ');
+  if(type==='subscription')rest=rest.replace(/(?:ب|يوم|بتاريخ)?\s*(\d{1,2})\s+(?:الشهر|هالشهر)/g,(_,day)=>` __RENEWAL_DAY_${day}__ `);
   rest=rest.replace(/بكرا|بكرة/g,' tomorrow ').replace(/اليوم/g,' today ').replace(/مبارح|امبارح/g,' yesterday ')
    .replace(/(?:عالساعة|عالساعه|الساعة|الساعه)\s*(\d{1,2}(?::\d{2})?)\s*(المسا|مسا|بالليل|ليلا|الصبح|صباحا|صباح)?/g,(_,n,p)=>` at ${n}${p?(/المسا|مسا|بالليل|ليلا/.test(p)?' pm':' am'):''} `)
    .replace(/دولار(?:ات)?/g,' USD ').replace(/ليرة(?: لبنانية)?|ليره(?: لبنانيه)?/g,' LBP ')
    .replace(/^ان[ي]?\s+/,'').replace(/\s+(?:على|علي|حق|من|ع)\s+/g,type==='income'?' from ':' for ').replace(/\s+/g,' ').trim();
   if(/الساعة|الساعه|عالساعة|عالساعه/.test(rest))return {arabic,answer:'حدد الساعة بالارقام ومع الصبح او المسا، مثلا «الساعة 9 المسا». ما انحفظ شي.'};
+  if(type==='subscription')rest=rest.replace(/__RENEWAL_DAY_(\d+)__/g,(_,day)=>`on day ${day}`);
   // Unparsed money number words are left for the existing amount clarification.
   return {arabic,question:`add ${type} ${rest}`,needsCurrency:type!=='task'&&!/\b(?:USD|LBP)\b|\$/i.test(rest)};
  }

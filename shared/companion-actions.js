@@ -12,6 +12,7 @@ export function companionIntent(question,user,current) {
  const type={tasks:'task',todo:'task','to-do':'task',purchase:'expense',savings:'opening'}[command[1].toLowerCase()]||command[1].toLowerCase();
  if(!hasAccess(user,type==='task'?'tasks':'money'))return {answer:`Your account does not have ${type==='task'?'Tasks':'Money'} access. Ask your administrator to enable it.`};
  let rest=command[2].replace(/\b([ap])\.\s*m\.?/gi,'$1m'),date=current,needsDate=false;
+ if(type==='subscription'){const day=rest.match(/\b(?:on (?:day )?|at )(\d{1,2})(?:st|nd|rd|th)?(?: (?:of )?(?:this |the )?month)?\s*$/i);if(day){const renewal=current.slice(0,7)+'-'+day[1].padStart(2,'0');if(!daySchema.safeParse(renewal).success)return {answer:'Please give a valid renewal date as YYYY-MM-DD.'};date=renewal;rest=rest.slice(0,day.index).trim();}}
  const explicit=rest.match(/\b\d{4}-\d{2}-\d{2}\b/g)||[];
  if(explicit.length>1||explicit.some(d=>!daySchema.safeParse(d).success)){
   if(type!=='task')return {answer:'Please give one valid date as YYYY-MM-DD. For a budget range, use the budget form.'};
