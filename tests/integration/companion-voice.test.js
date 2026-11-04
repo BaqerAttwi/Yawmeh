@@ -6,7 +6,7 @@ import {tokenHash} from '../../server/src/modules/auth/passwords.js';
 
 async function fixture(t,{enabled=true,providerError=false}={}){
  let calls=0;const users=new Map(['a','b','c'].map((letter,i)=>[tokenHash(letter.repeat(64)),{id:i+1,name:'Test',email:'test@example.local',active:true,role:'user',permissions:i===2?[]:['tasks']}]));
- const server=createApp({db:{},authStore:{session:async hash=>users.get(hash)},recoveryOptions:null,speechOptions:{env:{COMPANION_VOICE_ENABLED:enabled?'true':'false',OPENAI_API_KEY:'private-test-key'},fetchSpeech:async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/audio/speech');assert.equal(options.headers.Authorization,'Bearer private-test-key');return providerError?new Response('PRIVATE PROVIDER FAILURE',{status:401}):new Response(new Uint8Array([73,68,51]),{headers:{'Content-Type':'audio/mpeg'}});}}}).listen(0,'127.0.0.1');
+ const server=createApp({db:{},authStore:{session:async hash=>users.get(hash)},recoveryOptions:null,speechOptions:{env:{COMPANION_VOICE_ENABLED:enabled?'true':'false',OPENAI_API_KEY:'private-test-key'},fetchSpeech:async(url,options)=>{calls++;if(url.endsWith('/transcriptions')){assert.equal(options.body.get('model'),'gpt-4o-transcribe');assert.equal(options.body.get('file').size,3);assert.equal(options.body.get('language'),null);return providerError?new Response('PRIVATE PROVIDER FAILURE',{status:401}):Response.json({text:'ذكّرني بكرا at 9 pm'});}assert.equal(url,'https://api.openai.com/v1/audio/speech');assert.equal(options.headers.Authorization,'Bearer private-test-key');return providerError?new Response('PRIVATE PROVIDER FAILURE',{status:401}):new Response(new Uint8Array([73,68,51]),{headers:{'Content-Type':'audio/mpeg'}});}}}).listen(0,'127.0.0.1');
  await once(server,'listening');t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
  const base='http://127.0.0.1:'+server.address().port;
  const call=(path,{token='a',method='GET',body,origin}={})=>fetch(base+'/api/companion/'+path,{method,headers:{'Content-Type':'application/json',...(token?{Cookie:'daywell_session='+token.repeat(64)}:{}),...(origin?{Origin:origin}:{})},body:body===undefined?undefined:JSON.stringify(body)});
@@ -40,4 +40,17 @@ test('paid speech rate limits are per user and do not block another account',asy
  assert.equal((await f.call('speech',{method:'POST',body})).status,429);
  assert.equal((await f.call('speech',{token:'b',method:'POST',body})).status,200);
  assert.equal(f.calls(),9);
+});
+
+
+test('enhanced transcription checks access, supports mixed speech and hides upstream failures',async t=>{
+ const f=await fixture(t);assert.equal((await (await f.call('transcription')).json()).available,true);
+ assert.equal((await f.call('transcription',{token:'c'})).status,403);
+ // Obtain the fixture server origin through the capability response.
+ const capability=await f.call('transcription');
+ const send=(fixtureResponse,token='a',type='audio/webm')=>fetch(fixtureResponse.url,{method:'POST',headers:{'Content-Type':type,Cookie:'daywell_session='+token.repeat(64)},body:new Uint8Array([1,2,3])});
+ const response=await send(capability);assert.equal(response.status,200);assert.deepEqual(await response.json(),{text:'ذكّرني بكرا at 9 pm'});assert.equal(response.headers.get('cache-control'),'no-store');
+ assert.equal((await send(capability,'c')).status,403);assert.equal((await send(capability,'a','text/plain')).status,415);
+ const disabled=await fixture(t,{enabled:false});assert.equal((await send(await disabled.call('transcription'))).status,503);
+ const failing=await fixture(t,{providerError:true});const failure=await send(await failing.call('transcription'));assert.equal(failure.status,502);assert.doesNotMatch(await failure.text(),/PRIVATE|private-test-key/);
 });

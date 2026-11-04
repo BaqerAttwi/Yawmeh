@@ -109,7 +109,8 @@ export function protectMutation(req,res,next) {
     }
     catch {return res.status(403).json({error:'Invalid request origin.'});}
   }
-  if(!req.is('application/json')) return res.status(415).json({error:'Use application/json for this request.'});
+  const audioUpload=req.method==='POST'&&(req.originalUrl||'').split('?')[0]==='/api/companion/transcription'&&req.is(['audio/webm','audio/mp4','audio/ogg','audio/wav']);
+  if(!req.is('application/json')&&!audioUpload) return res.status(415).json({error:'Use application/json for this request.'});
   next();
 }
 

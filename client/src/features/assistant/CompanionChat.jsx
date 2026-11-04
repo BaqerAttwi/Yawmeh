@@ -29,7 +29,7 @@ function Reply({message,avatar,t,onReview,onDismiss,onChoose,user}) {
  const {action,answer,language}=message;
  const lines=answer.split('\n'),long=lines.length>5,visibleAnswer=long?lines.slice(0,3).join('\n'):answer;
  return <article className="companion-reply" dir={language==='ar'?'rtl':'ltr'}>
-  <div className="companion-message-author"><span style={{background:avatar.color}}/>{avatar.name}<small>{message.engine==='gemini'?t('AI-assisted · app records','بمساعدة AI · سجلات التطبيق'):t('From your records','من سجلاتك')}</small></div>
+  <div className="companion-message-author"><span style={{background:avatar.color}}/>{avatar.name}<small>{message.engine==='gemini'?t('AI-assisted','بمساعدة AI'):t('From your records','من سجلاتك')}</small></div>
   {message.hasEnglishDetails&&<small className="companion-language-note">بعض التفاصيل المفصّلة بعدها بالإنكليزي.</small>}
   <div className="companion-reply-sections">{visibleAnswer.split(/\n\n+/).filter(Boolean).map((part,i)=>{const metrics=replyMetrics(part,language);return metrics?<section className="companion-metrics" key={i}><small><BidiText text={metrics.caption}/></small><dl>{metrics.items.map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl></section>:<p dir="auto" key={i}><BidiText text={part}/></p>;})}{long&&<details className="companion-full-reply"><summary>{language==='ar'?'شوف باقي الجواب والملاحظات':'Show the rest and notes'}</summary>{lines.slice(3).join('\n').split(/\n\n+/).filter(Boolean).map((part,i)=><p dir="auto" key={i}><BidiText text={part}/></p>)}</details>}</div>
   {message.context?.goal&&onChoose&&<div className="companion-guidance-choices">{guidanceChoices(message.context.goal,user,language).map(choice=><button type="button" key={choice.question} onClick={()=>onChoose(choice.question,choice.label)}>{choice.label}</button>)}</div>}
@@ -107,7 +107,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
     if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft&&!forceLocal){
      const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),15000);
      try{
-      const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question)})});
+      const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question),dialogue:messages.slice(-4).map(m=>({question:m.question.slice(0,1000),answer:m.answer.slice(0,3000)}))})});
       if(!response.ok)throw new Error('unavailable');
       const received=await response.json();
       if(generation!==requestGeneration.current)return;

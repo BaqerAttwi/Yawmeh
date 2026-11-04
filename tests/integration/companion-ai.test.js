@@ -38,7 +38,7 @@ test('AI only interprets requests; calculations/records remain private and outpu
  assert.equal(request.redirect,'error','credentials must never follow provider redirects');
  assert.match(request.url,/gemini-3\.1-flash-lite:generateContent$/);
  assert.doesNotMatch(wire,/Private task stays on server|private-email|server-only-test-key/);
- assert.equal(request.body.generationConfig.maxOutputTokens,512);
+ assert.equal(request.body.generationConfig.maxOutputTokens,2048);
  assert.equal(request.body.tools,undefined);assert.deepEqual(f.loads,[1]);
  assert.deepEqual(f.reservations[0].limits,{daily:10,monthly:1000});
 });
@@ -132,4 +132,16 @@ test('persistent quota reserves monthly first and rolls back both counters on de
  assert.equal(rows.get('user:7:2027-01-01'),10,'denial must not consume another request');
  assert.equal(await store.reserve(8,'2027-01-01',dailyTen),true,'another account has its own allowance');
  assert.equal(await store.reserve(7,'2027-01-02',dailyTen),true,'a new calendar day restores the allowance');
+});
+
+
+test('conversational replies preserve Lebanese Arabic, remember dialogue and do not load records',async t=>{
+ const answer='أكيد، فينا نبلّش بخطوة صغيرة. شو أكتر شي عم يصعّب عليك التركيز؟';
+ const f=await fixture(t,{intent:{intent:'conversation',answer}});
+ const dialogue=[{question:'I need help studying',answer:'Which subject?'}];
+ const response=await f.call({...input,language:'ar',question:'رياضيات',dialogue});
+ assert.equal(response.status,200);const reply=await response.json();
+ assert.equal(reply.answer,answer);assert.equal(reply.language,'ar');assert.equal(reply.action,undefined);assert.deepEqual(f.loads,[]);
+ const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);assert.deepEqual(sent.dialogue,dialogue);
+ const missing=await fixture(t,{intent:{intent:'conversation'}});assert.equal((await missing.call()).status,503);
 });
