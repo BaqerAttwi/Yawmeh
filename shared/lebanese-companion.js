@@ -1,5 +1,7 @@
+import {arabiziRequest} from './arabizi-requests.js';
 // Small, explicit dialect vocabulary; never infer an unsupported financial action.
 export function normalizeLebanese(input){
+ const roman=arabiziRequest(input);if(roman)input=roman.question;
  input=input.trim().replace(/^(?:(?:please|plz|pls|baddi|badde|bedde|bade)\s+)+/i,'').replace(/^(?:a3ref|e3raf)\s+/i,'');
  if(/^(?:kifak|kifik|kifek|keefak|kifkon|ahlan|ahla|hi kifak)[.!?\s]*$/i.test(input))input='مرحبا';
  // Translate only known command words, preserving the user's item/task names.
@@ -42,6 +44,7 @@ export function normalizeLebanese(input){
  if(quick)return {arabic,question:`I have ${quick[1]} minutes`};
  const afford=q.match(/^(?:فيني|بقدر)\s+(?:اصرف|اشتري)\s+(\d+(?:\.\d{1,2})?)\s*(دولار|ليرة|ليره|USD|LBP)?[؟?]*$/i);
  if(afford)return afford[2]?{arabic,question:`Can I afford ${afford[1]} ${/لير|LBP/i.test(afford[2])?'LBP':'USD'}?`}:{arabic,answer:'حدّد العملة كمان، مثلاً «فيني اصرف 100 دولار؟» أو «فيني اصرف 100000 ليرة؟».'};
+ if(/^(قديش|كم|شو|شقد)/.test(q)&&/معي|رصيد/.test(q))return {arabic,question:'money balance'};
  if(/^(قديش|كم|شو|شقد)/.test(q)&&/وفرت|مدخرات|توفير|تحويش/.test(q))return {arabic,question:`what are my savings ${period}`};
  if(/^(قديش|كم|شو|شقد)/.test(q)&&/صرفت|مصروف|مصاريف/.test(q))return {arabic,question:`expenses ${period}`};
  if(/^(شو|ايش)/.test(q)&&/عندي|خططي|مهام|برنامج/.test(q))return {arabic,question:`plans ${period}`};

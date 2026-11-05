@@ -169,3 +169,11 @@ test('database and record failures are distinct from AI transport failures',asyn
   const f=await fixture(t,options),response=await f.call();assert.equal(response.status,503);const reply=await response.json();assert.equal(reply.code,code);assert.doesNotMatch(JSON.stringify(reply),/PRIVATE|FAILURE/);
  }
 });
+
+
+test('AI can resolve Auto language while explicit language selection stays authoritative',async t=>{
+ const f=await fixture(t,{intent:{intent:'conversation',answer:'أكيد، خلّينا نبلّش بخطوة صغيرة.',replyLanguage:'ar'}});
+ const auto=await (await f.call({...input,question:'kteb li msg la followup',language:'en',languageMode:'auto'})).json();assert.equal(auto.language,'ar');
+ const explicit=await (await f.call({...input,question:'kteb li msg la followup',language:'en',languageMode:'explicit'})).json();assert.equal(explicit.language,'en');
+ const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);assert.equal(sent.replyPreference.mode,'auto');assert.ok(sent.writing);assert.doesNotMatch(JSON.stringify(f.requests),/Private task stays on server/);
+});

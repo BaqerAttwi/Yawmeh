@@ -1,13 +1,7 @@
+import {detectedCompanionLanguage} from './lebanese-language.js';
 import {arabicDetail} from './companion-detail-ar.js';
 // Presentation only: preserve original amounts, dates, names, and draft values.
-export function companionLanguage(preference,text='',fallback='en') {
- if(preference==='en'||preference==='ar')return preference;
- if(/\p{Script=Arabic}/u.test(text)||/\b(?:sarfet|saraft|daf3et|dafa3et|2ebedt|2abadet|ebedt|zakerne|zakerni|zakkerni|shou|shu|adde|2adde|marhaba|merci|kifak|kifik|kifkon|kifek|keefak|baddi|bade|badde|bedde|3ande|3andi|3am|3ayez|3ayze|lyoum|elyoum|bukra|bokra|mbarah|mbereh|masare|masari|ma3e|ma3i|fik|fiki|fina|wen|wein|lesh|leish|ya3ne|yalla)\b/i.test(text))return 'ar';
- // Short acknowledgements and number-only draft answers keep the conversation language.
- if(/^(?:ok(?:ay)?|yes|no|sure|thanks?|done|cancel)[.!?\s]*$/i.test(text.trim()))return fallback;
- if(/^\s*(?:[\d.,\s$€£]+\s*)?(?:USD|LBP|EUR|GBP|dollars?|lira|liret|lebanese pounds?)?\s*$/i.test(text))return fallback;
- return /[a-z]/i.test(text)?'en':fallback;
-}
+export const companionLanguage=detectedCompanionLanguage;
 
 export function draftFields(action,language='en') {
  const ar=language==='ar',d=action.initial;

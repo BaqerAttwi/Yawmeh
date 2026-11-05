@@ -1,3 +1,5 @@
+import {arabiziRequest,arabiziRest} from './arabizi-requests.js';
+import {commonRequestAlias} from './companion-requests.js';
 export function normalizeFollowupText(text){
  return text.trim().replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/٫/g,'.').replace(/٬/g,'').replace(/[؟?!]+$/,'').trim();
 }
@@ -27,20 +29,23 @@ export function draftCorrection(text){
 
 export function isLocalCompanionFollowup(text,context){
  const q=normalizeFollowupText(text);
+ if(commonRequestAlias(text))return false;
+ if(arabiziRequest(q)?.fresh)return false;
+ if(/^(?:help me|write|rewrite|draft|translate|summarize|break down)\b/i.test(q)||/^(?:baddi|badde|bade|bdi|bedde|beddi|sa3edne|se3edne|kteb|ektob|fasser|eshra7)\s+\S+\s+/i.test(q))return false;
  // A fresh request must escape an unfinished form instead of becoming its title.
  if(/^(?:(?:please|can you|could you)\s+)?(?:add|create|record|log|schedule|what|why|how|tell me|explain|i (?:spent|paid|earned|received))\b/i.test(q)||/^(?:انا\s+)?(?:صرفت|دفعت|قبضت|استلمت|استلفت|وفرت|ضيف|اضف|سجل|شو|ليش|كيف)\s/.test(q))return false;
  return !!context?.field||!!draftCorrection(text)||/^(?:cancel|never mind|nevermind|الغي|الغيها|خلص بلاش|بلاها|لغّي|الغاء)[.!؟?\s]*$/i.test(q);
 }
 
 export function followupCurrency(value,catalog){
- const normalized=normalizeFollowupText(value).toLowerCase();
+ const normalized=normalizeFollowupText(arabiziRest(value)).toLowerCase();
  const code=/^(?:دولار|دولارات|dollars?|dolar|usd|\$)$/.test(normalized)?'USD':/^(?:ليرة|ليره|ليرة لبنانية|ليره لبنانيه|لبناني|ليرة لبناني|lebanese pounds?|lira|liret|lbp)$/.test(normalized)?'LBP':normalized;
  const matches=catalog.filter(c=>[c.code,c.name,c.symbol].some(v=>v&&v.toLowerCase()===code.toLowerCase()));
  return matches.length===1?matches[0].code:null;
 }
 
 export function followupClock(value){
- const q=normalizeFollowupText(value).replace(/^(?:at|الساعة|عالساعة)\s*/i,'').replace(/\b([ap])\.\s*m\.?$/i,'$1m').replace(/(?:المسا|مسا|بالليل)$/,'pm').replace(/(?:الصبح|صباحا|صباح)$/,'am');
+ const q=normalizeFollowupText(arabiziRest(value)).replace(/^(?:at|الساعة|عالساعة)\s*/i,'').replace(/\b([ap])\.\s*m\.?$/i,'$1m').replace(/(?:المسا|مسا|بالليل)$/,'pm').replace(/(?:الصبح|صباحا|صباح)$/,'am');
  const match=q.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);if(!match)return null;
  let hour=Number(match[1]);const minute=Number(match[2]||0);if(minute>59)return null;
  if(match[3]){if(hour<1||hour>12)return null;hour=hour%12+(match[3].toLowerCase()==='pm'?12:0);}

@@ -1,3 +1,5 @@
+import {arabiziRest} from './arabizi-requests.js';
+import {commonRequestAlias} from './companion-requests.js';
 import {entryCents,nativeEntries,formatMoney,currencyCatalog} from './currency.js';
 import {balances,cents,daysUntil} from './domain.js';
 import {addDays,goalBalance} from './planner.js';
@@ -14,6 +16,7 @@ const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'US
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
 export function localCompanion(data,user,question,current,selected,context=null){
+ question=commonRequestAlias(question)||question;
  const meta=normalizeFollowupText(question).toLowerCase();
  if(/^why\b.*(?:ask|question)|^ليش.*(?:بتسال|عم تسال|اسئل)/.test(meta))return {answer:/[\u0600-\u06ff]/.test(meta)?'بسأل عن التفاصيل الناقصة كرمال ما سجّل مبلغ أو عملة غلط. فيك تعطيني الاسم والمبلغ والعملة بجملة وحدة، مثل «صرفت 15 دولار على الغدا». بجهّز مسودة وبتراجعها قبل الحفظ.': 'I ask for missing details so I do not record the wrong amount or currency. You can give the title, amount and currency together, like “I spent 15 USD for lunch”. I prepare a draft for you to review before saving.',context};
  if(context?.field&&!isLocalCompanionFollowup(question,context))context=null;
@@ -37,7 +40,7 @@ function correctCompanionDraft(data,user,{field,value},current,context){
  if(!context?.draft)return {answer:'Prepare a draft first, then tell me what to change. Existing saved records must be edited in their app.'};
  const draft=structuredClone(context.draft);
  if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
- const raw=normalizeFollowupText(value),catalog=currencyCatalog(data.settings),currency=followupCurrency(raw,catalog);
+ const raw=normalizeFollowupText(arabiziRest(value)),catalog=currencyCatalog(data.settings),currency=followupCurrency(raw,catalog);
  const day={today:current,tomorrow:addDays(current,1),yesterday:addDays(current,-1),اليوم:current,بكرا:addDays(current,1),بكرة:addDays(current,1),مبارح:addDays(current,-1),bokra:addDays(current,1),bukra:addDays(current,1),lyoum:current,elyoum:current,mbarah:addDays(current,-1)}[raw.toLowerCase()]||raw;
  const validDate=daySchema.safeParse(day).success;
  const amount=raw.match(/^\$?(\d+(?:\.\d{1,2})?)\s*(USD|LBP|EUR|GBP|دولار|ليرة|ليره)?$/i);
