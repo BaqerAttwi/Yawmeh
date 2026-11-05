@@ -15,10 +15,10 @@ try{
   const page=await browser.newPage({viewport:{width,height:width===375?810:1000}}),assets=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>assets.push(r.url()));
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'Try admin demo'}).click();
-  await page.locator('.sidebar').waitFor();await page.waitForFunction(()=>localStorage.getItem('daywell-demo'));
+  await page.locator('.main-shell').waitFor();await page.waitForFunction(()=>localStorage.getItem('daywell-demo'));
   const before=await page.evaluate(()=>localStorage.getItem('daywell-demo'));
-  assert.equal(await page.getByRole('button',{name:'Guide',exact:true}).count(),2);
-  await page.locator('.sidebar').getByRole('button',{name:'Guide',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'Guide',exact:true}).count(),width<700?1:2);
+  await page.locator('.topbar-actions').getByRole('button',{name:'Guide',exact:true}).click();
   const menu=page.getByRole('dialog',{name:'Start here',exact:true});await menu.waitFor();
   await page.screenshot({path:`test-results/getting-started/choices-${width}.png`});
   await menu.getByRole('button',{name:/Guide me step by step/}).click();
@@ -43,7 +43,7 @@ try{
   await video.evaluate(el=>el.load());await page.waitForFunction(()=>document.querySelector('video[aria-label="Getting started walkthrough"]').readyState>=1);
   assert.ok(await video.evaluate(el=>el.duration>50));
   await menu.getByRole('button',{name:'Close getting started',exact:true}).click();
-  await page.reload();await page.getByRole('button',{name:'Try admin demo'}).click();await page.locator('.sidebar').waitFor();assert.equal(await page.locator('.start-here-banner').count(),0);
+  await page.reload();await page.getByRole('button',{name:'Try admin demo'}).click();await page.locator('.main-shell').waitFor();if(width<700){await page.locator('.sidebar-toggle').click();await page.locator('.sidebar').getByRole('button',{name:'Overview',exact:true}).click();}assert.equal(await page.locator('.start-here-banner').count(),0);
   assert.ok(assets.some(url=>url.endsWith('sage-wave.webp')));assert.equal(assets.filter(url=>/characters\/.*\.png$/.test(url)).length,0);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.close();console.log(`Getting started passed at ${width}px`);

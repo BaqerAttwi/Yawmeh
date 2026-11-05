@@ -10,9 +10,10 @@ const browser=await chromium.launch({headless:true,channel:'msedge'}),errors=[];
 try{
  for(const width of [375,1440]){
   const page=await browser.newPage({viewport:{width,height:width===375?740:900}}),media=[];
+  const navigate=async name=>{await page.locator('.main-shell').waitFor();const button=page.locator('.sidebar').getByRole('button',{name,exact:true});if(!await button.isVisible())await page.locator('.sidebar-toggle').click();await button.click();};
   page.on('pageerror',e=>errors.push(e.message));page.on('request',request=>{if(request.url().includes('/guides/'))media.push(request.url());});
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'Try admin demo'}).click();
-  await page.locator('.sidebar').getByRole('button',{name:'Video tutorials',exact:true}).click();
+  await navigate('Video tutorials');
   const tutorials=page.getByRole('dialog',{name:'Video tutorials',exact:true});await tutorials.waitFor();
   assert.equal(await tutorials.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).count(),2);
   await tutorials.getByRole('button',{name:'Close video tutorials',exact:true}).click();
@@ -21,7 +22,7 @@ try{
   await choices.getByRole('button',{name:'Add a task',exact:true}).click();
   await page.getByText(/What should I call this task/).waitFor();
   await page.locator('.companion-panel-header').getByRole('button',{name:'Close companion chat',exact:true}).click();
-  await page.locator('.sidebar').getByRole('button',{name:'Tasks',exact:true}).click();await page.getByRole('button',{name:'Add task',exact:true}).click();
+  await navigate('Tasks');await page.getByRole('button',{name:'Add task',exact:true}).click();
   const dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Keep my draft');assert.equal(media.length,0,'No tutorial traffic before opening a guide');
   await dialog.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).click();let video=dialog.locator('video');
   assert.equal(await video.getAttribute('preload'),'none');assert.equal(await video.locator('track').count(),2);
@@ -29,7 +30,7 @@ try{
   assert.equal(await dialog.locator('input[name=title]').inputValue(),'Keep my draft');await video.evaluate(el=>el.pause());
   assert.match(await dialog.locator('a[download]').getAttribute('href'),/create-task\.webm/);
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();await page.getByRole('button',{name:'Income',exact:true}).click();
+  await navigate('Money');await page.getByRole('button',{name:'Income',exact:true}).click();
   await dialog.getByRole('button',{name:'عربي',exact:true}).click();await dialog.getByRole('button',{name:'شاهد الشرح · English / عربي',exact:true}).click();
   video=dialog.locator('video');assert.match(await video.locator('source').getAttribute('src'),/record-money\.webm/);
   await video.evaluate(async el=>{el.muted=true;await el.play();});await page.waitForFunction(()=>document.querySelector('video')?.currentTime>0);

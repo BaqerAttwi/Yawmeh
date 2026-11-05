@@ -4,6 +4,8 @@ Yawmeh is a personal money and time management app for tracking income, expenses
 
 Built with React, Vite, Node.js, Express, and MySQL.
 
+On phones, navigation starts closed so the page uses the full screen width. Open it with the menu button, then close it with X, Escape, the backdrop, or by choosing a page. Accounts with Tasks access start on Tasks; other accounts start on Overview. The task list is expanded initially and has Hide tasks / Show tasks controls. The companion remains available as a small floating avatar while navigation is closed. Desktop navigation starts open and can also be collapsed.
+
 New users can choose **Start here** from the welcome banner or the visible **G Guide** button in the sidebar or top bar. The recommended avatar tour follows this order: set currencies in Settings → add existing savings → record income and allocate savings → record expenses → add a task → return to Today. It highlights the exact currency control, money tab and action button, explains how the amounts work using labelled examples, and waits for the user to navigate. It only includes pages the account can access. Finishing or dismissing the welcome banner is remembered on that browser; G Guide remains available to reopen it.
 
 The alternative **Watch, then try** option includes a captioned first-day walkthrough and the existing task and money videos. Videos load only when requested. The tour works without an AI key and does not create or modify records. Avatar animation images use smaller WebP files for faster loading.
