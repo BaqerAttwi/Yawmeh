@@ -180,7 +180,7 @@ test('AI can resolve Auto language while explicit language selection stays autho
 
 
 test('screenshot subscription adds work without AI and cannot become subscription reports',async t=>{
- for(const question of ['Bde zed subscription claude b 20 dollar','Bde zid subscription claude b 20']){
+ for(const question of ['Bde zed subscription claude b 20 dollar','Bde zid subscription claude b 20','Baddiii zed subscriptiom claude b 20 dollar']){
   const f=await fixture(t,{enabled:false,quota:false,intent:{intent:'off_topic'}});
   const response=await f.call({...input,question,language:'ar'},{token:'b'}),reply=await response.json();
   assert.equal(response.status,200);assert.equal(reply.action.type,'subscription');assert.equal(reply.action.initial.title,'claude');assert.equal(reply.action.initial.amount,20);assert.equal(reply.engine,undefined);assert.equal(f.requests.length,0);assert.equal(f.reservations.length,0);assert.equal(f.loads.length,0);

@@ -1,4 +1,5 @@
 import {languageProfile} from './lebanese-language.js';
+import {normalizeChatRequest} from './chat-dictionary.js';
 // Normalize known request words, not arbitrary names or every 2/3/7 in a string.
 const words={
  lyom:'اليوم',lyoum:'اليوم',lyawm:'اليوم',elyom:'اليوم',elyoum:'اليوم',bokra:'بكرا',bukra:'بكرا',bekra:'بكرا',mbereh:'مبارح',mberih:'مبارح',mbarah:'مبارح',mbara7:'مبارح',embe7:'مبارح',
@@ -20,7 +21,7 @@ export function arabiziRest(text){
 }
 
 export function arabiziRequest(input){
- let text=input.trim().replace(/^(?:ya\s+)?(?:sage|nova|pip)[,:!]?\s+/i,'');
+ let text=normalizeChatRequest(input).text.trim().replace(/^(?:ya\s+)?(?:sage|nova|pip)[,:!]?\s+/i,'');
  text=text.replace(/^(?:(?:ana|ena|baddi|badde|bade|badi|bdi|bde|bdee|bdde|bedde|beddi|please|plz|pls|fini|fine|fik|fiki|fina|law sama7et|iza fik)[,\s]+)+/i,'');
  let match;
  if((match=text.match(/^(?:esrof|esref|esraf|eshtere|eshtre)\s+(.+)$/i)))return {question:'فيني اصرف '+arabiziRest(match[1]),fresh:true};
@@ -44,6 +45,7 @@ export function arabiziRequest(input){
   return {question:query,fresh:true};
  }
  if(/^(?:kifak|kifik|kifek|keefak|kifkon|marhaba|ahlan|ahla)[.!?\s]*$/i.test(text))return {question:'مرحبا',fresh:false};
+ if(/^merci[.!?\s]*$/i.test(text))return {question:'شكرا',fresh:false};
  if(/^(?:cancel|khalas balash|balaha|elghi|elgha)[.!?\s]*$/i.test(text))return {question:'cancel',fresh:false};
  return null;
 }

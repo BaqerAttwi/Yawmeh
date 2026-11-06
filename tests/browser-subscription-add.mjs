@@ -14,7 +14,7 @@ try{
  await page.addInitScript(data=>localStorage.setItem('daywell-demo',JSON.stringify(data)),records);
  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'Try admin demo'}).click();await page.locator('.companion-launcher').click();
  const before=await page.evaluate(()=>localStorage.getItem('daywell-demo'));
- const questions=['Bde zed subscription claude b 20 dollar','Bde zid subscription claude b 20'];
+ const questions=['Bde zed subscription claude b 20 dollar','Bde zid subscription claude b 20','Baddiii zed subscriptiom claude b 20 dollar'];
  for(const [index,text] of questions.entries()){
   await page.locator('#companion-question').fill(text);await page.locator('.companion-chat-input button').click();
   await page.waitForFunction(count=>document.querySelectorAll('.companion-question').length===count&&document.querySelector('.companion-chat-log')?.getAttribute('aria-busy')==='false',index+1);
@@ -23,5 +23,5 @@ try{
   assert.doesNotMatch(await page.locator('.companion-chat-log').innerText(),/240|Cloud:/);
  }
  assert.equal(await page.evaluate(()=>localStorage.getItem('daywell-demo')),before,'drafts must not save subscriptions automatically');
- assert.deepEqual(errors,[]);console.log('Both exact screenshot requests create subscription drafts; existing Cloud is not returned or changed.');
+ assert.deepEqual(errors,[]);console.log('Screenshot requests and dictionary typos create subscription drafts; existing Cloud is not returned or changed.');
 }finally{await browser.close();server.closeAllConnections();server.close();}

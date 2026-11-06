@@ -1,9 +1,11 @@
 import {addDays} from './planner.js';
 import {daySchema} from './daily.js';
 import {hasAccess} from './access.js';
+import {normalizeChatRequest} from './chat-dictionary.js';
 
 // Drafts only: existing forms validate and persist after the user presses Save.
 export function companionIntent(question,user,current) {
+ question=normalizeChatRequest(question).text;
  const text=question.trim().replace(/^(?:put|deposit)\s+(\$?[\d,.]+(?:\s*(?:USD|LBP|dollars?))?)\s+(?:in(?:to)?|to)\s+(?:my\s+)?savings?\b/i,'add savings $1').replace(/^((?:please\s+)?(?:add|create|record|log|schedule|make)\s+(?:to\s+)?(?:(?:my|the|a|an|new|quick)\s+)*)saving\b/i,'$1savings'),q=text.toLowerCase();
  if(/^(what are you|who are you|what can you do|help)[?.! ]*$/.test(q))return {answer:'I’m your yawmeh.me companion. I can prepare tasks, expenses, income, savings withdrawals, budgets, subscriptions and frequent items, or report on your records. Try “add a task called football at 9 pm tomorrow” or “add expense 15 for lunch”. I open a draft for you to review and save; I never change your records silently.'};
  if(/^(hi|hello|hey|thanks|thank you)[!. ]*$/.test(q))return {answer:'Hi! What would help today? I can prepare a task or money entry, or show your plans and savings. Use a quick action below or tell me what to add.'};
