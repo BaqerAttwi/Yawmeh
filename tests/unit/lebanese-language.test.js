@@ -52,3 +52,13 @@ test('Arabizi follow-ups retain drafts, but a fresh Arabizi request escapes them
  const clock=ask('bdi zakkerni call Mama bokra se3a 9');assert.equal(clock.context.field,'time');
  const resolved=ask('9 masa',clock.context);assert.equal(resolved.action.initial.scheduled_time,'21:00');
 });
+test('exact screenshot spellings add subscriptions instead of listing existing ones',()=>{
+ const records={...data,subscriptions:[{id:1,title:'Cloud',amount:20,cycle:'monthly',renewal:'2026-11-16',active:true}]};
+ for(const text of ['Bde zed subscription claude b 20 dollar','Bde zid subscription claude b 20']){
+  assert.equal(detectedCompanionLanguage('auto',text,'en'),'ar',text);
+  const reply=localCompanion(records,{role:'admin'},text,date,{start:date,end:date});
+  assert.equal(reply.action?.type,'subscription',text);assert.equal(reply.action.initial.title,'claude');assert.equal(reply.action.initial.amount,20);
+  assert.doesNotMatch(reply.answer,/Cloud|year|240/);assert.equal(isLocalCompanionFollowup(text,ask('add task').context),false);
+ }
+ assert.equal(records.subscriptions.length,1);
+});

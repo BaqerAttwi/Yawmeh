@@ -104,6 +104,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
    try{
     const prepared=localCompanion(data,user,question,date,{start,end},conversation.current);
     const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(!!prepared.context?.field&&!!prepared.context?.draft);
+    if(localDraft)setAINotice('');
     let result=localDraft?prepared:undefined,reply;
     const localFollowup=isLocalCompanionFollowup(question,conversation.current);
     if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft&&!forceLocal){

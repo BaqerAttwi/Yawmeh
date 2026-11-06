@@ -177,3 +177,20 @@ test('AI can resolve Auto language while explicit language selection stays autho
  const explicit=await (await f.call({...input,question:'kteb li msg la followup',language:'en',languageMode:'explicit'})).json();assert.equal(explicit.language,'en');
  const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);assert.equal(sent.replyPreference.mode,'auto');assert.ok(sent.writing);assert.doesNotMatch(JSON.stringify(f.requests),/Private task stays on server/);
 });
+
+
+test('screenshot subscription adds work without AI and cannot become subscription reports',async t=>{
+ for(const question of ['Bde zed subscription claude b 20 dollar','Bde zid subscription claude b 20']){
+  const f=await fixture(t,{enabled:false,quota:false,intent:{intent:'off_topic'}});
+  const response=await f.call({...input,question,language:'ar'},{token:'b'}),reply=await response.json();
+  assert.equal(response.status,200);assert.equal(reply.action.type,'subscription');assert.equal(reply.action.initial.title,'claude');assert.equal(reply.action.initial.amount,20);assert.equal(reply.engine,undefined);assert.equal(f.requests.length,0);assert.equal(f.reservations.length,0);assert.equal(f.loads.length,0);
+  assert.equal((await (await f.call({...input,question},{token:'a'})).json()).action,undefined,'Tasks-only account cannot prepare money drafts');
+ }
+});
+
+test('AI subscription drafts accept explicit USD and a consistent date alias without changing amounts',async t=>{
+ const intent={intent:'draft',draft:{type:'subscription',initial:{title:'Claude',amount:20,currency:'USD',date:'2026-11-16'}}};
+ const f=await fixture(t,{intent});const reply=await (await f.call(input,{token:'b'})).json();assert.equal(reply.action.type,'subscription');assert.equal(reply.action.initial.amount,20);assert.equal(reply.action.initial.renewal,'2026-11-16');assert.equal(reply.action.initial.currency,undefined);
+ const unsupported=await fixture(t,{intent:{...intent,draft:{...intent.draft,initial:{...intent.draft.initial,currency:'LBP'}}}});const denied=await (await unsupported.call(input,{token:'b'})).json();assert.equal(denied.action,undefined);assert.match(denied.answer,/USD/);
+ const conflict=await fixture(t,{intent:{...intent,draft:{...intent.draft,initial:{...intent.draft.initial,renewal:'2026-11-20'}}}});const clarification=await (await conflict.call(input,{token:'b'})).json();assert.equal(clarification.action,undefined);assert.match(clarification.answer,/two different renewal dates/);
+});

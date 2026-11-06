@@ -1,4 +1,7 @@
 import {languageProfile} from '../../../../shared/lebanese-language.js';
+import {arabiziRequest} from '../../../../shared/arabizi-requests.js';
+import {normalizeLebanese} from '../../../../shared/lebanese-companion.js';
+import {companionIntent} from '../../../../shared/companion-actions.js';
 import {z} from 'zod';
 import rateLimit from 'express-rate-limit';
 import {companionInputSchema,companionIntentSchema} from '../../../../shared/companion-ai.js';
@@ -67,6 +70,14 @@ export function executeCompanionIntent(intent,data,user,input,current){
  if(intent.intent==='draft'){
   if(!intent.draft)return redirect(input.language);
   const draft=structuredClone(intent.draft),initial=draft.initial;
+  if(draft.type==='subscription'&&initial.date){
+   if(initial.renewal&&initial.renewal!==initial.date)return {answer:input.language==='ar'?'في تاريخين مختلفين للتجديد. حدّد تاريخ واحد بصيغة YYYY-MM-DD؛ ما انحفظ شي.':'There are two different renewal dates. Specify one date as YYYY-MM-DD; nothing was saved.',language:input.language};
+   initial.renewal=initial.date;delete initial.date;
+  }
+  if(['budget','subscription','item'].includes(draft.type)&&initial.currency){
+   if(initial.currency!=='USD')return {answer:input.language==='ar'?'مبالغ الاشتراكات والميزانيات والأصناف المحفوظة بالدولار بهالإصدار. ما حوّلت العملة وما انحفظ شي. راجع المبلغ بالدولار بالنموذج.':'Subscription plans, budgets and saved items use USD in this version. No currency was converted and nothing was saved. Review the USD amount in the form.',language:input.language};
+   delete initial.currency;
+  }
   const allowed=draft.type==='task'?['title','due','scheduled_time']:['expense','income','opening','withdrawal'].includes(draft.type)?['title','amount','currency','date']:draft.type==='budget'?['title','amount','start']:draft.type==='subscription'?['title','amount','renewal']:['title','amount'];
   if(Object.keys(initial).some(key=>!allowed.includes(key)))return redirect(input.language);
   if(initial.currency&&!currencyCatalog(data.settings).some(c=>c.code===initial.currency))return {answer:input.language==='ar'?'اختار عملة مضافة بالإعدادات. ما انحفظ شي.':'Choose a configured currency in Settings. Nothing was saved.',language:input.language};
@@ -89,6 +100,15 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
  app.post('/api/companion/chat',permitted,limiter,async(req,res)=>{
   const input=companionInputSchema.parse(req.body);
   if(input.start>input.end||daysUntil(input.end,input.start)>365)return res.status(400).json({error:'Choose an ordered range of at most 366 days.'});
+  // An explicit subscription add must not become a report or an off-topic reply.
+  // This also handles older clients without needing a paid AI request.
+  if(arabiziRequest(input.question)?.fresh){
+   const normalized=normalizeLebanese(input.question);
+   if(normalized.question?.startsWith('add subscription ')){
+    const parsed=companionIntent(normalized.question,req.user,today(env.TIMEZONE||'Asia/Beirut'));
+    if(parsed?.action?.type==='subscription')return res.json(presentReply(finishDraft(parsed.action),input.language));
+   }
+  }
   if(!companionAIAvailable(env)){const code=companionAIReason(env);return res.status(503).json({code,error:companionStatusMessage(code,input.language)});}
   const current=today(env.TIMEZONE||'Asia/Beirut');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);

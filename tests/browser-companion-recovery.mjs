@@ -35,6 +35,7 @@ try{
   assert.match(await panel.locator('.companion-draft').innerText(),/500/);
   await ask('add task');await ask('Explain compound interest');
   await panel.getByText(/AI provider has reached a usage or rate limit/).waitFor({timeout:5000}).catch(async error=>{console.log(JSON.stringify({calls,panel:await panel.innerText()}));throw error;});assert.equal(calls.length,1,'fresh questions must escape the task title follow-up');
+  await ask('Bde zed subscription claude b 20 dollar');await panel.locator('.companion-draft').getByText('claude',{exact:true}).waitFor();assert.equal(calls.length,1);assert.equal(await panel.getByText(/AI provider has reached a usage or rate limit/).count(),0,'a successful local draft clears the old timeout/quota notice');
   await ask('Explain compound interest again');await panel.getByText('Compound interest means earning interest on earlier interest.',{exact:true}).waitFor();
   assert.equal(calls[1].avatar,'pip');assert.ok(calls[1].dialogue.every(row=>!row.answer.includes('existing savings')));
   assert.deepEqual(writes,[]);await page.close();console.log(`Companion recovery passed at ${width}px`);

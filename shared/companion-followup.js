@@ -31,7 +31,7 @@ export function isLocalCompanionFollowup(text,context){
  const q=normalizeFollowupText(text);
  if(commonRequestAlias(text))return false;
  if(arabiziRequest(q)?.fresh)return false;
- if(/^(?:help me|write|rewrite|draft|translate|summarize|break down)\b/i.test(q)||/^(?:baddi|badde|bade|bdi|bedde|beddi|sa3edne|se3edne|kteb|ektob|fasser|eshra7)\s+\S+\s+/i.test(q))return false;
+ if(/^(?:help me|write|rewrite|draft|translate|summarize|break down)\b/i.test(q)||/^(?:baddi|badde|bade|bdi|bde|bdee|bdde|bedde|beddi|sa3edne|se3edne|kteb|ektob|fasser|eshra7)\s+\S+\s+/i.test(q))return false;
  // A fresh request must escape an unfinished form instead of becoming its title.
  if(/^(?:(?:please|can you|could you)\s+)?(?:add|create|record|log|schedule|what|why|how|tell me|explain|i (?:spent|paid|earned|received))\b/i.test(q)||/^(?:انا\s+)?(?:صرفت|دفعت|قبضت|استلمت|استلفت|وفرت|ضيف|اضف|سجل|شو|ليش|كيف)\s/.test(q))return false;
  return !!context?.field||!!draftCorrection(text)||/^(?:cancel|never mind|nevermind|الغي|الغيها|خلص بلاش|بلاها|لغّي|الغاء)[.!؟?\s]*$/i.test(q);
