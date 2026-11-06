@@ -12,12 +12,24 @@ import {everydayCompanion} from './companion-everyday.js';
 import {draftCorrection,normalizeFollowupText,followupCurrency,followupClock,isLocalCompanionFollowup} from './companion-followup.js';
 import {companionDraftSchema} from './companion-ai.js';
 import {guidanceGoal,guidanceReply} from './companion-guidance.js';
+import {dictionaryWord} from './chat-dictionary.js';
+import {languageProfile} from './lebanese-language.js';
 const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100)+' (USD estimate)';
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
 export function localCompanion(data,user,question,current,selected,context=null){
  question=commonRequestAlias(question)||question;
+ // A short service name is a suggestion, never a saved subscription or price.
+ const tokens=question.trim().split(/\s+/);
+ for(let i=0;i<3&&tokens[0]&&dictionaryWord(tokens[0],['prefix']);i++)tokens.shift();
+ const verb=tokens[0]&&dictionaryWord(tokens.shift(),['verb']);
+ const short=verb&&tokens.join(' ').match(/^(Claude|ChatGPT|Netflix|Spotify|YouTube Premium)\s*[.!?؟]*$/i);
+ if(short&&hasAccess(user,'money')){
+  const draft={type:'subscription',initial:{title:short[1],renewal:current}};
+  return {answer:languageProfile(question).language==='ar'?`قصدك اشتراك ${short[1]}؟ إذا هيك، قديش سعره بالدولار؟ راجع دورة الدفع وتاريخ التجديد بالنموذج قبل الحفظ. فيك تقول «الغي» إذا قصدك شي تاني.`:`Do you mean a subscription for ${short[1]}? If so, what is its price in USD? Review the billing cycle and renewal date in the form before saving. Say cancel if that is not what you meant.`,context:{draft,field:'amount'}};
+ }
  const meta=normalizeFollowupText(question).toLowerCase();
+ if(context?.field&&/^(?:no|nope|la|لا|مش هيك)[.!؟?\s]*$/.test(meta))return {answer:languageProfile(question).language==='ar'?'لغيت المسودة. ما انحفظ شي.':'Draft cancelled. Nothing was saved.'};
  if(/^why\b.*(?:ask|question)|^ليش.*(?:بتسال|عم تسال|اسئل)/.test(meta))return {answer:/[\u0600-\u06ff]/.test(meta)?'بسأل عن التفاصيل الناقصة كرمال ما سجّل مبلغ أو عملة غلط. فيك تعطيني الاسم والمبلغ والعملة بجملة وحدة، مثل «صرفت 15 دولار على الغدا». بجهّز مسودة وبتراجعها قبل الحفظ.': 'I ask for missing details so I do not record the wrong amount or currency. You can give the title, amount and currency together, like “I spent 15 USD for lunch”. I prepare a draft for you to review before saving.',context};
  if(context?.field&&!isLocalCompanionFollowup(question,context))context=null;
  const goal=guidanceGoal(question,context);if(goal)return guidanceReply(user,goal);
@@ -32,7 +44,7 @@ export function localCompanion(data,user,question,current,selected,context=null)
   const draft=structuredClone(result.action||result.context.draft);delete draft.initial.currency;result=finishDraft(draft);
  }
  if(translated.arabic&&result.action){const d=result.action.initial;result.answer=`حضرتلك مسودة: ${d.title}${d.amount?' · '+d.amount+' '+(d.currency||'USD'):''} · ${d.due||d.date||''}${d.scheduled_time?' · '+d.scheduled_time:''}. راجع التفاصيل واضغط حفظ. بعد ما انحفظ شي.`;}
- else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='time'?'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة.':result.context.field==='date'?'بأي تاريخ؟ قلّي اليوم أو بكرا أو اكتب YYYY-MM-DD.':result.context.field==='currency'?'بأي عملة؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.':result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':'قديش المبلغ؟ اكتبه بالارقام، مثلا 15.50. فيك تقول «الغي» لنوقف.';
+ else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='time'?'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة.':result.context.field==='date'?'بأي تاريخ؟ قلّي اليوم أو بكرا أو اكتب YYYY-MM-DD.':result.context.field==='currency'?`بأي عملة لـ${result.context.draft?.initial.title||'هالعملية'}؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.`:result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':`قديش المبلغ لـ${result.context.draft?.initial.title||'هالعملية'}؟ اكتب المبلغ والعملة، مثل 20 دولار. فيك تقول «الغي» لنوقف.`;
  else if(translated.arabic&&translated.question==='cancel')result.answer='لغيت المسودة. ما انحفظ شي.';
  return result;
 }
@@ -96,7 +108,18 @@ function localCompanionCore(data,user,question,current,selected,context=null){
    draft.initial.currency=currency;return finishDraft(draft);
   }
   if(context.field==='title')draft.initial.title=q.slice(0,160);
-  else {if(!/^\$?\d+(\.\d{1,2})?$/.test(q)||Number(q.replace('$',''))<=0)return {answer:'Enter a positive amount, such as 15.50, or say cancel.',context};draft.initial.amount=Number(q.replace('$',''));}
+  else {
+   const value=normalizeFollowupText(arabiziRest(q)).replace(/^(?:yes|yeah|eh|اي|نعم)[,،\s]+/i,'');
+   const amount=value.match(/^\$?\s*(\d+(?:\.\d{1,2})?)\s*(USD|LBP|EUR|GBP|dollars?|دولار|ليرة|ليره)?$/i);
+   if(!amount||Number(amount[1])<=0||Number(amount[1])>999999999)return {answer:`What is the amount for ${draft.initial.title||'this draft'}? Include its currency, for example 20 USD, or say cancel.`,context};
+   if(amount[2]){
+    const currency=followupCurrency(amount[2],currencyCatalog(data.settings));
+    if(!currency)return {answer:'Choose one configured currency: '+currencyCatalog(data.settings).map(c=>c.code).join(', ')+'. Nothing was saved.',context};
+    if(['subscription','budget','item'].includes(draft.type)&&currency!=='USD')return {answer:'This plan uses USD. Please give the price in USD; I have not converted it or saved anything.',context};
+    if(!['subscription','budget','item'].includes(draft.type))draft.initial.currency=currency;
+   }
+   draft.initial.amount=Number(amount[1]);
+  }
   return finishDraft(draft);
  }
  const normalized=q.replace(/^i (?:spent|paid)\s+/i,'add expense ').replace(/^remind me\s+(?:to\s+)?/i,'add task ').replace(/^i (?:earned|received)\s+/i,'add income ');
@@ -170,6 +193,6 @@ function localCompanionCore(data,user,question,current,selected,context=null){
 export function finishDraft(draft){
  const field=!draft.initial.title?'title':draft.type==='task'&&!draft.initial.due?'date':draft.type!=='task'&&!draft.initial.amount?'amount':['expense','income','opening','withdrawal'].includes(draft.type)&&!draft.initial.currency?'currency':null;
  if(field==='date')return {answer:'Which date should I use? Say today, tomorrow, or enter YYYY-MM-DD. Your task draft is still here.',context:{draft,field}};
- if(field)return {answer:field==='currency'?'Which currency? Enter USD, LBP, or a currency name from Settings. Nothing was saved.':field==='title'?`What should I call this ${draft.type}? Say cancel to stop.`:'What is the amount? Enter a number such as 15.50, or say cancel.',context:{draft,field}};
+ if(field)return {answer:field==='currency'?`Which currency for ${draft.initial.title}? Enter USD, LBP, or a currency name from Settings. Nothing was saved.`:field==='title'?`What should I call this ${draft.type}? Say cancel to stop.`:`What is the amount for ${draft.initial.title}? Include its currency, for example 20 USD, or say cancel.`,context:{draft,field}};
  return {answer:`Your ${draft.type==='opening'?'existing savings':draft.type} draft is ready: ${draft.initial.title}${draft.initial.amount?' · '+formatMoney(cents(draft.initial.amount),draft.initial.currency||'USD'):''} · ${draft.initial.due||draft.initial.date||draft.initial.renewal||draft.initial.start||'review date in form'}. You can say “change that to tomorrow”${draft.type!=='task'?' or “change the amount to 25”':''}. Review and save when ready. Nothing has been saved yet.`,action:draft,context:{draft}};
 }

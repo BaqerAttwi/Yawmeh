@@ -6,7 +6,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Mic,MicOff,Volume2,VolumeX,Square,SlidersHorizontal} from 'lucide-react';
 
 // Mounted only while chat is open: closing or signing out releases microphone/audio.
-export function CompanionVoice({onTranscript,response,storageKey,onStateChange,language,busy,mode,avatar,conversationId}) {
+export function CompanionVoice({onTranscript,onType,response,storageKey,onStateChange,language,busy,mode,avatar,conversationId}) {
  const answer=response?.answer;
  const ar=language==='ar',t=(en,arabic)=>ar?arabic:en;
  const arabicStatus={
@@ -82,7 +82,7 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
   if(listening){recognition.current?.stop();setStatus('Check your words, then press Send.');return;}
   if(cloudAvailable&&cloudEnabled&&canRecord){
    stopSpeech();stopListening();
-   recorder.current=createVoiceRecorder({onTranscript,onState:state=>{setListening(state==='listening');setStarting(state==='starting');setTranscribing(state==='transcribing');setStatus(state==='listening'?t('Listening… Tap Stop mic when finished.','عم اسمعك… اضغط وقف التسجيل لما تخلّص.'):state==='starting'?t('Opening microphone…','عم شغّل الميكروفون…'):state==='transcribing'?t('Transcribing your recording…','عم حوّل التسجيل لنص…'):state==='done'?'Check your words, then press Send.':'');},onError:()=>setStatus(t('Recording could not be transcribed. Try again or select browser recognition in Voice settings.','ما قدرنا نحوّل التسجيل لنص. جرّب مرة تانية أو اختار تعرّف المتصفح بإعدادات الصوت.'))});
+   recorder.current=createVoiceRecorder({onTranscript,onState:state=>{setListening(state==='listening');setStarting(state==='starting');setTranscribing(state==='transcribing');setStatus(state==='listening'?t('Listening… Tap Stop mic when finished.','عم اسمعك… اضغط وقف التسجيل لما تخلّص.'):state==='starting'?t('Opening microphone…','عم شغّل الميكروفون…'):state==='transcribing'?t('Transcribing your recording…','عم حوّل التسجيل لنص…'):state==='done'?'Check your words, then press Send.':'');},onError:()=>setStatus(t('I could not hear you clearly. Try again or type your message below.','ما قدرت افهم التسجيل منيح. جرّب مرة تانية أو اكتب رسالتك تحت.'))});
    recorder.current.start(microphoneLanguage==='auto'?'auto':microphoneLanguage.slice(0,2));return;
   }
   if(!Recognition)return;stopSpeech();const inputLanguage=microphoneLocale(microphoneLanguage,language);setStatus(inputLanguage==='ar-LB'?'Listening… احكي لبناني.':'Listening… Speak in English.');
@@ -113,5 +113,6 @@ export function CompanionVoice({onTranscript,response,storageKey,onStateChange,l
    <small>{t('Voices depend on your device; a Lebanese accent is not guaranteed. Your browser may process speech online. Audio is not stored by Yawmeh.','الأصوات حسب جهازك، واللهجة اللبنانية مش مضمونة. المتصفح ممكن يعالج الصوت أونلاين. يومي ما بيحفظ الصوت.')}</small>
   </div>}
   <p className="companion-voice-status" role="status" dir="auto">{ar?(arabicStatus[status]||status):status}</p>
+  {status&&!listening&&!starting&&!transcribing&&<button type="button" disabled={busy} onClick={()=>{stopListening();stopSpeech();setStatus('');onType?.();}}>{t('Type instead / edit your words','اكتب بدل الصوت / عدّل كلامك')}</button>}
  </div>;
 }

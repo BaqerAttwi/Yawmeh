@@ -59,6 +59,31 @@ test('AI time clarifications return a validated pending task instead of losing t
  const denied=await f.call({...input,question:'take a break at 1'},{token:'b'});assert.equal((await denied.json()).context,undefined);
 });
 
+test('every avatar retains AI money clarifications with identical permissions and model settings',async t=>{
+ for(const avatar of ['sage','nova','pip']){
+  const f=await fixture(t,{intent:{intent:'clarify',draft:{type:'subscription',initial:{title:'Claude',renewal:'2026-11-16'}},clarificationField:'amount'}});
+  const reply=await (await f.call({...input,avatar,question:'add Claude'},{token:'b'})).json();
+  assert.equal(reply.context?.field,'amount');assert.equal(reply.context.draft.initial.title,'Claude');assert.equal(reply.context.draft.initial.renewal,'2026-11-16');assert.equal(reply.action,undefined);assert.match(reply.answer,/Claude/);
+  const denied=await (await f.call({...input,avatar})).json();assert.equal(denied.context,undefined);
+  assert.match(f.requests[0].body.systemInstruction.parts[0].text,/identical for every avatar/);
+  assert.equal(f.requests[0].body.generationConfig.maxOutputTokens,8192);
+ }
+});
+
+test('AI failures report bounded timing and model diagnostics without message content or credentials',async t=>{
+ const logs=[];t.mock.method(console,'warn',(...args)=>logs.push(args));
+ const f=await fixture(t,{providerStatus:503}),response=await f.call({...input,question:'PRIVATE USER MESSAGE'});
+ assert.equal(response.status,503);assert.equal((await response.json()).code,'provider_busy');
+ const diagnostic=JSON.parse(logs.find(row=>row[0]==='[companion-ai]')[1]);
+ assert.equal(diagnostic.phase,'provider');assert.equal(diagnostic.providerStatus,503);assert.equal(diagnostic.timeoutMs,40000);assert.equal(diagnostic.model,'gemini-3.8-flash');assert.ok(diagnostic.elapsedMs>=0);
+ assert.doesNotMatch(JSON.stringify(logs),/PRIVATE USER MESSAGE|server-only-test-key|private-email/);
+});
+
+test('a stalled AI provider is aborted and reports a timeout instead of hanging',async t=>{
+ const f=await fixture(t,{env:{COMPANION_AI_TIMEOUT_MS:'5000'},fetchOverride:(_url,{signal})=>new Promise((resolve,reject)=>{signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});})});
+ const started=Date.now(),response=await f.call();assert.equal(response.status,503);assert.equal((await response.json()).code,'timeout');assert.ok(Date.now()-started<10000);
+});
+
 test('AI broad goals return fixed choices without reading private records or permitting writes',async t=>{
  const f=await fixture(t,{intent:{intent:'guide',goal:'tasks'}}),response=await f.call({...input,question:'My plans feel impossible to manage'});
  const reply=await response.json();assert.equal(response.status,200);assert.equal(reply.context.goal,'tasks');assert.equal(reply.action,undefined);assert.deepEqual(f.loads,[]);

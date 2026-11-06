@@ -40,7 +40,8 @@ export function presentReply(result,language) {
  if(result.context?.field){
   if(result.context.field==='time')return {...result,language:'ar',answer:'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة؛ ما انحفظ شي بسجلاتك.'};
   if(result.context.field==='date')return {...result,language:'ar',answer:'بأي تاريخ؟ قلّي اليوم أو بكرا، أو اكتب تاريخ مثل 2026-11-04. ما انحفظ شي.'};
-  const prompts={title:'شو اسم العملية؟ فيك تقول «الغي» لنوقف.',amount:'قديش المبلغ؟ اكتب رقم مثل 15.50، أو «الغي» لنوقف.',currency:'بأي عملة؟ اكتب رمز عملة من العملات اللي ضفتها، مثل USD أو LBP.'};
+  const title=result.context.draft?.initial.title||'هالعملية';
+  const prompts={title:'شو اسم العملية؟ فيك تقول «الغي» لنوقف.',amount:`قديش المبلغ لـ${title}؟ اكتب المبلغ والعملة، مثل 20 دولار، أو «الغي» لنوقف.`,currency:`بأي عملة لـ${title}؟ اكتب رمز عملة من العملات اللي ضفتها، مثل USD أو LBP.`};
   // Preserve validation feedback instead of replacing it with a generic prompt.
   if(result.answer.startsWith('Choose one configured currency: '))return {...result,language:'ar',answer:result.answer.replace('Choose one configured currency: ','اختار عملة من العملات المضافة: ').replace('. Nothing was saved.','. ما انحفظ شي.')};
   if(/^(What|How much|Which|Please give|Enter a positive|على شو|قديش المبلغ|بأي عملة)/.test(result.answer))return {...result,language:'ar',answer:prompts[result.context.field]};

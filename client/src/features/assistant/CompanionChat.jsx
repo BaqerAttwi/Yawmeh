@@ -31,7 +31,7 @@ function Reply({message,avatar,t,onReview,onDismiss,onChoose,user}) {
  const {action,answer,language}=message;
  const lines=answer.split('\n'),long=lines.length>5,visibleAnswer=long?lines.slice(0,3).join('\n'):answer;
  return <article className="companion-reply" dir={language==='ar'?'rtl':'ltr'}>
-  <div className="companion-message-author"><span style={{background:avatar.color}}/>{avatar.name}<small>{message.engine==='gemini'?t('AI-assisted','بمساعدة AI'):t('From your records','من سجلاتك')}</small></div>
+  <div className="companion-message-author"><span style={{background:avatar.color}}/>{avatar.name}<small>{message.engine==='gemini'?t('AI-assisted','بمساعدة AI'):t('Local helper · drafts & records','مساعد محلي · مسودات وسجلات')}</small></div>
   {message.hasEnglishDetails&&<small className="companion-language-note">بعض التفاصيل المفصّلة بعدها بالإنكليزي.</small>}
   <div className="companion-reply-sections">{visibleAnswer.split(/\n\n+/).filter(Boolean).map((part,i)=>{const metrics=replyMetrics(part,language);return metrics?<section className="companion-metrics" key={i}><small><BidiText text={metrics.caption}/></small><dl>{metrics.items.map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl></section>:<p dir="auto" key={i}><BidiText text={part}/></p>;})}{long&&<details className="companion-full-reply"><summary>{language==='ar'?'شوف باقي الجواب والملاحظات':'Show the rest and notes'}</summary>{lines.slice(3).join('\n').split(/\n\n+/).filter(Boolean).map((part,i)=><p dir="auto" key={i}><BidiText text={part}/></p>)}</details>}</div>
   {message.context?.goal&&onChoose&&<div className="companion-guidance-choices">{guidanceChoices(message.context.goal,user,language).map(choice=><button type="button" key={choice.question} onClick={()=>onChoose(choice.question,choice.label)}>{choice.label}</button>)}</div>}
@@ -103,12 +103,15 @@ function CompanionSession({data,user,date,mode,onAction}) {
   pending.current=setTimeout(async()=>{
    try{
     const prepared=localCompanion(data,user,question,date,{start,end},conversation.current);
-    const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(!!prepared.context?.field&&!!prepared.context?.draft);
+    // A rejected follow-up returns the original context. Let AI interpret it
+    // (for example "twenty dollars") instead of trapping it in a local prompt.
+    const progressed=prepared.context!==conversation.current;
+    const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(progressed&&!!prepared.context?.field&&!!prepared.context?.draft);
     if(localDraft)setAINotice('');
     let result=localDraft?prepared:undefined,reply;
-    const localFollowup=isLocalCompanionFollowup(question,conversation.current);
+    const localFollowup=isLocalCompanionFollowup(question,conversation.current)&&(progressed||!!prepared.action);
     if(mode==='live'&&useAI&&aiAvailable&&!localFollowup&&!localDraft&&!forceLocal){
-     const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),30000);
+     const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),45000);
      try{
       const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,languageMode:preference==='auto'?'auto':'explicit',avatar:avatar.id,start,end,context:conversation.current,history:messages.slice(-3).map(m=>m.question),dialogue:messages.slice(-4).map(m=>({question:m.question.slice(0,1000),answer:m.engine==='gemini'?m.answer.slice(0,3000):'[Local app result not shared]'}))})});
       if(!response.ok){const failure=await response.json().catch(()=>({}));throw new Error(failure.code||(response.status===429?'rate_limited':'unavailable'));}
@@ -162,7 +165,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
    {tools==='add'&&<section className="companion-tools companion-add-grid" aria-label={t('Quick add','إضافة سريعة')}>{Object.entries(actionNames).filter(([type])=>hasAccess(user,type==='task'?'tasks':'money')).map(([type,names])=><button type="button" key={type} onClick={()=>startDraft(type)}><Plus size={14}/>{names[ar?1:0]}</button>)}</section>}
    {tools==='dates'&&<form className="companion-date-form" onSubmit={e=>{e.preventDefault();setTools(null);ask('Report for selected dates',t('Report for selected dates','تقرير للفترة المختارة'));}}><label>{t('From','من')}<input type="date" required value={start} max={end} onChange={e=>setStart(e.target.value)}/></label><label>{t('Through','إلى')}<input type="date" required value={end} min={start} onChange={e=>setEnd(e.target.value)}/></label><button type="submit" disabled={thinking}>{t('Report','تقرير')}</button></form>}
    <div className="companion-composer">
-    <CompanionVoice key={sessionId} storageKey={key} mode={mode} avatar={avatar.id} conversationId={sessionId} onStateChange={setVoiceState} onTranscript={words=>{setText(words);setLastLanguage(companionLanguage(preference,words,lastLanguage));}} response={messages.at(-1)} language={language} busy={thinking}/>
+    <CompanionVoice key={sessionId} storageKey={key} mode={mode} avatar={avatar.id} conversationId={sessionId} onStateChange={setVoiceState} onType={()=>input.current?.focus()} onTranscript={words=>{setText(words);setLastLanguage(companionLanguage(preference,words,lastLanguage));}} response={messages.at(-1)} language={language} busy={thinking}/>
     <form className="companion-chat-input" onSubmit={e=>{e.preventDefault();ask(text);}}><label className="sr-only" htmlFor="companion-question">{t('Ask your companion','اسأل مساعدك')}</label><input id="companion-question" dir="auto" ref={input} value={text} maxLength={1000} onChange={e=>setText(e.target.value)} placeholder={t('What’s on your mind?','شو ببالك؟')}/><button disabled={!text.trim()||thinking} type="submit" aria-label={t('Send message','إرسال الرسالة')}><ArrowUp size={19}/></button></form>
    </div>
    <small className="companion-chat-note">{storageError?t('Chat could not be saved in this browser.','ما قدرنا نحفظ المحادثة بهالمتصفح.'):t('Based on your records · You review every draft','حسب سجلاتك · بتراجع كل مسودة قبل الحفظ')}</small>
