@@ -32,6 +32,15 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
    {view==='videos'&&<section className="start-here-videos"><h3>Your first day, step by step</h3><p>Start in Settings, add your first record, then return to Today. Recorded in a demo workspace.</p><video controls playsInline preload="none" aria-label="Getting started walkthrough"><source src="/guides/getting-started.webm" type="video/webm"/><track kind="captions" src="/guides/getting-started.en.vtt" srcLang="en" label="English" default/><track kind="captions" src="/guides/getting-started.ar.vtt" srcLang="ar" label="العربية"/></video><DemoGuides can={can}/></section>}
    <footer><button className="text-button" onClick={()=>{remember();onClose();}}>I’ll explore on my own</button><small>Look for the G Guide button in the sidebar or top bar.</small></footer>
   </dialog>}
-  {step&&<section className="getting-started-coach" aria-label="Guided tour" aria-live="polite"><div className="tour-top"><span>STEP {index+1} OF {steps.length}</span><button className="icon-button" aria-label="Pause guided tour" onClick={()=>setIndex(null)}><X size={18}/></button></div><div className="tour-copy"><Character avatar={{id:'sage'}} animated={false}/><div><h2>{step.title}</h2><p className="tour-instruction">{reached?<><Check size={16}/> You’re in the right place.</>:step.instruction}</p><p>{step.explanation}</p>{step.example&&<p className="tour-example">{step.example}</p>}</div></div><div className="tour-progress" aria-label={`Step ${index+1} of ${steps.length}`}>{steps.map((s,i)=><span key={s.id} className={i<=index?'complete':''}/>)}</div><footer><button className="text-button" disabled={!index} onClick={()=>setIndex(i=>i-1)}><ChevronLeft size={15}/>Back</button>{!reached?<button className="primary" onClick={()=>onNavigate(step)}>Take me there <ArrowRight size={15}/></button>:<button ref={next} className="primary" onClick={()=>index===steps.length-1?finish():setIndex(i=>i+1)}>{index===steps.length-1?'Finish tour':'Next step'} <ArrowRight size={15}/></button>}</footer><small>Explore at your pace. Nothing is added automatically.</small></section>}
+  {step&&<section className="getting-started-coach" aria-label="Guided tour">
+   <div className="tour-top"><span>STEP {index+1} OF {steps.length}</span><button className="icon-button" aria-label="Pause guided tour" onClick={()=>setIndex(null)}><X size={18}/></button></div>
+   <div key={step.id} className="tour-body" aria-live="polite" tabIndex={0}>
+    <div className="tour-copy"><Character avatar={{id:'sage'}} animated={false}/><div><h2>{step.title}</h2><p className="tour-instruction">{reached?<><Check size={16}/> You’re in the right place.</>:step.instruction}</p><p>{step.explanation}</p>{step.example&&<p className="tour-example">{step.example}</p>}</div></div>
+   </div>
+   <footer>
+    <button className="text-button" disabled={!index} onClick={()=>setIndex(i=>i-1)}><ChevronLeft size={15}/>Back</button>
+    {!reached?<button className="primary" onClick={()=>onNavigate(step)}>Take me there <ArrowRight size={15}/></button>:<button ref={next} className="primary" onClick={()=>index===steps.length-1?finish():setIndex(i=>i+1)}>{index===steps.length-1?'Finish tour':'Next step'} <ArrowRight size={15}/></button>}
+   </footer>
+  </section>}
  </>;
 }
