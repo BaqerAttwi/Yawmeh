@@ -38,7 +38,13 @@ try {
     return page.getByRole('dialog',{name:'Review change',exact:true});
   };
   const before = await getRecords();
-  let dialog = await ask('Delete task '+task.title);
+  let dialog = await ask('Reschedule task "'+task.title+'" to constructor');
+  assert.equal(await dialog.getByLabel('New date').inputValue(),'');
+  assert.equal(await dialog.getByRole('button',{name:'Confirm change'}).isDisabled(),true);
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.deepEqual(await getRecords(),before);
+  await launch();
+  dialog = await ask('Delete task '+task.title);
   assert.deepEqual(await getRecords(),before);
   const confirm = ()=>dialog.getByRole('button',{name:'Confirm change',exact:true});
   assert.equal(await confirm().isDisabled(),true);
@@ -48,6 +54,7 @@ try {
   await launch();
   dialog = await ask('Delete task '+task.title);
   await dialog.getByLabel('Choose the exact record').selectOption('101');
+  assert.equal(await confirm().isEnabled(),true,await dialog.innerText());
   await confirm().click();
   await dialog.waitFor({state:'hidden'});
   assert.equal((await getRecords()).cancelled_tasks[0].id,101);

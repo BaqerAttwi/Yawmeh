@@ -3,7 +3,7 @@ import {hasAccess} from './access.js';
 import {companionDraftSchema as action,companionContextSchema as context} from './companion-ai.js';
 import {canReviewChange,companionChangeSchema} from './companion-changes.js';
 
-const message=z.object({id:z.number().int().nonnegative(),question:z.string().max(1000),answer:z.string().max(24000),language:z.enum(['en','ar']),engine:z.enum(['gemini']).optional(),action:action.optional(),change:companionChangeSchema.optional(),context:context.optional(),hasEnglishDetails:z.boolean().optional(),dismissed:z.boolean().optional(),saved:z.boolean().optional()});
+const message=z.object({id:z.number().int().nonnegative(),question:z.string().max(1000),answer:z.string().max(24000),language:z.enum(['en','ar']),engine:z.enum(['gemini']).optional(),shareable:z.boolean().optional(),action:action.optional(),change:companionChangeSchema.optional(),context:context.optional(),hasEnglishDetails:z.boolean().optional(),dismissed:z.boolean().optional(),saved:z.boolean().optional()});
 const session=z.object({id:z.string().max(80),updated:z.number().finite(),messages:z.array(message).max(20),text:z.string().max(1000),context,start:z.string().max(10),end:z.string().max(10)});
 export const historyKey=key=>key+':history:v1';
 export const historyScope=user=>['money','tasks'].filter(app=>hasAccess(user,app)).join(',');

@@ -179,9 +179,22 @@ test('conversational replies preserve Lebanese Arabic, remember dialogue and do 
  const dialogue=[{question:'I need help studying',answer:'Which subject?'}];
  const response=await f.call({...input,language:'ar',question:'رياضيات',dialogue});
  assert.equal(response.status,200);const reply=await response.json();
- assert.equal(reply.answer,answer);assert.equal(reply.language,'ar');assert.equal(reply.action,undefined);assert.deepEqual(f.loads,[]);
+ assert.equal(reply.answer,answer);assert.equal(reply.language,'ar');assert.equal(reply.action,undefined);assert.equal(reply.shareable,true);assert.deepEqual(f.loads,[]);
  const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);assert.deepEqual(sent.dialogue,dialogue);
  const missing=await fixture(t,{intent:{intent:'conversation'}});assert.equal((await missing.call()).status,503);
+});
+
+test('long multilingual dialogue fits the provider budget and retains the newest turn',async t=>{
+ const f=await fixture(t,{intent:{intent:'conversation',answer:'Here to help.'}});
+ const question='كيف فيني رتّب نهاري؟';
+ const dialogue=Array.from({length:4},(_,i)=>({question:'問'.repeat(999)+i,answer:'答'.repeat(2999)+i}));
+ const response=await f.call({...input,question,dialogue,history:Array(4).fill('日'.repeat(1000))});
+ assert.equal(response.status,200);
+ const body=f.requests[0].body;
+ assert.ok(Buffer.byteLength(JSON.stringify(body),'utf8')<=40000);
+ const sent=JSON.parse(body.contents[0].parts[0].text);
+ assert.equal(sent.question,question);
+ assert.deepEqual(sent.dialogue.at(-1),dialogue.at(-1));
 });
 
 
