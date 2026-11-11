@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {isAbsolute} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createApp} from '../server/src/app.js';
+import {demoData} from '../client/src/features/demo/data.js';
+
+const module = process.env.PLAYWRIGHT_MODULE || 'playwright';
+const {chromium} = await import(isAbsolute(module) ? pathToFileURL(module).href : module);
+const server = createApp({db:{},authStore:{},recoveryOptions:null}).listen(0,'127.0.0.1');
+await once(server,'listening');
+const browser = await chromium.launch({headless:true,channel:'msedge'});
+const url = `http://127.0.0.1:${server.address().port}`;
+try {
+  for (const width of [320,375,768,1440]) {
+    const page = await browser.newPage({viewport:{width,height:900}});
+    await page.goto(url);
+    await page.getByRole('heading',{name:'A space for your kind of day.'}).waitFor();
+    assert.equal(await page.locator('.login-story h1').innerText(),'A space for your kind of day.');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
+    await page.close();
+  }
+  const data = demoData();
+  const task = data.tasks.find(item=>!item.completed);
+  data.tasks.push({...task,id:101});
+  const income = data.entries.find(entry=>entry.title==='Website freelance project');
+  const page = await browser.newPage({viewport:{width:375,height:850}});
+  await page.addInitScript(seed=>localStorage.setItem('daywell-demo',JSON.stringify(seed)),data);
+  await page.goto(url);
+  await page.getByRole('button',{name:'Try admin demo'}).click();
+  const launch = ()=>page.locator('.companion-launcher').click();
+  await launch();
+  const getRecords = ()=>page.evaluate(()=>JSON.parse(localStorage.getItem('daywell-demo')));
+  const ask = async question=>{
+    await page.locator('#companion-question').fill(question);
+    await page.getByRole('button',{name:'Send message',exact:true}).click();
+    await page.getByRole('button',{name:'Review change',exact:true}).click();
+    return page.getByRole('dialog',{name:'Review change',exact:true});
+  };
+  const before = await getRecords();
+  let dialog = await ask('Delete task '+task.title);
+  assert.deepEqual(await getRecords(),before);
+  const confirm = ()=>dialog.getByRole('button',{name:'Confirm change',exact:true});
+  assert.equal(await confirm().isDisabled(),true);
+  await dialog.getByLabel('Choose the exact record').selectOption('101');
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.deepEqual(await getRecords(),before);
+  await launch();
+  dialog = await ask('Delete task '+task.title);
+  await dialog.getByLabel('Choose the exact record').selectOption('101');
+  await confirm().click();
+  await dialog.waitFor({state:'hidden'});
+  assert.equal((await getRecords()).cancelled_tasks[0].id,101);
+  assert.ok((await getRecords()).tasks.some(item=>item.id===task.id));
+  await launch();
+  dialog = await ask('Rename income "'+income.title+'" to Client project');
+  await confirm().click();
+  await dialog.waitFor({state:'hidden'});
+  let record = (await getRecords()).entries.find(entry=>entry.id===income.id);
+  assert.equal(record.title,'Client project');
+  assert.equal(record.amount,income.amount);
+  await launch();
+  dialog = await ask('Delete income Client project');
+  assert.equal(await confirm().isDisabled(),true);
+  await dialog.getByLabel('Reason for reversal').fill('Duplicate entry');
+  await confirm().click();
+  await dialog.waitFor({state:'hidden'});
+  record = (await getRecords()).entries.find(entry=>entry.id===income.id);
+  assert.equal(record.void_reason,'Duplicate entry');
+  assert.ok(record.voided_on);
+  console.log('Entrance spacing passed at four widths. Reviewed cancellation, rename and reversal passed.');
+} finally {
+  await browser.close();
+  server.closeAllConnections();
+  server.close();
+}

@@ -3,6 +3,16 @@ import {requireAccess} from '../auth/auth.js';
 import {today} from '../../../../shared/domain.js';
 import {checkVoid} from '../../../../shared/insights.js';
 export function mountInsights(app,db,transaction){
+  const title = z.object({title:z.string().trim().min(1).max(160)}).strict();
+  for (const table of ['tasks','entries','subscriptions','budgets','goals','items']) {
+    app.patch(`/api/${table}/:id/title`,requireAccess(table==='tasks'?'tasks':'money'),async(req,res)=>{
+      const value=title.parse(req.body);
+      const active=table==='entries'?' AND voided_on IS NULL':table==='tasks'?' AND cancelled=0':'';
+      const [result]=await db.query(`UPDATE ${table} SET title=? WHERE id=? AND user_id=?${active}`,[value.title,req.params.id,req.user.id]);
+      if(!result.affectedRows)return res.status(404).json({error:'Active record not found.'});
+      res.json({ok:true});
+    });
+  }
   for(const [table,field,permission,schema] of [
     ['tasks','estimate_minutes','tasks',z.number().int().min(0).max(1440)],
     ['subscriptions','rarely_used','money',z.boolean()],

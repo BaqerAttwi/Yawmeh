@@ -1,4 +1,5 @@
 import {CompanionExamples} from './CompanionExamples.jsx';
+import {parseCompanionChange,proposeCompanionChange} from '../../../../shared/companion-changes.js';
 import {companionStatusMessage} from '../../../../shared/companion-status.js';
 import {randomId} from '../../../../shared/id.js';
 import React,{useState,useRef,useEffect} from 'react';
@@ -35,6 +36,10 @@ function Reply({message,avatar,t,onReview,onDismiss,onChoose,user}) {
   {message.hasEnglishDetails&&<small className="companion-language-note">بعض التفاصيل المفصّلة بعدها بالإنكليزي.</small>}
   <div className="companion-reply-sections">{visibleAnswer.split(/\n\n+/).filter(Boolean).map((part,i)=>{const metrics=replyMetrics(part,language);return metrics?<section className="companion-metrics" key={i}><small><BidiText text={metrics.caption}/></small><dl>{metrics.items.map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl></section>:<p dir="auto" key={i}><BidiText text={part}/></p>;})}{long&&<details className="companion-full-reply"><summary>{language==='ar'?'شوف باقي الجواب والملاحظات':'Show the rest and notes'}</summary>{lines.slice(3).join('\n').split(/\n\n+/).filter(Boolean).map((part,i)=><p dir="auto" key={i}><BidiText text={part}/></p>)}</details>}</div>
   {message.context?.goal&&onChoose&&<div className="companion-guidance-choices">{guidanceChoices(message.context.goal,user,language).map(choice=><button type="button" key={choice.question} onClick={()=>onChoose(choice.question,choice.label)}>{choice.label}</button>)}</div>}
+  {message.change&&<div className="companion-draft-buttons">
+   <button type="button" className="primary" onClick={onReview}>{t('Review change','راجع التغيير')}<ChevronRight size={15}/></button>
+   <button type="button" onClick={onDismiss}>{t('Dismiss','إلغاء')}</button>
+  </div>}
   {action&&<section className="companion-draft" aria-label={t('Draft to review','مسودة للمراجعة')}>
    <div className="companion-draft-heading"><FileText size={16}/><strong>{actionNames[action.type]?.[language==='ar'?1:0]||action.type}</strong><span>{t('DRAFT','مسودة')}</span></div>
    <dl>{draftFields(action,language).map(([label,value])=><div key={label}><dt>{label}</dt><dd dir="auto">{value}</dd></div>)}</dl>
@@ -49,7 +54,7 @@ function Reply({message,avatar,t,onReview,onDismiss,onChoose,user}) {
 export function CompanionChat(props) {
  return <CompanionSession key={`${props.mode}:${props.user.id}:${historyScope(props.user)}`} {...props}/>;
 }
-function CompanionSession({data,user,date,mode,onAction}) {
+function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  const key=`daywell-companion:${mode}:${user.id}`;
  const [history,setHistory]=useState(()=>readCompanionHistory(read(historyKey(key),''),user));
  const historyRef=useRef(history);
@@ -93,7 +98,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
  function restoreChat(saved){cancelPending();const restoredLanguage=saved.messages.at(-1)?.language;if(restoredLanguage){setLastLanguage(restoredLanguage);save(key+':last-language',restoredLanguage);}conversation.current=saved.context;setMessages(saved.messages);setText(saved.text);setStart(saved.start);setEnd(saved.end);setSessionId(saved.id);sequence.current=Math.max(0,...saved.messages.map(m=>m.id));setRestored(true);setTools(null);}
  function deleteChat(id){const next=historyRef.current.filter(s=>s.id!==id);historyRef.current=next;setHistory(next);try{localStorage.setItem(historyKey(key),writeCompanionHistory(next,user));}catch{setStorageError(true);}if(id===sessionId)newChat();}
 
- function clearDrafts(){conversation.current=null;setMessages(old=>old.map(m=>({...m,action:undefined})));}
+ function clearDrafts(){conversation.current=null;setMessages(old=>old.map(m=>({...m,action:undefined,change:undefined})));}
  function ask(question,displayQuestion=question,forceLocal=false){
   if(!question.trim()||thinking||inFlight.current)return;
   inFlight.current=true;const generation=++requestGeneration.current;
@@ -102,11 +107,12 @@ function CompanionSession({data,user,date,mode,onAction}) {
   // Yield once so the activity indicator paints while preparing a local reply.
   pending.current=setTimeout(async()=>{
    try{
-    const prepared=localCompanion(data,user,question,date,{start,end},conversation.current);
+    const changeRequest=parseCompanionChange(question);
+    const prepared=changeRequest?proposeCompanionChange(user,changeRequest,nextLanguage):localCompanion(data,user,question,date,{start,end},conversation.current);
     // A rejected follow-up returns the original context. Let AI interpret it
     // (for example "twenty dollars") instead of trapping it in a local prompt.
     const progressed=prepared.context!==conversation.current;
-    const localDraft=!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(progressed&&!!prepared.context?.field&&!!prepared.context?.draft);
+    const localDraft=!!changeRequest||!!prepared.action||(!!prepared.context?.goal&&!!guidanceGoal(question,conversation.current))||(progressed&&!!prepared.context?.field&&!!prepared.context?.draft);
     if(localDraft)setAINotice('');
     let result=localDraft?prepared:undefined,reply;
     const localFollowup=isLocalCompanionFollowup(question,conversation.current)&&(progressed||!!prepared.action);
@@ -125,7 +131,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
     result??=prepared;
     conversation.current=result.context||null;
     reply??=presentReply(result,nextLanguage);
-    setMessages(old=>[...old.map(m=>({...m,action:undefined})),{...reply,question:displayQuestion,id:++sequence.current}].slice(-20));
+    setMessages(old=>[...old.map(m=>({...m,action:undefined,change:undefined})),{...reply,question:displayQuestion,id:++sequence.current}].slice(-20));
    }finally{if(generation===requestGeneration.current){inFlight.current=false;setThinking(false);pending.current=null;}}
   },80);
  }
@@ -156,7 +162,7 @@ function CompanionSession({data,user,date,mode,onAction}) {
    <div className="companion-chat-log" hidden={tools==='history'||tools==='examples'} role="log" aria-label={t('Conversation','المحادثة')} aria-live="polite" aria-busy={thinking}>
     {restored&&<p className="companion-restored-note">{t('Reopened chat · Previous answers show saved snapshots. New questions use your current records. Review dates before saving an unfinished draft.','محادثة سابقة · الأجوبة القديمة بتعكس وقت السؤال. الأسئلة الجديدة بتستعمل سجلاتك الحالية. راجع التواريخ قبل حفظ أي مسودة.')}</p>}
     {!messages.length&&<div className="companion-welcome"><span className="companion-eyebrow">{t('A LITTLE CLARITY, EVERY DAY','شوي وضوح، كل يوم')}</span><h2>{t(`Hi, I’m ${avatar.name}.`,`أهلا، أنا ${avatar.name}.`)}</h2><p>{t(avatar.intro,avatar.ar)}</p><small>{t('Plan your day, check your money, or prepare something to add.','رتّب نهارك، راجع مصاريك، أو حضّر عملية جديدة.')}</small></div>}
-    {messages.map((message,i)=><React.Fragment key={i}><div className="companion-question" dir="auto"><span className="sr-only">{t('You','أنت')}: </span>{message.question}</div><Reply message={message} avatar={avatar} t={t} user={user} onChoose={i===messages.length-1&&!thinking?(question,label)=>ask(question,label,true):undefined} onReview={()=>{close();onAction(message.action.type,message.action.initial,message.language,()=>{conversation.current=null;setMessages(old=>old.map(m=>m.id===message.id?{...m,action:undefined,saved:true}:m));});}} onDismiss={()=>{conversation.current=null;setMessages(old=>old.map((m,index)=>index===i?{...m,action:undefined,dismissed:true}:m));input.current?.focus();}}/></React.Fragment>)}
+    {messages.map((message,i)=><React.Fragment key={i}><div className="companion-question" dir="auto"><span className="sr-only">{t('You','أنت')}: </span>{message.question}</div><Reply message={message} avatar={avatar} t={t} user={user} onChoose={i===messages.length-1&&!thinking?(question,label)=>ask(question,label,true):undefined} onReview={()=>{close();const saved=()=>{conversation.current=null;setMessages(old=>old.map(m=>m.id===message.id?{...m,action:undefined,change:undefined,saved:true}:m));};if(message.change)onChangeReview(message.change,message.language,saved);else onAction(message.action.type,message.action.initial,message.language,saved);}} onDismiss={()=>{conversation.current=null;setMessages(old=>old.map((m,index)=>index===i?{...m,action:undefined,change:undefined,dismissed:true}:m));input.current?.focus();}}/></React.Fragment>)}
     {thinking&&<div className="companion-thinking"><span/><span/><span/><small>{stateLabel}</small></div>}
     <span ref={bottom}/>
    </div>

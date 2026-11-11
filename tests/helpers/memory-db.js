@@ -27,6 +27,13 @@ export function memoryDatabase(records,users,queries=[]){
     }
     match=sql.match(/^UPDATE (tasks|goals|subscriptions) SET (estimate_minutes|monthly_amount|rarely_used)=\? WHERE id=\? AND user_id=\?$/);
     if(match){const row=records[match[1]].find(r=>r.id===Number(args[1])&&r.user_id===args[2]);if(row)row[match[2]]=args[0];return [{affectedRows:row?1:0}];}
+    match=sql.match(/^UPDATE (tasks|entries|subscriptions|budgets|goals|items) SET title=\? WHERE id=\? AND user_id=\?( AND voided_on IS NULL| AND cancelled=0)?$/);
+    if(match){
+      const row=records[match[1]].find(r=>r.id===Number(args[1])&&r.user_id===args[2]&&
+        (match[2]!==' AND voided_on IS NULL'||!r.voided_on)&&(match[2]!==' AND cancelled=0'||!r.cancelled));
+      if(row)row.title=args[0];
+      return [{affectedRows:row?1:0}];
+    }
     if(sql==='UPDATE entries SET voided_on=?,void_reason=? WHERE id=? AND user_id=?'){const row=records.entries.find(r=>r.id===Number(args[2])&&r.user_id===args[3]);if(row)Object.assign(row,{voided_on:args[0],void_reason:args[1]});return [{affectedRows:row?1:0}];}
 
     if(sql==='UPDATE day_plans SET energy=?,top_ids=?,went_well=?,tomorrow_help=? WHERE id=? AND user_id=?') {const row=records.day_plans.find(r=>r.id===Number(args[4])&&r.user_id===args[5]);if(row)Object.assign(row,{energy:args[0],top_ids:args[1],went_well:args[2],tomorrow_help:args[3]});return [{affectedRows:row?1:0}];}

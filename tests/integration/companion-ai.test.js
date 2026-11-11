@@ -90,6 +90,19 @@ test('AI broad goals return fixed choices without reading private records or per
  const denied=await f.call({...input,language:'ar'},{token:'b'});assert.equal((await denied.json()).context,undefined);
 });
 
+test('AI proposes a permission-scoped change for review without accessing records',async t=>{
+ const change={operation:'reverseEntry',type:'income',target:'Monthly salary',value:'Duplicate'};
+ const f=await fixture(t,{intent:{intent:'change',change}});
+ const body={...input,question:'Can you take the duplicate Monthly salary income off my books?'};
+ const reply=await (await f.call(body,{token:'b'})).json();
+ assert.deepEqual(reply.change,change);
+ assert.equal(reply.action,undefined);
+ assert.match(reply.answer,/review/i);
+ const denied=await (await f.call(body)).json();
+ assert.equal(denied.change,undefined);
+ assert.deepEqual(f.loads,[]);
+});
+
 test('zero and invalid quota settings disable paid calls instead of silently using defaults',async t=>{
  assert.deepEqual(companionAILimits({}),{daily:10,monthly:1000});
  assert.deepEqual(companionAILimits({COMPANION_AI_DAILY_LIMIT:'999',COMPANION_AI_MONTHLY_LIMIT:'99999'}),{daily:10,monthly:1000});

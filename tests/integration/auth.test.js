@@ -48,6 +48,20 @@ test('session listing and remote sign-out are scoped to the signed-in account',a
  const id=tokenHash(second.split('=')[1]);assert.equal((await f.call('/auth/sessions/'+id,{cookie:other,method:'DELETE',body:{}})).status,404);
  assert.equal((await f.call('/auth/sessions/'+id,{cookie:first,method:'DELETE',body:{}})).status,200);assert.equal((await f.call('/auth/me',{cookie:second})).status,401);assert.equal((await f.call('/auth/me',{cookie:first})).status,200);
 });
+test('record title edits require ownership and permissions and leave ledger values intact',async t=>{
+ const f=await fixture(t),sam=await f.login('sam@test.local'),maya=await f.login('maya@test.local');
+ const rename=(path,cookie,body)=>f.call(path,{cookie,method:'PATCH',body});
+ assert.equal((await rename('/tasks/11/title',sam,{title:'Wrong owner'})).status,404);
+ assert.equal((await rename('/entries/20/title',sam,{title:'Wrong permission'})).status,403);
+ assert.equal((await rename('/tasks/10/title',sam,{title:'New task name'})).status,200);
+ assert.equal((await rename('/entries/20/title',maya,{title:'New income name',amount:1})).status,400);
+ assert.equal((await rename('/entries/20/title',maya,{title:'New income name'})).status,200);
+ assert.equal(f.records.entries[0].title,'New income name');
+ assert.equal(f.records.entries[0].amount,700);
+ assert.equal(f.records.entries[0].saved,300);
+ f.records.entries[0].voided_on='2026-11-11';
+ assert.equal((await rename('/entries/20/title',maya,{title:'Reversed entry'})).status,404);
+});
 test('cancelled tasks are recoverable, private, and excluded from active snapshots',async t=>{
  const f=await fixture(t),cookie=await f.login('sam@test.local');
  assert.equal((await f.call('/tasks/11/cancel',{cookie,method:'PATCH',body:{cancelled:true}})).status,404);
