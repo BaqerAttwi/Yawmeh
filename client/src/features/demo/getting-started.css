@@ -45,3 +45,18 @@ main:has(> .getting-started-coach)::after {
     padding: 10px 12px;
   }
 }
+.start-topic-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.start-topic-buttons button {
+  flex: 1 1 125px;
+  min-height: 44px;
+}
+
+.start-here-dialog .start-here-choices > button:first-child {
+  padding-top: 16px;
+}

@@ -70,3 +70,37 @@
     white-space: normal;
   }
 }
+.login-story .login-demo {
+  margin-top: 22px;
+  padding: 16px;
+  max-width: 410px;
+  border: 1px solid #cbdccb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.login-demo h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  color: #385c43;
+}
+
+.login-demo .demo-login-options {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr));
+}
+
+.login-demo .demo-login-options button {
+  min-height: 44px;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.login-demo .demo-login-options button.primary {
+  color: #fff;
+}
+
+.login-demo .demo-explainer {
+  text-align: start;
+  font-size: 12px;
+  color: #566d59;
+}

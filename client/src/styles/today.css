@@ -26,3 +26,50 @@
   color: #315642;
   overflow-wrap: anywhere;
 }
+.today-actions {
+  margin-block: 16px;
+}
+
+.today-actions > .button-row {
+  gap: 8px;
+}
+
+.today-actions > .button-row > button {
+  min-height: 44px;
+}
+
+.toast > [role="status"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast > [role="status"] svg {
+  flex-shrink: 0;
+}
+
+.toast button.toast-undo {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding-inline: 12px;
+  border: 1px solid #fff9;
+  border-radius: 7px;
+  background: #fff;
+  color: #28543c;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .today-actions > .button-row > button {
+    flex: 1 1 auto;
+  }
+
+  .app-shell .toast {
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 24px);
+    width: max-content;
+    padding: 8px 12px;
+  }
+}

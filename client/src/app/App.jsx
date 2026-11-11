@@ -74,21 +74,68 @@ export default function App({session}){
  useEffect(()=>{if(mode==='demo'){try{localStorage.setItem(demoKey,JSON.stringify(data));}catch{setError('This browser could not save the demo records. Export your data before closing the page.');}}},[data,mode]);
  useEffect(()=>{window.scrollTo(0,0);},[page]);
  useEffect(()=>{if(categoryFilter&&!taskCategories.includes(categoryFilter))setCategoryFilter('');},[data.tasks,categoryFilter]);
- useEffect(()=>{if(toast){const timer=setTimeout(()=>setToast(''),4000);return()=>clearTimeout(timer);}},[toast]);
+ useEffect(()=>{
+   if(!toast||busy)return;
+   const timer=setTimeout(()=>setToast(null),toast.undoId==null?4000:10000);
+   return()=>clearTimeout(timer);
+ },[toast,busy]);
  const b=useMemo(()=>balances(data.entries),[data.entries]),summary=useMemo(()=>periodSummary(data,start,end),[data.entries,data.tasks,start,end]),activeBudget=data.budgets.find(x=>x.start<=start&&x.end>=end),budgetSpent=activeBudget?periodSummary(data,activeBudget.start,activeBudget.end).spent:0;
  const upcoming=data.subscriptions.filter(s=>s.active).sort((a,b)=>a.renewal.localeCompare(b.renewal));
  async function api(path,method='GET',body){try{return await request(path,method,body);}catch(e){if(e.code==='ACCOUNT_INACTIVE')session.onInactive?.();else if(e.status===401)onExpired();throw e;}}
 
- function notify(message){setToast(message);}
+ function notify(message,undoId){setToast({message,undoId});}
  async function refreshRecords(){if(mutationBusy.current)return;mutationBusy.current=true;setBusy(true);try{setData(await api('/data'));refreshLock.current=false;setNeedsRefresh(false);setError('');notify('Records refreshed. Review the latest changes before retrying.');}catch(e){setError(e.message);}finally{mutationBusy.current=false;setBusy(false);}}
- async function change(action){if(mutationBusy.current)return false;if(refreshLock.current){setError('Refresh your records before making another change.');return false;}mutationBusy.current=true;setError('');setBusy(true);try{if(mode==='live'){setData(await mutateAndRefresh(api,action));}else{const next=structuredClone(data);action.demo(next);setData(next);}modal?.onSaved?.();setModal(null);setLastSaved(new Date());notify(action.message||'Saved successfully');return true;}catch(e){if(e instanceof SaveStateError){refreshLock.current=true;setNeedsRefresh(true);if(e.state==='saved'){modal?.onSaved?.();setModal(null);}}setError(e.message);return e instanceof SaveStateError&&e.state==='saved';}finally{mutationBusy.current=false;setBusy(false);}}
+ async function change(action){
+   if(mutationBusy.current)return false;
+   if(refreshLock.current){setError('Refresh your records before making another change.');return false;}
+   mutationBusy.current=true;setError('');setBusy(true);
+   let receipt;
+   try{
+     if(mode==='live'){
+       setData(await mutateAndRefresh(api,action,result=>{receipt=result;}));
+     }else{
+       const next=structuredClone(data);
+       receipt=action.demo(next);
+       setData(next);
+     }
+     modal?.onSaved?.();setModal(null);setLastSaved(new Date());
+     notify(action.message||'Saved successfully',action.undoPurchase?receipt?.id:undefined);
+     return true;
+   }catch(e){
+     if(e instanceof SaveStateError){
+       refreshLock.current=true;setNeedsRefresh(true);
+       if(e.state==='saved'){modal?.onSaved?.();setModal(null);}
+     }
+     setError(e.message);
+     return e instanceof SaveStateError&&e.state==='saved';
+   }finally{mutationBusy.current=false;setBusy(false);}
+ }
 
- function addEntry(value,message='Transaction recorded'){value={note:'',category:'Other',...value,amount:Number(value.amount),saved:Number(value.saved||0)};try{value=entrySchema.parse(value);captureRates(value,data.settings);checkEntry(value,data.entries);checkUnassignedWithdrawal(value,data.entries,data.goal_moves);if(value.date>current)throw new Error('Transactions cannot be dated in the future.');}catch(e){setError(e.issues?.map(i=>i.message).join('; ')||e.message);return;}return change({path:'/entries',value,demo:d=>{d.entries.push({...captureRates(value,d.settings),id:Date.now()});d.settings.last_currency=value.currency;},message});}
+ function addEntry(value,message='Transaction recorded',undoPurchase=false){
+   value={note:'',category:'Other',...value,amount:Number(value.amount),saved:Number(value.saved||0)};
+   try{
+     value=entrySchema.parse(value);
+     captureRates(value,data.settings);
+     checkEntry(value,data.entries);
+     checkUnassignedWithdrawal(value,data.entries,data.goal_moves);
+     if(value.date>current)throw new Error('Transactions cannot be dated in the future.');
+   }catch(e){setError(e.issues?.map(i=>i.message).join('; ')||e.message);return;}
+   return change({
+     path:'/entries',value,message,undoPurchase,
+     demo:d=>{
+       let id=Date.now();
+       while(d.entries.some(entry=>entry.id===id))id++;
+       d.entries.push({...captureRates(value,d.settings),id});
+       d.settings.last_currency=value.currency;
+       return {id};
+     },
+   });
+ }
  function logSavedPurchase(item){
    if(!can('money')||mutationBusy.current)return;
    return addEntry({
      type:'expense',title:item.title,amount:item.amount,category:item.category,date:current,currency:'USD',
-   },`${item.title} recorded`);
+   },`${item.title} recorded · ${money(cents(item.amount))} USD`,true);
  }
  function add(table,value){try{value=schemas[table].parse(value);}catch(e){setError(e.issues.map(i=>i.message).join('; '));return false;}return change({path:'/'+table,value,demo:d=>{const {subtasks,...record}=value;const id=randomId();d[table].unshift({...record,id,...(table==='tasks'?{completed:0}:{}),...(table==='subscriptions'?{active:1}:{})});if(table==='tasks')d.subtasks.push(...subtasks.map(title=>({id:randomId(),task_id:id,title,completed:0})));}});}
  function toggleTask(t){return change({path:'/tasks/'+t.id,method:'PATCH',value:{completed:!t.completed},demo:d=>completeDemoTask(d,t.id,!t.completed,current),message:t.completed?'Task reopened':t.recurrence&&t.recurrence!=='none'?'Done! Your next occurrence is ready.':'One more thing done. Nice work!'});}
@@ -105,7 +152,12 @@ export default function App({session}){
  function convertNote(note,due){return change({path:'/inbox/'+note.id+'/convert',value:{due},demo:d=>{rescheduleSchema.parse({due});const n=d.inbox.find(n=>n.id===note.id);if(n.task_id)return;const id=randomId();d.tasks.unshift({id,title:n.text.slice(0,160),note:n.text,category:'Personal',due,priority:'medium',recurrence:'none',estimate_minutes:0,reminder:null,scheduled_time:null,completed:0});n.task_id=id;n.archived=1;},message:'Task ready; original note kept in Archived notes'});}
  function moveTask(task,due){return change({path:'/tasks/'+task.id+'/reschedule',method:'PATCH',value:{due},demo:d=>{rescheduleSchema.parse({due});const t=d.tasks.find(t=>t.id===task.id);Object.assign(t,rescheduled(t,due));},message:'Task moved, with its reminder'});}
  function saveDetail(table,record,field,value){return change({path:'/'+table+'/'+record.id+'/'+field,method:'PATCH',value:{[field]:value},demo:d=>{d[table].find(r=>r.id===record.id)[field]=value;},message:'Plan updated'});}
- function voidEntry(entry,reason){return change({path:'/entries/'+entry.id+'/void',value:{reason},demo:d=>{const record=checkVoid(d.entries,d.goal_moves,entry.id,reason);record.voided_on=current;record.void_reason=reason.trim();},message:'Transaction reversed; original retained in history'});}
+ function voidEntry(entry,reason,message='Transaction reversed; original retained in history'){return change({path:'/entries/'+entry.id+'/void',value:{reason},demo:d=>{const record=checkVoid(d.entries,d.goal_moves,entry.id,reason);record.voided_on=current;record.void_reason=reason.trim();},message});}
+ function undoQuickPurchase(){
+   if(!can('money')||toast?.undoId==null||mutationBusy.current)return;
+   const entry=data.entries.find(item=>String(item.id)===String(toast.undoId)&&item.type==='expense'&&!item.voided_on);
+   if(entry)voidEntry(entry,'Undid quick purchase','Purchase undone');
+ }
  function recategorize(task,category){const parsed=taskCategorySchema.safeParse(category);if(!parsed.success){setError(parsed.error.issues[0].message);return;}category=parsed.data;change({path:'/tasks/'+task.id+'/category',method:'PATCH',value:{category},demo:d=>{d.tasks.find(t=>t.id===task.id).category=category;},message:'Task category updated'});}
  function renew(s,payment={}){const currency=payment.currency||'USD',amount=Number(payment.amount??s.amount),unit_rate=Number(payment.unit_rate||1),rate_reference=payment.rate_reference||'USD';change({path:`/subscriptions/${s.id}/renew`,value:{renewal:s.renewal,currency,amount,unit_rate,rate_reference},demo:d=>{const e=captureRates({id:Date.now(),currency,unit_rate,rate_reference,type:'expense',title:s.title+' renewal',amount,saved:0,date:current,category:s.category,note:'Renewal for '+s.renewal},d.settings);checkEntry(e,d.entries);d.entries.push(e);d.settings.last_currency=currency;d.subscriptions.find(x=>x.id===s.id).renewal=nextRenewal(s.renewal,s.cycle);},message:'Payment recorded and renewal date updated'});}
  function open(type,initial={},language='en',onSaved){setError('');const last=data.entries.filter(e=>e.type==='expense'&&!e.voided_on).sort((a,b)=>b.date.localeCompare(a.date)||Number(b.id)-Number(a.id))[0];setModal({type,language,onSaved,initial:{currency:data.settings.last_currency||'USD',...(type==='expense'?{category:last?.category||'Other'}:{}),...initial}});}
@@ -173,6 +225,7 @@ export default function App({session}){
  const filteredEntries=data.entries.filter(e=>e.date>=start&&e.date<=end&&(!query||(e.title+' '+e.category+' '+e.note).toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
  function exportData(){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`yawmeh-${current}.json`;a.click();URL.revokeObjectURL(url);notify('Data exported');}
  const taskIndex=useMemo(()=>{const parts=new Map(),parents=new Set();for(const part of data.subtasks){const rows=parts.get(part.task_id)||[];rows.push(part);parts.set(part.task_id,rows);}for(const task of data.tasks)if(task.previous_task_id)parents.add(task.previous_task_id);return {parts,parents};},[data.subtasks,data.tasks]);
+ const isToday=page==='overview'&&overviewTab==='checkin';
  const quickPurchases=data.items?.length>0&&<section className="quick-card quick-purchase-card">
    <h3>Quick purchases</h3><p>Tap an item to record one purchase today.</p>
    <div className="quick-items">{data.items.slice(0,4).map((item,i)=><button type="button" key={item.id} className="secondary" disabled={busy||needsRefresh} onClick={()=>logSavedPurchase(item)}>
@@ -185,15 +238,22 @@ export default function App({session}){
  const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th className="right">Amount</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?' · Reversed':''}</strong><small>{e.type==='income'?`Income · ${formatMoney(cents(e.saved),currencyOf(e),savedRates(e))} to savings`:e.type==='opening'?'Added to savings':e.type==='withdrawal'?'Savings → spending':'Purchase'}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small></div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</td></tr>)}</tbody></table>{!entries.length&&<Empty text="No transactions in this period. Add one to get started."/>}</div>;
  return <div className={`app-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`}><aside id="workspace-sidebar" className="sidebar" aria-label="Workspace navigation and companion"><button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeNavigation}><X size={20}/></button><a className="brand" aria-label="yawmeh.me home" href="#" onClick={e=>{e.preventDefault();go('overview');}}><img className="brand-logo" src="/branding/yawmeh-logo-small.png" alt=""/><span className="brand-name">yawmeh.me</span></a><div className="workspace"><span className="workspace-avatar">A</span><div><strong>Personal workspace</strong><small>A little more intentional</small></div><ChevronDown size={14}/></div><div className="nav-label">YOUR WORKSPACE</div><nav><button className="nav-demo guide-nav" aria-label="Guide" title="Guide: start here step by step" onClick={showGuide}><span className="guide-mark" aria-hidden="true">G</span><span className="guide-nav-label">Guide</span></button>{Object.entries(pages).filter(([k])=>k!=='settings'&&allowed(k)).map(([key,p])=><React.Fragment key={key}><button className={page===key?'active':''} aria-label={p.name} data-tour={`nav-${key}`} onClick={()=>go(key)}><p.icon size={19}/>{p.name}{key==='assistant'&&<span className="new-tag">NEW</span>}</button>{(key==='tasks'||key==='money'&&!can('tasks'))&&<><button className="nav-demo" aria-label="Watch demo" onClick={showTrailer}><Play size={15}/>Watch demo</button><button className="nav-demo nav-tutorials" aria-label="Video tutorials" onClick={showTutorials}><Play size={15}/><span className="tutorial-label-desktop">Video tutorials</span><span className="tutorial-label-mobile">Videos</span></button></>}</React.Fragment>)}</nav><div className="sidebar-bottom">{!guideActive&&<CompanionChat data={data} user={user} date={current} mode={mode} onAction={open} onChangeReview={openChangeReview}/>}<button data-tour="nav-settings" className={'settings-nav '+(page==='settings'?'active':'')} onClick={()=>go('settings')}><Settings size={18}/>Settings</button><div className="profile"><span className="avatar">{data.settings.name.slice(0,2).toUpperCase()}</span><div><strong>{data.settings.name}</strong><small>Personal account</small></div><button className="icon-button" aria-label="Account settings" onClick={()=>go('settings')}><MoreHorizontal size={19}/></button></div></div></aside>{isPhone&&sidebarOpen&&<button type="button" className="sidebar-scrim" aria-label="Close navigation backdrop" onClick={closeNavigation}/>}
  <div className="main-shell" inert={isPhone&&sidebarOpen?true:undefined}><header className="topbar"><div className="topbar-leading"><button ref={navigationToggle} type="button" className="sidebar-toggle" aria-label={sidebarOpen?'Close navigation':'Open navigation'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={()=>setSidebarOpen(value=>!value)}>{sidebarOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumb">Workspace <ChevronRight size={13}/><span>{pages[page].name}</span></div></div><div className="topbar-actions"><button className="guide-topbar" aria-label="Guide" title="Guide: start here step by step" onClick={showGuide}><span className="guide-mark" aria-hidden="true">G</span><span>Guide</span></button><button className="demo-chip" onClick={()=>go('settings')}><span/>{mode==='demo'?'Demo workspace':'Live workspace'}</button>{can('money')&&<button className="icon-button" aria-label="Upcoming reminders" onClick={()=>{go('money');setTab('subscriptions');}}><Bell size={19}/>{upcoming.some(s=>daysUntil(s.renewal)<=3)&&<i className="notification-dot"/>}</button>}<button className="icon-button" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut size={18}/></button><div className="launcher-wrap"><button className={'icon-button '+(launcher?'selected':'')} aria-label="Open app launcher" aria-expanded={launcher} onClick={()=>setLauncher(!launcher)}><Grid3X3 size={21}/></button>{launcher&&<div className="launcher"><h3>Your everyday apps</h3><p>Everything you need, in its own space.</p><div>{Object.entries(pages).filter(([k])=>k!=='settings'&&allowed(k)).map(([key,p])=><button key={key} onClick={()=>go(key)}><span><p.icon size={24}/></span>{p.name}</button>)}</div></div>}</div><span className="avatar small">{data.settings.name.slice(0,2).toUpperCase()}</span></div></header>
- <main><GettingStarted user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/><p className="save-status" role="status">{busy?'Saving…':needsRefresh?'Refresh needed to verify saved records':lastSaved?'Last saved '+lastSaved.toLocaleTimeString():'Ready'}</p>{mode==='demo'&&<section className="demo-welcome-actions"><strong>You’re exploring demo data.</strong><button className="secondary" onClick={()=>session.onSignup?.()}>Create your account</button></section>}{mode==='demo'&&user.role!=='admin'&&<div className="preview-note"><span>Previewing {user.name}’s access: {user.permissions.filter(p=>p!=='assistant').map(p=>APP_LABELS[p]).join(', ')}</span><button className="text-button" onClick={()=>onPreview(demoAdmin)}>Back to admin demo <ArrowRight size={14}/></button></div>}<div className="page-heading"><div><div className="eyebrow">{page==='overview'?<><Sun size={14}/> LET’S MAKE TODAY COUNT</>:'YOUR PERSONAL '+(page==='money'?'FINANCES':page==='tasks'?'PLANNER':'SPACE')}</div><h1>{page==='overview'?`A good day starts here, ${data.settings.name}.`:pages[page].name}</h1><p>{page==='overview'?'A clear view of your money, your plans, and what’s next.':pages[page].caption}</p></div><div className="button-row">{page==='tasks'&&<button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button>}{(page==='tasks'||(can('money')&&['money','overview'].includes(page)))&&<button data-tour={page==='tasks'?'add-task':undefined} className="primary" onClick={()=>open(page==='tasks'?'task':'expense')}><Plus size={17}/>{page==='tasks'?'Add task':'Add transaction'}</button>}</div></div>
+ <main><p className="save-status" role="status">{busy?'Saving…':needsRefresh?'Refresh needed to verify saved records':lastSaved?'Last saved '+lastSaved.toLocaleTimeString():'Ready'}</p>{mode==='demo'&&<section className="demo-welcome-actions"><strong>You’re exploring demo data.</strong><button className="secondary" onClick={()=>session.onSignup?.()}>Create your account</button></section>}{mode==='demo'&&user.role!=='admin'&&<div className="preview-note"><span>Previewing {user.name}’s access: {user.permissions.filter(p=>p!=='assistant').map(p=>APP_LABELS[p]).join(', ')}</span><button className="text-button" onClick={()=>onPreview(demoAdmin)}>Back to admin demo <ArrowRight size={14}/></button></div>}<div className="page-heading"><div><div className="eyebrow">{page==='overview'?<><Sun size={14}/> LET’S MAKE TODAY COUNT</>:'YOUR PERSONAL '+(page==='money'?'FINANCES':page==='tasks'?'PLANNER':'SPACE')}</div><h1>{page==='overview'?`A good day starts here, ${data.settings.name}.`:pages[page].name}</h1><p>{page==='overview'?'A clear view of your money, your plans, and what’s next.':pages[page].caption}</p></div><div className="button-row">{page==='tasks'&&<button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button>}{(!isToday&&(page==='tasks'||(can('money')&&['money','overview'].includes(page))))&&<button data-tour={page==='tasks'?'add-task':undefined} className="primary" onClick={()=>open(page==='tasks'?'task':'expense')}><Plus size={17}/>{page==='tasks'?'Add task':'Add transaction'}</button>}</div></div>
  {needsRefresh&&<div className="info-note" role="status">Refresh the latest records before making more changes.<button className="secondary" disabled={busy} onClick={refreshRecords}>Refresh records</button></div>}
  {error&&!modal&&<div className="error" role="alert">{error}<button className="icon-button" onClick={()=>setError('')} aria-label="Dismiss error"><X size={15}/></button></div>}
  {page==='overview'&&<div className="overview-tabs" aria-label="Overview views">{[['checkin','Today'],['dashboard','Dashboard'],['history','History'],['review','Weekly review'],['calendar','Calendar']].map(([key,title])=><button key={key} data-tour={key==='checkin'?'today-tab':undefined} className={overviewTab===key?'selected':''} onClick={()=>setOverviewTab(key)}>{title}</button>)}</div>}
  {can('money')&&(page==='overview'||page==='money')&&<BudgetAlerts data={data}/>}
 
- {page==='overview'&&overviewTab==='checkin'&&can('money')&&quickPurchases}
+ {isToday&&(can('money')||can('tasks'))&&<section className="today-actions" aria-label="Today's quick actions">
+   <div className="button-row">
+     {can('tasks')&&<button type="button" className="primary" disabled={busy} onClick={()=>open('task',{due:current})}><Plus size={17}/>Add task</button>}
+     {can('money')&&<button type="button" className="secondary" disabled={busy} onClick={()=>open('expense')}><Plus size={17}/>Log expense</button>}
+   </div>
+   {can('money')&&quickPurchases}
+ </section>}
+ <GettingStarted user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/>
  {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
- {page==='overview'&&overviewTab==='checkin'&&<TodayScreen data={data} user={user} busy={busy} error={error} renderTask={renderTask} onExpense={()=>open('expense')} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
+ {page==='overview'&&overviewTab==='checkin'&&<TodayScreen data={data} user={user} busy={busy} error={error} renderTask={renderTask} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
  {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
  {page==='overview'&&overviewTab==='review'&&<WeeklyReview data={data} user={user}/>}
  {page==='overview'&&overviewTab==='calendar'&&<PlanningCalendar data={data} user={user} onOpen={event=>{if(event.kind==='task'){go('tasks');setTaskFilter('all');setCategoryFilter('');setQuery(data.tasks.find(t=>t.id===event.sourceId)?.title||event.title);}else{go('money');setTab('subscriptions');}}}/>}
@@ -231,7 +291,7 @@ export default function App({session}){
 
  {mode==='demo'&&(page==='overview'||page==='tasks'||page==='money')&&<DemoGuides can={app=>app===page||page==='overview'&&can(app)}/>}{page==='users'&&user.role==='admin'&&<UserManager mode={mode} api={api} onPreview={onPreview}/>}
  <footer className="page-footer"><span><Leaf size={13}/> A little more intentional, every day.</span><span>Made for your everyday.</span></footer>
- </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast" role="status"><Check size={17}/>{toast}</div>}{modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
+ </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
 }
 function EntryModal({modal,close,error,busy,current,addEntry,add,renew,balance,settings,taskCategories,recategorize}){
  const [language,setLanguage]=useState(modal.language||'en');const t=text=>formText(text,language);

@@ -1,6 +1,6 @@
 import {hasAccess} from './access.js';
 
-export function gettingStartedSteps(user) {
+export function gettingStartedSteps(user,focus='all') {
  const money=hasAccess(user,'money');
  const steps=[money?{id:'currencies',page:'settings',target:'home-currency',title:'First, set your currencies',instruction:'Open Settings, then Your currencies.',explanation:'Choose your home currency for reports and save it. Add any other currency you use and set its manual rate. Each transaction keeps its own currency; the home currency only changes how reports open. New rates do not rewrite old entries.'}:{id:'settings',page:'settings',target:'profile-settings',title:'First, check your settings',instruction:'Click Settings in the sidebar.',explanation:'Check your name and reminder email. Email reminders need a configured server and your reminder address. Quiet hours control when those emails can arrive.'}];
  if(money)steps.push(
@@ -10,6 +10,8 @@ export function gettingStartedSteps(user) {
  );
  if(hasAccess(user,'tasks'))steps.push({id:'tasks',page:'tasks',target:'add-task',title:'Then, add your first task',instruction:'Click Tasks in the sidebar.',explanation:'Choose Add task, give it a clear name and pick a due date. Optional details include a time, priority, repeat schedule and reminder. Save when ready, then use the checkbox when you finish. Start with one small thing for today.'});
  steps.push({id:'overview',page:'overview',target:'today-tab',overviewTab:'checkin',title:'Return to Today each day',instruction:'Click Overview, then Today.',explanation:'Review what is due and choose your next small step. Your money summaries come from the records you save. You can reopen the G Guide whenever you need a refresher.'});
+ if(focus==='tasks'&&hasAccess(user,'tasks'))return steps.filter(step=>['tasks','overview'].includes(step.id));
+ if(focus==='money'&&money)return steps.filter(step=>step.id!=='tasks');
  return steps;
 }
 

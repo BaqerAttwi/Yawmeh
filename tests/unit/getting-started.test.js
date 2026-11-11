@@ -16,3 +16,9 @@ test('guide checks the relevant money tab and Today view, not just the page',()=
  assert.equal(guideStepReached(steps.at(-1),{page:'overview',overviewTab:'dashboard'}),false);
  assert.equal(guideStepReached(steps.at(-1),{page:'overview',overviewTab:'checkin'}),true);
 });
+test('first steps offer focused task and money tours within account permissions',()=>{
+ const admin={role:'admin'};
+ assert.deepEqual(gettingStartedSteps(admin,'tasks').map(s=>s.id),['tasks','overview']);
+ assert.deepEqual(gettingStartedSteps(admin,'money').map(s=>s.id),['currencies','savings','income','expense','overview']);
+ assert.ok(gettingStartedSteps({role:'user',permissions:['tasks']},'money').every(s=>s.page!=='money'));
+});
