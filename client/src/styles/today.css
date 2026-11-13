@@ -73,3 +73,46 @@
     padding: 8px 12px;
   }
 }
+.today-attention .attention-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 0;
+}
+
+.attention-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.attention-row small {
+  display: block;
+  margin-top: 4px;
+}
+
+.today-attention details {
+  margin-top: 10px;
+}
+
+.spending-breakdown summary {
+  cursor: pointer;
+}
+
+.spending-breakdown summary > span {
+  text-decoration: underline;
+}
+
+.spending-breakdown dl > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-block: 8px;
+}
+
+.spending-breakdown dd {
+  margin: 0;
+  font-weight: 600;
+}
