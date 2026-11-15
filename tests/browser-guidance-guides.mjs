@@ -49,7 +49,14 @@ try{
   assert.equal(await dialog.locator('video').count(),0);
   assert.ok(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'Guide fits the dialog');
   await page.screenshot({path:`test-results/guides/embedded-${width}.png`});
-  await dialog.getByRole('button',{name:'إلغاء',exact:true}).click();
+  await dialog.getByRole('button',{name:'English',exact:true}).click();
+  await dialog.getByLabel('Total income received (USD)',{exact:true}).fill('1500');
+  await spending.fill('500');
+  assert.equal(await savings.inputValue(),'1000');
+  await dialog.locator('[name=title]').fill('Income split check');
+  await dialog.getByRole('button',{name:'Save transaction',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('daywell-demo')).entries.some(entry=>entry.title==='Income split check'&&entry.amount===1500&&entry.saved===1000));
   await page.locator('.filterbar').getByRole('button',{name:'Subscriptions',exact:true}).click();
   await page.getByRole('button',{name:'Subscription',exact:true}).click();
   await dialog.locator('[name=title]').fill('Example subscription');
