@@ -30,6 +30,7 @@ try{
   const dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Keep my draft');assert.equal(media.length,0,'No tutorial traffic before opening a guide');
   await dialog.getByRole('button',{name:'Step-by-step guide',exact:true}).click();
   await dialog.getByText('Give the task a name and choose its due date.').waitFor();
+  await dialog.locator('img.guide-avatar').evaluate(image=>image.decode());
   assert.equal(await dialog.locator('input[name=title]').inputValue(),'Keep my draft');
   assert.equal(await dialog.locator('video').count(),0);
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();

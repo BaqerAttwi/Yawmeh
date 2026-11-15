@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {ArrowRight,Check,ChevronLeft,Compass,Play,X} from 'lucide-react';
-import {Character} from '../assistant/Character.jsx';
+import {GuideAvatar} from './GuideAvatar.jsx';
+import './creation-guide.css';
 import {DemoGuides} from './DemoGuides.jsx';
 import {gettingStartedSteps,guideStepReached} from '../../../../shared/getting-started.js';
 import './getting-started.css';
@@ -35,7 +36,7 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
   {page==='overview'&&!dismissed&&index===null&&!showDialog&&<section className="start-here-banner"><div><Compass size={20}/><span><strong>A little guidance for your first day</strong><small>See where to begin, with a video or your companion.</small></span></div><button className="primary" onClick={onOpen}>Start here <ArrowRight size={16}/></button><button className="icon-button" aria-label="Dismiss getting started" onClick={remember}><X size={16}/></button></section>}
   {showDialog&&<dialog ref={dialog} className="start-here-dialog" aria-label="Start here" onCancel={e=>{e.preventDefault();dismissGuide();}}>
    <header><span className="eyebrow">YOUR FIRST SMALL STEPS</span><button type="button" className="icon-button" aria-label="Close getting started" onClick={dismissGuide}><X size={20}/></button></header>
-   <div className="start-here-intro"><Character avatar={{id:'sage'}} animated={false}/><div><h2>{completed?'You know your way around.':'Let’s find your starting point.'}</h2><p>{completed?'Come back any time for a refresher.':'I’m Sage. Start with the guided tour, or watch the steps before trying them yourself.'}</p></div></div>
+   <div className="start-here-intro"><GuideAvatar/><div><h2>{completed?'You know your way around.':'Let’s find your starting point.'}</h2><p>{completed?'Come back any time for a refresher.':'I’m Sage. Start with the guided tour, or watch the steps before trying them yourself.'}</p></div></div>
    <div className="start-topic-buttons">
     {can('tasks')&&<button type="button" className="primary" onClick={()=>begin('tasks')}>Start with tasks <ArrowRight size={15}/></button>}
     {can('money')&&<button type="button" className="secondary" onClick={()=>begin('money')}>Start with money <ArrowRight size={15}/></button>}
@@ -47,7 +48,7 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
   {step&&<section className="getting-started-coach" aria-label="Guided tour">
    <div className="tour-top"><span>STEP {index+1} OF {steps.length}</span><button className="icon-button" aria-label="Pause guided tour" onClick={()=>setIndex(null)}><X size={18}/></button></div>
    <div key={step.id} className="tour-body" aria-live="polite" tabIndex={0}>
-    <div className="tour-copy"><Character avatar={{id:'sage'}} animated={false}/><div><h2>{step.title}</h2><p className="tour-instruction">{reached?<><Check size={16}/> You’re in the right place.</>:step.instruction}</p><p>{step.explanation}</p>{step.example&&<p className="tour-example">{step.example}</p>}</div></div>
+    <div className="tour-copy"><GuideAvatar/><div><h2>{step.title}</h2><p className="tour-instruction">{reached?<><Check size={16}/> You’re in the right place.</>:step.instruction}</p><p>{step.explanation}</p>{step.example&&<p className="tour-example">{step.example}</p>}</div></div>
    </div>
    <footer>
     <button className="text-button" disabled={!index} onClick={()=>setIndex(i=>i-1)}><ChevronLeft size={15}/>Back</button>

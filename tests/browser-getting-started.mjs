@@ -61,7 +61,7 @@ try{
   assert.ok(await video.evaluate(el=>el.duration>50));
   await menu.getByRole('button',{name:'Close getting started',exact:true}).click();
   await page.reload();await page.getByRole('button',{name:'Try admin demo'}).click();await page.locator('.main-shell').waitFor();if(width<700){await page.locator('.sidebar-toggle').click();await page.locator('.sidebar').getByRole('button',{name:'Overview',exact:true}).click();}assert.equal(await page.locator('.start-here-banner').count(),0);
-  assert.ok(assets.some(url=>url.endsWith('sage-wave.webp')));assert.equal(assets.filter(url=>/characters\/.*\.png$/.test(url)).length,0);
+  assert.ok(assets.some(url=>url.endsWith('sage-guide.webp')));assert.equal(assets.filter(url=>/characters\/.*\.png$/.test(url)).length,0);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.close();console.log(`Getting started passed at ${width}px`);
  }

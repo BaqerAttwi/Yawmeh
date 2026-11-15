@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {CircleHelp,Play} from 'lucide-react';
 import {formGuideSteps} from './form-guide-steps.js';
+import {GuideAvatar} from './GuideAvatar.jsx';
 import './creation-guide.css';
 
 export function CreationGuide({kind,language='en',showVideo=false}){
@@ -14,7 +15,7 @@ export function CreationGuide({kind,language='en',showVideo=false}){
  return <section className="creation-guide">
   <button type="button" className="text-button" aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Icon size={15}/>{label}</button>
   {open&&<div>
-   <ol>{steps.map(([en,arabic])=><li key={en}>{ar?arabic:en}</li>)}</ol>
+   {video?<ol>{steps.map(([en,arabic])=><li key={en}>{ar?arabic:en}</li>)}</ol>:<div className="form-guide-steps"><GuideAvatar/><ol>{steps.map(([en,arabic])=><li key={en}>{ar?arabic:en}</li>)}</ol></div>}
    {video&&<>
     <p>{ar?'الفيديو شرح عام ببيانات تجريبية.':'The video is a general walkthrough with sample data.'}</p>
     <video key={kind} controls playsInline preload="none" aria-label={kind==='task'?'Task creation tutorial — English and Arabic':'Money entry tutorial — English and Arabic'}>
