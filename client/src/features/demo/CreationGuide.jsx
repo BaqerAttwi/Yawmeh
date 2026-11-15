@@ -3,11 +3,11 @@ import {CircleHelp,Play} from 'lucide-react';
 import {formGuideSteps} from './form-guide-steps.js';
 import './creation-guide.css';
 
-export function CreationGuide({kind,language='en'}){
+export function CreationGuide({kind,language='en',showVideo=false}){
  const [open,setOpen]=useState(false);
  const ar=language==='ar';
  const steps=formGuideSteps[kind];
- const video=kind==='task'?'create-task':['money','expense','income','opening','withdrawal'].includes(kind)?'record-money':null;
+ const video=showVideo?(kind==='task'?'create-task':'record-money'):null;
  if(!steps)return null;
  const label=video?(ar?'شاهد الشرح · English / عربي':'Watch guide · English / عربي'):(ar?'دليل الخطوات':'Step-by-step guide');
  const Icon=video?Play:CircleHelp;

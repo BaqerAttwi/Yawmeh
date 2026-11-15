@@ -12,7 +12,7 @@ export const formGuideSteps = {
   ],
   income: [
     ['Enter the source, full amount, currency, and date received.', 'اكتب مصدر الدخل والمبلغ الكامل والعملة وتاريخ القبض.'],
-    ['Enter the part to set aside under Allocate to savings. For example, saving 200 from 700 leaves 500 to spend.', 'حطّ الجزء اللي بدّك توفّره بخانة الادخار. مثلاً إذا وفّرت ٢٠٠ من ٧٠٠، بيضلّ ٥٠٠ للصرف.'],
+    ['Enter either the savings amount or the amount available to spend. The other fills in automatically. For example, saving 200 from 700 leaves 500 to spend.', 'اكتب مبلغ الادخار أو المبلغ المتاح للصرف، والخانة التانية بتنحسب لحالها. مثلاً إذا وفّرت ٢٠٠ من ٧٠٠، بيضلّ ٥٠٠ للصرف.'],
   ],
   opening: [
     ['Enter money you already had saved, with the amount, currency, and date.', 'سجّل المصاري اللي كانت موفّرة من قبل، مع المبلغ والعملة والتاريخ.'],

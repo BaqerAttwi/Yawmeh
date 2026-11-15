@@ -16,6 +16,10 @@ try{
   await navigate('Video tutorials');
   const tutorials=page.getByRole('dialog',{name:'Video tutorials',exact:true});await tutorials.waitFor();
   assert.equal(await tutorials.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).count(),2);
+  await tutorials.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).first().click();
+  const video=tutorials.locator('video');
+  assert.equal(await video.getAttribute('preload'),'none');
+  assert.equal(await video.locator('track').count(),2);
   await tutorials.getByRole('button',{name:'Close video tutorials',exact:true}).click();
   await page.locator('.companion-launcher').click();await page.locator('#companion-question').fill('I need help');await page.getByRole('button',{name:'Send message',exact:true}).click();
   let choices=page.locator('.companion-guidance-choices');await choices.getByRole('button',{name:'Tasks',exact:true}).click();
@@ -24,16 +28,25 @@ try{
   await page.locator('.companion-panel-header').getByRole('button',{name:'Close companion chat',exact:true}).click();
   await navigate('Tasks');await page.getByRole('button',{name:'Add task',exact:true}).click();
   const dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Keep my draft');assert.equal(media.length,0,'No tutorial traffic before opening a guide');
-  await dialog.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).click();let video=dialog.locator('video');
-  assert.equal(await video.getAttribute('preload'),'none');assert.equal(await video.locator('track').count(),2);
-  await video.evaluate(async el=>{el.muted=true;await el.play();});await page.waitForFunction(()=>{const v=document.querySelector('video');return v?.currentTime>0&&v.videoWidth===1280;});
-  assert.equal(await dialog.locator('input[name=title]').inputValue(),'Keep my draft');await video.evaluate(el=>el.pause());
-  assert.match(await dialog.locator('a[download]').getAttribute('href'),/create-task\.webm/);
+  await dialog.getByRole('button',{name:'Step-by-step guide',exact:true}).click();
+  await dialog.getByText('Give the task a name and choose its due date.').waitFor();
+  assert.equal(await dialog.locator('input[name=title]').inputValue(),'Keep my draft');
+  assert.equal(await dialog.locator('video').count(),0);
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
   await navigate('Money');await page.getByRole('button',{name:'Income',exact:true}).click();
-  await dialog.getByRole('button',{name:'عربي',exact:true}).click();await dialog.getByRole('button',{name:'شاهد الشرح · English / عربي',exact:true}).click();
-  video=dialog.locator('video');assert.match(await video.locator('source').getAttribute('src'),/record-money\.webm/);
-  await video.evaluate(async el=>{el.muted=true;await el.play();});await page.waitForFunction(()=>document.querySelector('video')?.currentTime>0);
+  const total=dialog.locator('[name=amount]'), savings=dialog.locator('[name=saved]');
+  const spending=dialog.getByLabel('Available to spend (USD)',{exact:true});
+  await total.fill('700.30');
+  await savings.fill('200.10');
+  assert.equal(await spending.inputValue(),'500.2');
+  await spending.fill('450.15');
+  assert.equal(await savings.inputValue(),'250.15');
+  await total.fill('800.30');
+  assert.equal(await savings.inputValue(),'350.15');
+  await dialog.getByRole('button',{name:'عربي',exact:true}).click();
+  await dialog.getByRole('button',{name:'دليل الخطوات',exact:true}).click();
+  await dialog.getByText('اكتب مصدر الدخل والمبلغ الكامل والعملة وتاريخ القبض.').waitFor();
+  assert.equal(await dialog.locator('video').count(),0);
   assert.ok(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'Guide fits the dialog');
   await page.screenshot({path:`test-results/guides/embedded-${width}.png`});
   await dialog.getByRole('button',{name:'إلغاء',exact:true}).click();
@@ -46,5 +59,5 @@ try{
   assert.equal(await dialog.locator('video').count(),0);
   await page.close();
  }
- assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,widths:[375,1440],goalChoices:true,bothVideosPlayable:true,noInitialMediaDownload:true,browserErrors:errors}));
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,widths:[375,1440],writtenFormGuides:true,videoLibraryAvailable:true,noInitialMediaDownload:true,browserErrors:errors}));
 }finally{await browser.close();server.closeAllConnections();server.close();}
