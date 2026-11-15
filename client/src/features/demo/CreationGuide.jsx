@@ -1,8 +1,29 @@
 import React,{useState} from 'react';
-import {Play} from 'lucide-react';
+import {CircleHelp,Play} from 'lucide-react';
+import {formGuideSteps} from './form-guide-steps.js';
 import './creation-guide.css';
 
 export function CreationGuide({kind,language='en'}){
- const [open,setOpen]=useState(false),ar=language==='ar',task=kind==='task';
- return <section className="creation-guide"><button type="button" className="text-button" aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Play size={15}/>{ar?'شاهد الشرح · English / عربي':'Watch guide · English / عربي'}</button>{open&&<div><p>{ar?'شرح ببيانات تجريبية. فيك توقف الفيديو وتتبع الخطوات؛ ما بيتغيّر شي بنموذجك.':'Recorded with demo data. Pause and follow along; your form stays unchanged.'}</p><video key={kind} controls playsInline preload="none" aria-label={task?'Task creation tutorial — English and Arabic':'Money entry tutorial — English and Arabic'}><source src={`/guides/${task?'create-task':'record-money'}.webm`} type="video/webm"/><track kind="captions" src={`/guides/${task?'create-task':'record-money'}.en.vtt`} srcLang="en" label="English"/><track kind="captions" src={`/guides/${task?'create-task':'record-money'}.ar.vtt`} srcLang="ar" label="العربية"/>{ar?'المتصفح ما بيدعم الفيديو. حمّله من الرابط تحت.':'Your browser does not support this video. Use the download link below.'}</video><a href={`/guides/${task?'create-task':'record-money'}.webm`} download>{ar?'تحميل الفيديو':'Download video'}</a><details><summary>{ar?'الخطوات مكتوبة':'Written steps'}</summary><ol>{(task?ar?['اكتب اسم المهمة واختار موعدها.','افتح الخيارات الإضافية لتحديد الوقت والأولوية.','راجع التفاصيل واضغط حفظ.']:['Name the task and choose its due date.','Open More options for a time and priority.','Review the details, then save.']:ar?['اختار نوع العملية: دخل أو مصروف.','اكتب الاسم والمبلغ واختار العملة والتاريخ.','للدخل، حدّد المبلغ المخصّص للادخار؛ الباقي للصرف.','راجع التفاصيل واحفظ، وبعدين تأكّد من السجل.']:['Choose income or expense.','Enter the title, amount, currency and date.','For income, allocate savings; the remainder is available to spend.','Review, save, and check the transaction list.']).map(step=><li key={step}>{step}</li>)}</ol></details></div>}</section>;
+ const [open,setOpen]=useState(false);
+ const ar=language==='ar';
+ const steps=formGuideSteps[kind];
+ const video=kind==='task'?'create-task':['money','expense','income','opening','withdrawal'].includes(kind)?'record-money':null;
+ if(!steps)return null;
+ const label=video?(ar?'شاهد الشرح · English / عربي':'Watch guide · English / عربي'):(ar?'دليل الخطوات':'Step-by-step guide');
+ const Icon=video?Play:CircleHelp;
+ return <section className="creation-guide">
+  <button type="button" className="text-button" aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Icon size={15}/>{label}</button>
+  {open&&<div>
+   <ol>{steps.map(([en,arabic])=><li key={en}>{ar?arabic:en}</li>)}</ol>
+   {video&&<>
+    <p>{ar?'الفيديو شرح عام ببيانات تجريبية.':'The video is a general walkthrough with sample data.'}</p>
+    <video key={kind} controls playsInline preload="none" aria-label={kind==='task'?'Task creation tutorial — English and Arabic':'Money entry tutorial — English and Arabic'}>
+     <source src={`/guides/${video}.webm`} type="video/webm"/>
+     <track kind="captions" src={`/guides/${video}.en.vtt`} srcLang="en" label="English"/>
+     <track kind="captions" src={`/guides/${video}.ar.vtt`} srcLang="ar" label="العربية"/>
+    </video>
+    <a href={`/guides/${video}.webm`} download>{ar?'تحميل الفيديو':'Download video'}</a>
+   </>}
+  </div>}
+ </section>;
 }

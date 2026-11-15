@@ -35,7 +35,16 @@ try{
   video=dialog.locator('video');assert.match(await video.locator('source').getAttribute('src'),/record-money\.webm/);
   await video.evaluate(async el=>{el.muted=true;await el.play();});await page.waitForFunction(()=>document.querySelector('video')?.currentTime>0);
   assert.ok(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'Guide fits the dialog');
-  await page.screenshot({path:`test-results/guides/embedded-${width}.png`});await page.close();
+  await page.screenshot({path:`test-results/guides/embedded-${width}.png`});
+  await dialog.getByRole('button',{name:'إلغاء',exact:true}).click();
+  await page.locator('.filterbar').getByRole('button',{name:'Subscriptions',exact:true}).click();
+  await page.getByRole('button',{name:'Subscription',exact:true}).click();
+  await dialog.locator('[name=title]').fill('Example subscription');
+  await dialog.getByRole('button',{name:'Step-by-step guide',exact:true}).click();
+  await dialog.getByText(/Choose weekly, monthly, or yearly/).waitFor();
+  assert.equal(await dialog.locator('[name=title]').inputValue(),'Example subscription');
+  assert.equal(await dialog.locator('video').count(),0);
+  await page.close();
  }
  assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,widths:[375,1440],goalChoices:true,bothVideosPlayable:true,noInitialMediaDownload:true,browserErrors:errors}));
 }finally{await browser.close();server.closeAllConnections();server.close();}
