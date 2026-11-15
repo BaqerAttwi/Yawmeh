@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {languageProfile,detectedCompanionLanguage} from '../../shared/lebanese-language.js';
 import {localCompanion} from '../../shared/local-companion.js';
 import {isLocalCompanionFollowup} from '../../shared/companion-followup.js';
-import {microphoneLocale} from '../../shared/companion-voice-language.js';
 const date='2026-11-05',data={settings:{last_currency:'USD'},entries:[],tasks:[],subscriptions:[]};
 const ask=(text,context=null)=>localCompanion(data,{role:'admin'},text,date,{start:date,end:date},context);
 
@@ -27,7 +26,6 @@ test('Auto detects varied Lebanese, Arabizi and mixed writing without product-co
  for(const text of english)assert.equal(detectedCompanionLanguage('auto',text,'ar'),'en',text);
  for(const text of ['500','٥٠٠','2026-11-16','15 USD','USD 500','LBP','okay','merci','تمام','Claude'])assert.equal(detectedCompanionLanguage('auto',text,'ar'),'ar',text);
  assert.equal(detectedCompanionLanguage('en','bade zid task'),'en');assert.equal(detectedCompanionLanguage('ar','show my expenses'),'ar');
- assert.equal(microphoneLocale('auto',detectedCompanionLanguage('auto','bdi zakkerni bokra')),'ar-LB');
  assert.equal(languageProfile('bade add task').script,'arabizi');
 });
 test('Arabizi requests preserve amounts, names, dates and permissions',()=>{

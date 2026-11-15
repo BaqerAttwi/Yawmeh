@@ -15,7 +15,6 @@ try{
   const user={id:12345,name:'Test',role:'user',permissions:['tasks','money'],active:true};
   await page.addInitScript(avatar=>{
    localStorage.setItem('daywell-companion:live:12345',avatar);
-   window.SpeechRecognition=class {start(){setTimeout(()=>this.onerror?.({error:'no-speech'}),20);}abort(){}stop(){this.onend?.();}};
   },avatar);
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
@@ -36,10 +35,6 @@ try{
   const panel=page.getByRole('dialog',{name:avatar[0].toUpperCase()+avatar.slice(1)+' companion chat'});
   await panel.getByRole('button',{name:'English',exact:true}).first().click();
   const ask=async text=>{await page.locator('#companion-question').fill(text);await panel.getByRole('button',{name:'Send message',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.companion-chat-log')?.getAttribute('aria-busy')==='false');};
-  await panel.getByRole('button',{name:'Speak your message',exact:true}).click();
-  await panel.getByText('No speech heard. Try again or type below.',{exact:true}).waitFor();
-  await panel.getByRole('button',{name:'Type instead / edit your words',exact:true}).click();
-  assert.equal(await page.locator('#companion-question').evaluate(el=>el===document.activeElement),true);
   await ask('add Claude');await panel.getByText(/Do you mean a subscription for Claude/).waitFor();
   await ask('20 dollars');assert.match(await panel.locator('.companion-draft').innerText(),/Claude/);assert.match(await panel.locator('.companion-draft').innerText(),/20 USD/);assert.equal(calls.length,0);
   await ask('add to saving $500');await panel.getByRole('button',{name:'Review & save',exact:true}).waitFor();assert.equal(calls.length,0);

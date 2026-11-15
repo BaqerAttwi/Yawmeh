@@ -78,7 +78,7 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  const avatar=avatars.find(a=>a.id===avatarId)||avatars[0];
  const language=companionLanguage(preference,text,lastLanguage),ar=language==='ar',t=(en,arabic)=>ar?arabic:en;
  const state=voiceState!=='idle'?voiceState:thinking?'thinking':'idle';
- const stateLabel={idle:t('Here to help','جاهز ساعدك'),listening:t('Listening…','عم اسمعك…'),thinking:t('Thinking…','عم حضّر الجواب…'),preparing:t('Preparing voice…','عم حضّر الصوت…'),speaking:t('Speaking…','عم احكي…')}[state];
+ const stateLabel={idle:t('Here to help','جاهز ساعدك'),thinking:t('Thinking…','عم حضّر الجواب…'),preparing:t('Preparing voice…','عم حضّر الصوت…'),speaking:t('Speaking…','عم احكي…')}[state];
  useEffect(()=>{if(open&&window.matchMedia('(pointer:fine)').matches)input.current?.focus();},[open]);
  useEffect(()=>{if(open)bottom.current?.scrollIntoView({block:'nearest'});},[messages,open,thinking,viewport.height]);
  useEffect(()=>()=>{clearTimeout(pending.current);remote.current?.abort();requestGeneration.current++;},[]);
@@ -171,7 +171,7 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    {tools==='add'&&<section className="companion-tools companion-add-grid" aria-label={t('Quick add','إضافة سريعة')}>{Object.entries(actionNames).filter(([type])=>hasAccess(user,type==='task'?'tasks':'money')).map(([type,names])=><button type="button" key={type} onClick={()=>startDraft(type)}><Plus size={14}/>{names[ar?1:0]}</button>)}</section>}
    {tools==='dates'&&<form className="companion-date-form" onSubmit={e=>{e.preventDefault();setTools(null);ask('Report for selected dates',t('Report for selected dates','تقرير للفترة المختارة'));}}><label>{t('From','من')}<input type="date" required value={start} max={end} onChange={e=>setStart(e.target.value)}/></label><label>{t('Through','إلى')}<input type="date" required value={end} min={start} onChange={e=>setEnd(e.target.value)}/></label><button type="submit" disabled={thinking}>{t('Report','تقرير')}</button></form>}
    <div className="companion-composer">
-    <CompanionVoice key={sessionId} storageKey={key} mode={mode} avatar={avatar.id} conversationId={sessionId} onStateChange={setVoiceState} onType={()=>input.current?.focus()} onTranscript={words=>{setText(words);setLastLanguage(companionLanguage(preference,words,lastLanguage));}} response={messages.at(-1)} language={language} busy={thinking}/>
+    <CompanionVoice key={sessionId} storageKey={key} mode={mode} avatar={avatar.id} conversationId={sessionId} onStateChange={setVoiceState} response={messages.at(-1)} language={language} busy={thinking}/>
     <form className="companion-chat-input" onSubmit={e=>{e.preventDefault();ask(text);}}><label className="sr-only" htmlFor="companion-question">{t('Ask your companion','اسأل مساعدك')}</label><input id="companion-question" dir="auto" ref={input} value={text} maxLength={1000} onChange={e=>setText(e.target.value)} placeholder={t('What’s on your mind?','شو ببالك؟')}/><button disabled={!text.trim()||thinking} type="submit" aria-label={t('Send message','إرسال الرسالة')}><ArrowUp size={19}/></button></form>
    </div>
    <small className="companion-chat-note">{storageError?t('Chat could not be saved in this browser.','ما قدرنا نحفظ المحادثة بهالمتصفح.'):t('Based on your records · You review every draft','حسب سجلاتك · بتراجع كل مسودة قبل الحفظ')}</small>

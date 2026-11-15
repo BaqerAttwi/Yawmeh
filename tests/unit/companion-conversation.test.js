@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {localCompanion} from '../../shared/local-companion.js';
 import {companionLanguage,presentReply} from '../../shared/companion-presentation.js';
 import {isLocalCompanionFollowup} from '../../shared/companion-followup.js';
-import {microphoneLocale,replyLocale,selectDeviceVoice} from '../../shared/companion-voice-language.js';
+import {replyLocale,selectDeviceVoice} from '../../shared/companion-voice-language.js';
 import {demoData} from '../../client/src/features/demo/data.js';
 
 const user={role:'admin'},date='2026-11-03',data={settings:{last_currency:'USD'},entries:[],tasks:[],subscriptions:[]};
@@ -61,7 +61,6 @@ test('Arabic common reports translate built-in headings while preserving user ti
 });
 
 test('voice locale follows explicit microphone choice and declared reply language',()=>{
- assert.equal(microphoneLocale('auto','ar'),'ar-LB');assert.equal(microphoneLocale('ar-LB','en'),'ar-LB');assert.equal(microphoneLocale('en-US','ar'),'en-US');
  assert.equal(replyLocale({language:'en',answer:'Task: درس عربي'}),'en-US');assert.equal(replyLocale({language:'ar',answer:'Lunch 15 USD'}),'ar-LB');
  const voices=[{voiceURI:'en',lang:'en-US'},{voiceURI:'ar-online',lang:'ar-SA'},{voiceURI:'ar-local',lang:'ar-AE',localService:true},{voiceURI:'ar-lb',lang:'ar-LB'}];
  assert.equal(selectDeviceVoice(voices,'ar-LB').voiceURI,'ar-lb');assert.equal(selectDeviceVoice(voices,'ar-LB','ar-online').voiceURI,'ar-online');
