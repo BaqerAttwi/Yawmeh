@@ -7,7 +7,7 @@ export const formGuideSteps = {
   ],
   expense: [
     ['Name the purchase and enter what you actually paid.', 'سمّي المشتريات واكتب قديش دفعت فعلياً.'],
-    ['Choose the currency, purchase date, and category, then save.', 'اختار العملة وتاريخ الشراء والفئة، وبعدها احفظ.'],
+    ['Choose the currency, purchase date, and category. If you buy it often, check Also save as an item before tapping Save transaction.', 'اختار العملة وتاريخ الشراء والفئة. إذا بتشتريه كتير، علّم على احفظه كعنصر كمان قبل ما تحفظ العملية.'],
     ['The amount comes out of your available spending balance.', 'المبلغ بينخصم من الرصيد المتاح للصرف.'],
   ],
   income: [
@@ -24,6 +24,7 @@ export const formGuideSteps = {
   ],
   item: [
     ['Save a name, usual price in USD, and category, such as Coffee for $3.50.', 'احفظ الاسم والسعر المعتاد بالدولار والفئة، مثلاً قهوة بـ٣٫٥٠ دولار.'],
+    ['If you already paid, you can record the expense and check Also save as an item in the same form.', 'إذا دفعت من قبل، فيك تسجّل المصروف وتعلّم على احفظه كعنصر كمان بنفس النموذج.'],
     ['Tap Log purchase later to record one expense, or choose Adjust purchase when the price differs.', 'بعدين اضغط سجّل الشراء لتضيف مصروف واحد، أو عدّل الشراء إذا السعر تغيّر.'],
   ],
   budget: [
