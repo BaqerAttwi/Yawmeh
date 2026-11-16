@@ -92,6 +92,17 @@
   margin-top: 4px;
 }
 
+.today-attention .next-bill {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.next-bill .next-bill-label {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
 .today-attention details {
   margin-top: 10px;
 }

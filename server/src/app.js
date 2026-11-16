@@ -103,15 +103,17 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
    if(!r.affectedRows)return res.status(404).json({error:'Subscription not found.'});res.json({ok:true});
  });
  app.post('/api/subscriptions/:id/renew',requireAccess('money'),async(req,res)=>{
-   await ledgerTransaction(req.user.id,async connection=>{
+   const nextDate=await ledgerTransaction(req.user.id,async connection=>{
      const [[s]]=await connection.query('SELECT * FROM subscriptions WHERE id=? AND user_id=? FOR UPDATE',[req.params.id,req.user.id]);
      if(!s||!s.active)throw new Error('Active subscription not found.');
      const {renewal,currency,amount,exchange_rate,unit_rate,rate_reference}=z.object({unit_rate:rateSchema.optional(),rate_reference:currencyCodeSchema.optional(),exchange_rate:entrySchema.shape.exchange_rate,renewal:z.string(),currency:currencyCodeSchema.default('USD'),amount:entrySchema.shape.amount.optional()}).parse(req.body);
      if(currency!=='USD'&&amount===undefined)throw new PlannerError('Enter the actual amount paid in this currency.');
      if(renewal!==s.renewal)throw new Error('This renewal has already been recorded. Refresh the page.');
      await insertEntry(connection,req.user.id,{type:'expense',title:`${s.title} renewal`,currency,exchange_rate,unit_rate,rate_reference,amount:amount??s.amount,saved:0,category:s.category,date:today(process.env.TIMEZONE||'Asia/Beirut'),note:`Subscription #${s.id}; renewal date ${s.renewal}`});
-     await connection.query('UPDATE subscriptions SET renewal=? WHERE id=? AND user_id=?',[nextRenewal(s.renewal,s.cycle),s.id,req.user.id]);
-   });res.json({ok:true});
+     const next=nextRenewal(s.renewal,s.cycle);
+     await connection.query('UPDATE subscriptions SET renewal=? WHERE id=? AND user_id=?',[next,s.id,req.user.id]);
+     return next;
+   });res.json({ok:true,renewal:nextDate});
  });
  app.post('/api/chat',(req,res)=>res.status(403).json({error:'Paid AI chat has been removed. Use the free local companion.'}));
  app.use('/api',(req,res)=>res.status(404).json({error:'API route not found.'}));

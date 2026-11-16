@@ -105,7 +105,8 @@ export default function App({session}){
        setData(next);
      }
      modal?.onSaved?.(receipt);setModal(null);setLastSaved(new Date());
-     notify(action.message||'Saved successfully',action.undoPurchase?receipt?.id:undefined);
+     const message=typeof action.message==='function'?action.message(receipt):action.message;
+     notify(message||'Saved successfully',action.undoPurchase?receipt?.id:undefined);
      return true;
    }catch(e){
      if(e instanceof SaveStateError){
@@ -170,7 +171,28 @@ export default function App({session}){
    if(entry)voidEntry(entry,'Undid quick purchase','Purchase undone');
  }
  function recategorize(task,category){const parsed=taskCategorySchema.safeParse(category);if(!parsed.success){setError(parsed.error.issues[0].message);return;}category=parsed.data;change({path:'/tasks/'+task.id+'/category',method:'PATCH',value:{category},demo:d=>{d.tasks.find(t=>t.id===task.id).category=category;},message:'Task category updated'});}
- function renew(s,payment={}){const currency=payment.currency||'USD',amount=Number(payment.amount??s.amount),unit_rate=Number(payment.unit_rate||1),rate_reference=payment.rate_reference||'USD';change({path:`/subscriptions/${s.id}/renew`,value:{renewal:s.renewal,currency,amount,unit_rate,rate_reference},demo:d=>{const e=captureRates({id:Date.now(),currency,unit_rate,rate_reference,type:'expense',title:s.title+' renewal',amount,saved:0,date:current,category:s.category,note:'Renewal for '+s.renewal},d.settings);checkEntry(e,d.entries);d.entries.push(e);d.settings.last_currency=currency;d.subscriptions.find(x=>x.id===s.id).renewal=nextRenewal(s.renewal,s.cycle);},message:'Payment recorded and renewal date updated'});}
+ function renew(s,payment={}){
+   const currency=payment.currency||'USD',amount=Number(payment.amount??s.amount);
+   const unit_rate=Number(payment.unit_rate||1),rate_reference=payment.rate_reference||'USD';
+   return change({
+     path:`/subscriptions/${s.id}/renew`,value:{renewal:s.renewal,currency,amount,unit_rate,rate_reference},
+     demo:d=>{
+       const subscription=d.subscriptions.find(record=>record.id===s.id&&record.active);
+       if(!subscription)throw new Error('Active subscription not found.');
+       if(subscription.renewal!==s.renewal)throw new Error('This renewal has already been recorded.');
+       const renewal=nextRenewal(subscription.renewal,subscription.cycle);
+       let id=Date.now();
+       while(d.entries.some(entry=>entry.id===id))id++;
+       const entry=entrySchema.parse({currency,unit_rate,rate_reference,type:'expense',title:subscription.title+' renewal',amount,saved:0,date:current,category:subscription.category,note:'Renewal for '+subscription.renewal});
+       checkEntry(entry,d.entries);
+       d.entries.push({...captureRates(entry,d.settings),id});
+       d.settings.last_currency=currency;
+       subscription.renewal=renewal;
+       return {renewal};
+     },
+     message:receipt=>receipt?.renewal?`Payment recorded. Next renewal is ${receipt.renewal}.`:'Payment recorded and renewal date updated',
+   });
+ }
  function open(type,initial={},language='en',onSaved){setError('');const last=data.entries.filter(e=>e.type==='expense'&&!e.voided_on).sort((a,b)=>b.date.localeCompare(a.date)||Number(b.id)-Number(a.id))[0];setModal({type,language,onSaved,initial:{currency:data.settings.last_currency||'USD',...(type==='expense'?{category:last?.category||'Other'}:{}),...initial}});}
  function cancelTask(task,cancelled){return change({path:'/tasks/'+task.id+'/cancel',method:'PATCH',value:{cancelled},demo:d=>{d.cancelled_tasks??=[];if(cancelled){d.tasks=d.tasks.filter(t=>t.id!==task.id);d.cancelled_tasks.push({...task,cancelled:true});}else{d.cancelled_tasks=d.cancelled_tasks.filter(t=>t.id!==task.id);d.tasks.push({...task,cancelled:false});}},message:cancelled?'Task cancelled. Restore it in Today.':'Task restored'});}
  function openChangeReview(proposal,language,onSaved){

@@ -307,14 +307,20 @@ test('new entries require a configured rate, reject unknown currencies, and rate
 });
 
 test('subscription payments record actual currency and rate without changing the USD plan',async t=>{
- const f=await fixture(t),cookie=await f.login('maya@test.local');
- f.records.subscriptions.push({id:90,user_id:3,title:'Gym',amount:10,category:'Health',cycle:'monthly',renewal:'2026-10-01',active:1});
+ const f=await fixture(t),cookie=await f.login('maya@test.local'),other=await f.login('admin@test.local');
+ f.records.subscriptions.push({id:90,user_id:3,title:'Gym',amount:10,category:'Health',cycle:'monthly',renewal:'2026-01-31',active:1});
  f.records.entries.push({id:91,user_id:3,type:'income',currency:'LBP',exchange_rate:90000,amount:2000000,saved:0});
  const path='/subscriptions/90/renew';
- assert.equal((await f.call(path,{cookie,method:'POST',body:{renewal:'2026-10-01',currency:'LBP'}})).status,400);
- const paid=await f.call(path,{cookie,method:'POST',body:{renewal:'2026-10-01',currency:'LBP',amount:1000000,exchange_rate:100000}});assert.equal(paid.status,200);
+ const body={renewal:'2026-01-31',currency:'LBP',amount:1000000,exchange_rate:100000};
+ assert.equal((await f.call(path,{cookie:other,method:'POST',body})).status,400);
+ assert.equal((await f.call(path,{cookie,method:'POST',body:{renewal:body.renewal,currency:'LBP'}})).status,400);
+ const paid=await f.call(path,{cookie,method:'POST',body});
+ assert.equal(paid.status,200);
+ assert.deepEqual(paid.body,{ok:true,renewal:'2026-02-28'});
+ assert.equal((await f.call(path,{cookie,method:'POST',body})).status,400);
+ assert.equal(f.records.entries.filter(entry=>entry.type==='expense').length,1);
  const payment=f.records.entries.find(e=>e.type==='expense');assert.equal(payment.amount,1000000);assert.equal(payment.currency,'LBP');assert.equal(payment.exchange_rate,100000);
- assert.equal(f.records.subscriptions[0].amount,10);assert.equal(f.records.subscriptions[0].renewal,'2026-11-01');
+ assert.equal(f.records.subscriptions[0].amount,10);assert.equal(f.records.subscriptions[0].renewal,'2026-02-28');
 });
 
 test('currency management is private, supports home references and preserves snapshots',async t=>{

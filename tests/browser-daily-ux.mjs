@@ -5,6 +5,8 @@ import {pathToFileURL} from 'node:url';
 import {createApp} from '../server/src/app.js';
 import {demoData} from '../client/src/features/demo/data.js';
 import {visibleData} from '../shared/access.js';
+import {nextRenewal,today} from '../shared/domain.js';
+import {addDays} from '../shared/planner.js';
 
 const module = process.env.PLAYWRIGHT_MODULE || 'playwright';
 const {chromium} = await import(isAbsolute(module) ? pathToFileURL(module).href : module);
@@ -75,6 +77,13 @@ try {
       records.entries.push({...value,id});
       if(value.save_as_item)records.items.unshift({id,title:value.title,amount:value.item_price_usd,category:value.category});
       return route.fulfill({status:201,json:{id}});
+    }
+    if(path==='/api/subscriptions/901/renew'&&request.method()==='POST'){
+      const value=request.postDataJSON(),bill=records.subscriptions.find(record=>record.id===901);
+      assert.equal(value.renewal,bill.renewal);
+      bill.renewal=nextRenewal(bill.renewal,bill.cycle);
+      writes.push({path,value});
+      return route.fulfill({json:{ok:true,renewal:bill.renewal}});
     }
     if(path.endsWith('/void')&&request.method()==='POST'){
       const id=Number(path.split('/').at(-2)), value=request.postDataJSON();
@@ -192,8 +201,39 @@ try {
   assert.match(await mixedSummary.innerText(),/\$66\.00.*LBP.*90,000\.00/s);
   await mixedSummary.click();
   await spending.getByText(/Combined estimate \(USD\): \$67\.00/).waitFor();
+
+  const current=today(),past=addDays(current,-1),soon=addDays(current,7);
+  records.tasks.length=0;
+  records.subscriptions=[
+    {id:903,title:'Cloud storage',amount:5,cycle:'monthly',active:1,renewal:soon},
+    {id:904,title:'Paused gym',amount:10,cycle:'monthly',active:0,renewal:addDays(current,-2)},
+    {id:902,title:'Internet',amount:30,cycle:'monthly',active:1,renewal:current},
+    {id:901,title:'Music',amount:9,cycle:'monthly',active:1,renewal:past},
+  ];
+  await live.reload();
+  const nextBill=attention.locator('.next-bill');
+  await nextBill.getByText(`Past due · ${past} · $9.00 USD`,{exact:true}).waitFor();
+  await attention.getByText(`Due today · ${current} · $30.00 USD`,{exact:true}).waitFor();
+  await attention.getByText(`Due soon · ${soon} · $5.00 USD`,{exact:true}).waitFor();
+  assert.equal(await attention.getByText('Paused gym').count(),0);
+  assert.equal(await attention.evaluate(section=>section.scrollWidth<=section.clientWidth),true);
+  const writesBeforePayment=writes.length;
+  await nextBill.getByRole('button',{name:'Review payment',exact:true}).click();
+  await form.locator('[name=amount]').waitFor();
+  await form.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.equal(writes.length,writesBeforePayment);
+  await nextBill.getByRole('button',{name:'Review payment',exact:true}).click();
+  await form.locator('[name=amount]').fill('8.50');
+  await form.getByRole('button',{name:'Record payment',exact:true}).click();
+  await live.getByText(`Payment recorded. Next renewal is ${nextRenewal(past,'monthly')}.`,{exact:true}).waitFor();
+  await nextBill.getByText('Internet',{exact:true}).waitFor();
+  assert.equal(writes.length,writesBeforePayment+1);
+  assert.equal(writes.at(-1).value.amount,8.5);
+  records.subscriptions=records.subscriptions.filter(record=>record.id===901);
+  await live.reload();
+  await nextBill.getByText(/^Upcoming · /).waitFor();
   await live.close();
-  console.log('Mobile demo entry, first steps, Today shortcuts and exact-record Undo passed.');
+  console.log('Mobile demo entry, first steps, Today shortcuts, bill review and exact-record Undo passed.');
 } finally {
   await browser.close();
   server.closeAllConnections();

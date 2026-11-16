@@ -19,26 +19,31 @@ export function TodayScreen({data,user,busy,error,renderTask,onReviewPayment,onA
  const nextScheduled=tasksAccess?data.tasks.filter(task=>!task.completed&&task.scheduled_time&&
   (task.due>current||(task.due===current&&task.scheduled_time.slice(0,5)>=timeNow)))
   .sort((a,b)=>(a.due+a.scheduled_time).localeCompare(b.due+b.scheduled_time))[0]:null;
- const bills=moneyAccess?data.subscriptions.filter(subscription=>subscription.active&&subscription.renewal<=addDays(current,7))
+ const soon=addDays(current,7);
+ const bills=moneyAccess?data.subscriptions.filter(subscription=>subscription.active)
   .sort((a,b)=>a.renewal.localeCompare(b.renewal)):[];
  const overdueRows=tasksAccess?[...overdue].sort((a,b)=>a.due.localeCompare(b.due)).map(task=>({
   kind:'overdue',record:task,
  })):[];
- const billRows=bills.map(record=>({kind:'bill',record}));
+ const nextBill=bills[0];
+ const otherBills=bills.slice(1).filter(record=>record.renewal<=soon).map(record=>({kind:'bill',record}));
  const attention=[
+  ...(nextBill?[{kind:'bill',record:nextBill}]:[]),
   ...overdueRows.slice(0,1),
   ...(nextScheduled?[{kind:'next',record:nextScheduled}]:[]),
-  ...billRows.slice(0,1),
+  ...otherBills.slice(0,1),
   ...overdueRows.slice(1),
-  ...billRows.slice(1),
+  ...otherBills.slice(1),
  ];
  function attentionRow({kind,record}){
   const bill=kind==='bill';
+  const featured=bill&&record===nextBill;
+  const status=bill?(record.renewal<current?'Past due':record.renewal===current?'Due today':record.renewal<=soon?'Due soon':'Upcoming'):null;
   const description=bill
-   ?`${record.renewal<current?'Overdue bill':'Bill due'} · ${record.renewal} · ${money(cents(record.amount))} USD`
+   ?`${status} · ${record.renewal} · ${money(cents(record.amount))} USD`
    :kind==='overdue'?`Overdue task · ${record.due}`:`Next scheduled task · ${record.due} at ${record.scheduled_time}`;
-  return <div className="attention-row" key={kind+':'+record.id}>
-   <div><strong>{record.title}</strong><small>{description}</small></div>
+  return <div className={featured?'attention-row next-bill':'attention-row'} key={kind+':'+record.id}>
+   <div>{featured&&<small className="next-bill-label">Next bill</small>}<strong>{record.title}</strong><small>{description}</small></div>
    <button type="button" className="secondary" disabled={bill&&busy} onClick={()=>bill?onReviewPayment(record):setFocus(record.id)}>{bill?'Review payment':'Open focus'}</button>
   </div>;
  }
