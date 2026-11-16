@@ -159,6 +159,17 @@ try {
   await form.getByRole('checkbox',{name:'Also save as an item'}).check();
   await form.getByRole('button',{name:'Save transaction',exact:true}).click();
   await live.locator('.today-actions').getByRole('button',{name:/Log Tea/}).waitFor();
+  const date=records.entries[0].date;
+  records.entries.push(
+    {id:2001,type:'income',title:'LBP payment',amount:90000,currency:'LBP',exchange_rate:90000,saved:0,date},
+    {id:2002,type:'expense',title:'Reversed purchase',amount:30,currency:'USD',date,voided_on:date},
+    {id:2003,type:'income',title:'Future payment',amount:100,currency:'USD',saved:0,date:'2099-01-01'},
+  );
+  await live.reload();
+  const mixedSummary=spending.locator('summary');
+  assert.match(await mixedSummary.innerText(),/\$66\.00.*LBP.*90,000\.00/s);
+  await mixedSummary.click();
+  await spending.getByText(/Combined estimate \(USD\): \$67\.00/).waitFor();
   await live.close();
   console.log('Mobile demo entry, first steps, Today shortcuts and exact-record Undo passed.');
 } finally {

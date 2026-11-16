@@ -177,3 +177,8 @@
 .entry-extra > summary {
   cursor: pointer;
 }
+.spending-breakdown summary > .spending-currencies {
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}

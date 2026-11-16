@@ -12,9 +12,11 @@ export function Currencies({settings,change,busy}){
 export function CurrencyFields({settings,currency,setCurrency,language='en',compact=false}){
  const t=text=>formText(text,language);
  const catalog=currencyCatalog(settings),home=settings.home_currency||'USD',[reference,setReference]=useState('USD');
- const base=currency==='USD'?'USD':reference===currency?'USD':reference,source=catalog.find(c=>c.code===currency),referenceRate=catalog.find(c=>c.code===base)?.rate,rate=source?.rate&&referenceRate?Math.round(source.rate/referenceRate*1e6)/1e6:'';
+ const base=currency==='USD'?'USD':reference===currency?'USD':reference,source=catalog.find(c=>c.code===currency),referenceRate=catalog.find(c=>c.code===base)?.rate;
+ const rate=source?.rate&&referenceRate?Math.round(source.rate/referenceRate*1e6)/1e6:'';
+ const needsRate=rate===''||!rateSchema.safeParse(rate).success;
  const rateFields=<><div className="field-pair"><label className="field"><span>{t("Rate reference")}</span><select aria-label={t("Rate reference")} name="rate_reference" value={base} onChange={e=>setReference(e.target.value)}>{catalog.filter(c=>c.rate>0&&(c.code==='USD'||(currency!=='USD'&&c.code===home&&c.code!==currency))).map(c=><option key={c.code} value={c.code}>{currencyLabel(c)}</option>)}</select></label><label className="field"><span>{t(`1 ${base} equals how many ${currency}?`)}</span><input aria-label={t("Exchange rate")} key={currency+base+rate} name="unit_rate" type="number" defaultValue={rate} readOnly={currency==='USD'} min="0.000001" max="1000000" step="0.000001" required/></label></div><p className="form-hint">{t("This rate is saved with this entry. It does not change your Settings default or older records. Add currencies in Settings → Your currencies.")}</p></>;
- return <><label className="field"><span>{t("Currency for this entry")}</span><select aria-label={t("Currency")} name="currency" value={currency} onChange={e=>setCurrency(e.target.value)}>{catalog.map(c=><option key={c.code} value={c.code}>{currencyLabel(c)}</option>)}</select></label>{compact?<details className="entry-extra" open={!rate} onInvalid={event=>{event.currentTarget.open=true;}}>
+ return <><label className="field"><span>{t("Currency for this entry")}</span><select aria-label={t("Currency")} name="currency" value={currency} onChange={e=>setCurrency(e.target.value)}>{catalog.map(c=><option key={c.code} value={c.code}>{currencyLabel(c)}</option>)}</select></label>{compact?<details className="entry-extra" open={needsRate} onInvalid={event=>{event.currentTarget.open=true;}}>
   <summary>{language==='ar'?'سعر الصرف':'Exchange rate'}</summary>{rateFields}
  </details>:rateFields}</>;
 }
