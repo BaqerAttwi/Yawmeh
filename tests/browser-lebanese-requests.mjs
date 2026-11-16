@@ -28,6 +28,7 @@ try{
   await page.close();console.log(`Lebanese request examples passed at ${width}px`);
  }
  const page=await browser.newPage({viewport:{width:375,height:900}}),calls=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:`http://127.0.0.1:${server.address().port}`,httpOnly:true,sameSite:'Strict'}]);
  const user={id:12345,name:'Test',role:'user',permissions:['tasks'],active:true};
  await page.route('**/api/**',async route=>{
   const path=new URL(route.request().url()).pathname;
@@ -37,7 +38,9 @@ try{
   if(path==='/api/companion/chat'){calls.push(route.request().postDataJSON());return route.fulfill({json:{answer:'أكيد، شو بتحب نقول بالرسالة؟',language:'ar',engine:'gemini'}});}
   return route.fulfill({json:{available:false,google:false}});
  });
- await page.goto(`http://127.0.0.1:${server.address().port}`);await page.locator('.companion-launcher').click();
+ await page.goto(`http://127.0.0.1:${server.address().port}`);
+ await page.getByRole('button',{name:'Close getting started'}).click();
+ await page.locator('.companion-launcher').click();
  await page.locator('#companion-question').fill('kteb li msg la followup');await page.locator('.companion-chat-input button').click();
  await page.getByText('أكيد، شو بتحب نقول بالرسالة؟',{exact:true}).waitFor();assert.equal(calls[0].languageMode,'auto');
  await page.locator('#companion-question').fill('500');assert.equal(await page.locator('.companion-chat-panel').getAttribute('lang'),'ar','AI-resolved language carries into a short follow-up');

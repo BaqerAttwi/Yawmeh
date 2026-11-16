@@ -14,6 +14,7 @@ try{
  for(const width of [375,1440]){
   const avatar='sage';
   const page=await browser.newPage({viewport:{width,height:900}}),calls=[],writes=[];
+  await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:`http://127.0.0.1:${server.address().port}`,httpOnly:true,sameSite:'Strict'}]);
   const user={id:12345,name:'Test',role:'user',permissions:['tasks','money'],active:true};
   await page.addInitScript(()=>{
    localStorage.setItem('daywell-companion:live:12345','pip');

@@ -135,7 +135,8 @@ export function createAuth(store = mysqlAuthStore(), recoveryOptions,signupOptio
     if(await store.createSession(tokenHash(token),user.id,hours,user.password_hash)===false)return false;
     res.cookie(cookieName,token,{...cookieOptions(),maxAge:hours*60*60*1000});return true;
   }
-  router.get('/options',(req,res)=>res.json({signup:true,google:googleConfigured(signupOptions.google?.env),ownerEmail:inactiveAccount.ownerEmail}));
+  const publicOptions=()=>({signup:true,google:googleConfigured(signupOptions.google?.env),ownerEmail:inactiveAccount.ownerEmail});
+  router.get('/options',(req,res)=>res.json(publicOptions()));
   mountSignup(router,{store,...signupOptions});
   mountGoogle(router,{store,issueSession,sendGreeting:signupOptions.sendGreeting,...signupOptions.google});
   router.post('/login',rateLimit({windowMs:15*60000,limit:20,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many login attempts. Try again in 15 minutes.'}}),async(req,res)=>{
@@ -189,6 +190,6 @@ export function createAuth(store = mysqlAuthStore(), recoveryOptions,signupOptio
     if(!await store.remove(id,input.email))return res.status(404).json({error:'Member account not found or confirmation does not match. Owner accounts cannot be deleted.'});
     res.json({ok:true});
   });
-  return {router,admin,authenticate};
+  return {router,admin,authenticate,publicOptions,hasSessionCookie:req=>Boolean(readToken(req))};
 }
 

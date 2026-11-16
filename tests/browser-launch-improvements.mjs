@@ -4,30 +4,57 @@ import {isAbsolute} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {mkdir} from 'node:fs/promises';
 import {createApp} from '../server/src/app.js';
+import {memoryDatabase} from './helpers/memory-db.js';
+import {hashPassword} from '../server/src/modules/auth/passwords.js';
 
 const module=process.env.PLAYWRIGHT_MODULE||'playwright';
 const {chromium}=await import(isAbsolute(module)?pathToFileURL(module).href:module);
-const server=createApp({db:{},authStore:{session:async()=>null},recoveryOptions:null}).listen(0,'127.0.0.1');
+const user={id:1,name:'Startup tester',email:'startup@test.local',role:'user',permissions:['tasks'],active:true,current_rate:90000,password_hash:await hashPassword('startup password')};
+const sessions=new Set();
+const authStore={
+ session:async hash=>sessions.has(hash)?user:null,
+ findByEmail:async email=>email===user.email?user:null,
+ createSession:async hash=>sessions.add(hash),
+ deleteSession:async hash=>sessions.delete(hash),
+};
+const db=memoryDatabase({},[user]);
+const google={env:{GOOGLE_CLIENT_ID:'test-id',GOOGLE_CLIENT_SECRET:'test-secret',APP_ORIGIN:'https://yawmeh.me'}};
+const server=createApp({db,authStore,recoveryOptions:null,signupOptions:{google}}).listen(0,'127.0.0.1');
 await once(server,'listening');
 const base=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({headless:true,channel:'msedge'}),errors=[];
 await mkdir('test-results',{recursive:true});
 try{
- const home=await fetch(base);assert.equal(home.headers.get('cache-control'),'no-cache');
+ const home=await fetch(base,{headers:{'Sec-Fetch-Site':'none'}});assert.equal(home.headers.get('cache-control'),'no-cache');
  const html=await home.text(),asset=html.match(/src="(\/assets\/[^\"]+\.js)"/)[1];
+ assert.match(html,/data-check-session="false"/);
+ const external=await fetch(base,{headers:{'Sec-Fetch-Site':'cross-site'}});
+ assert.match(await external.text(),/data-check-session="true"/);
+ const cookie='daywell_session='+'a'.repeat(64);
+ const returning=await fetch(base,{headers:{cookie}});
+ assert.equal(returning.headers.get('cache-control'),'private, no-store');
+ assert.match(await returning.text(),/data-check-session="true"/);
+ assert.ok((await (await fetch(base+'/branding/yawmeh-logo-small.webp')).arrayBuffer()).byteLength<10000);
  const cached=await fetch(base+asset);assert.match(cached.headers.get('cache-control'),/max-age=31536000, immutable/);
  const privateResponse=await fetch(base+'/api/data');assert.equal(privateResponse.headers.get('cache-control'),'no-store');
  for(const width of [375,1440]){
   const page=await browser.newPage({viewport:{width,height:900}});page.on('pageerror',e=>errors.push(e.message));
   let release;const hold=new Promise(resolve=>{release=resolve;});const requests=[];
   page.on('request',r=>{if(r.url().includes('/api/'))requests.push(new URL(r.url()).pathname);});
+  await page.goto(base);
+  await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
+  assert.equal(await page.getByRole('link',{name:'Continue with Google'}).getAttribute('href'),'/api/auth/google');
+  assert.deepEqual(requests,[],'the signed-out page needs no startup API requests');
+  await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:base,httpOnly:true,sameSite:'Strict'}]);
   await page.route('**/api/data',async route=>{await hold;await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Please sign in.'})});});
   await page.goto(base);
   await page.locator('.workspace-loading img').waitFor();
   assert.equal(await page.locator('.workspace-loading strong').innerText(),'yawmeh.me');
+  await page.locator('.workspace-skeleton').waitFor();
   await page.screenshot({path:`test-results/loading-${width}.png`});release();
   await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
-  assert.deepEqual(requests.filter(path=>path!=='/api/auth/options'),['/api/data'],'startup uses one account request');
+  assert.deepEqual(requests,['/api/data'],'a returning session makes one workspace request');
+  await page.context().clearCookies();
   const password=page.locator('input[name=password]');await password.fill('testpass');
   await page.getByRole('button',{name:'Show password',exact:true}).click();assert.equal(await password.getAttribute('type'),'text');
   await page.getByRole('button',{name:'Hide password',exact:true}).click();assert.equal(await password.getAttribute('type'),'password');
@@ -50,7 +77,22 @@ try{
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.close();
  }
+ const loginPage=await browser.newPage();
+ await loginPage.goto(base);
+ await loginPage.locator('input[name=email]').fill(user.email);
+ await loginPage.locator('input[name=password]').fill('startup password');
+ const loadWorkspace=()=>loginPage.waitForResponse(response=>new URL(response.url()).pathname==='/api/data'&&response.ok());
+ let workspace=loadWorkspace();
+ await loginPage.getByRole('button',{name:'Sign in',exact:true}).click();
+ await workspace;
+ await loginPage.getByRole('button',{name:'Open app launcher'}).waitFor();
+ workspace=loadWorkspace();
+ await loginPage.reload();
+ await workspace;
+ await loginPage.getByRole('button',{name:'Open app launcher'}).waitFor();
+ await loginPage.close();
  const page=await browser.newPage();
+ await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:base,httpOnly:true,sameSite:'Strict'}]);
  await page.route('**/api/data',()=>{});
  await page.goto(base);await page.locator('.workspace-loading').waitFor();
  await page.getByRole('button',{name:'Sign in',exact:true}).waitFor({timeout:25000});

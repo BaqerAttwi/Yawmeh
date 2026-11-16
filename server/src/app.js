@@ -12,7 +12,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import {trustedProxies} from './config/security.js';
 
-import {existsSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {z} from 'zod';
 import {pool,snapshot} from './database/connection.js';
@@ -117,7 +117,30 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
  });
  app.post('/api/chat',(req,res)=>res.status(403).json({error:'Paid AI chat has been removed. Use the free local companion.'}));
  app.use('/api',(req,res)=>res.status(404).json({error:'API route not found.'}));
- if(existsSync(fileURLToPath(new URL('../../dist/index.html',import.meta.url)))){app.use(express.static(fileURLToPath(new URL('../../dist/',import.meta.url)),{setHeaders(res,path){if(/[\\/]assets[\\/]/.test(path))res.setHeader('Cache-Control','public, max-age=31536000, immutable');else if(path.endsWith('index.html')||path.endsWith('sw.js'))res.setHeader('Cache-Control','no-cache');}}));app.get('/{*path}',(req,res)=>res.sendFile(fileURLToPath(new URL('../../dist/index.html',import.meta.url))));}
+ const indexFile=new URL('../../dist/index.html',import.meta.url);
+ if(existsSync(indexFile)){
+   const index=readFileSync(indexFile,'utf8');
+   function serveIndex(req,res){
+     // These flags describe the request and public configuration. The API still validates the session.
+     const hasCookie=auth.hasSessionCookie(req);
+     const site=req.get('Sec-Fetch-Site');
+     // A cross-origin navigation can omit the Strict cookie even though a same-origin fetch can send it.
+     const checkSession=hasCookie||(site!=='none'&&site!=='same-origin');
+     res.set('Cache-Control',hasCookie?'private, no-store':'no-cache');
+     res.vary('Cookie');
+     res.vary('Sec-Fetch-Site');
+     res.type('html').send(index.replace('id="root"',`id="root" data-check-session="${checkSession}" data-google-signin="${auth.publicOptions().google}"`));
+   }
+   app.get('/index.html',serveIndex);
+   app.use(express.static(fileURLToPath(new URL('../../dist/',import.meta.url)),{
+     index:false,
+     setHeaders(res,path){
+       if(/[\\/]assets[\\/]/.test(path))res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+       else if(path.endsWith('sw.js'))res.setHeader('Cache-Control','no-cache');
+     },
+   }));
+   app.get('/{*path}',serveIndex);
+ }
  app.use((error,req,res,next)=>{
    if(error.type==='entity.parse.failed'||error instanceof URIError)return res.status(400).json({error:'The request contains invalid JSON or an invalid URL.'});
    if(error.type==='entity.too.large')return res.status(413).json({error:'This request is too large. Shorten the text and try again.'});

@@ -57,6 +57,7 @@ try {
   await demo.close();
 
   const live = await browser.newPage({viewport});
+  await live.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url,httpOnly:true,sameSite:'Strict'}]);
   live.setDefaultTimeout(6000);
   const user = {id:321,name:'Tester',role:'user',permissions:['money','tasks'],active:true};
   const records = visibleData(demoData(),user), writes = [];
@@ -122,7 +123,7 @@ try {
   assert.equal(writes.length,0);
   await live.locator('.companion-launcher').click();
   const chat=live.getByRole('dialog',{name:'Sage companion chat'});
-  await chat.locator('img[src="/branding/yawmeh-logo-small.png"]').evaluate(image=>image.decode());
+  await chat.locator('img[src="/branding/yawmeh-logo-small.webp"]').evaluate(image=>image.decode());
   await chat.getByRole('button',{name:'Companion settings',exact:true}).click();
   await chat.getByLabel('Customize assistant appearance').selectOption('nova');
   await chat.locator('.assistant-icon-artwork').waitFor();
