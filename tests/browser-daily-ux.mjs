@@ -123,7 +123,7 @@ try {
   assert.equal(writes.length,0);
   await live.locator('.companion-launcher').click();
   const chat=live.getByRole('dialog',{name:'Sage companion chat'});
-  await chat.locator('img[src="/branding/yawmeh-logo-small.webp"]').evaluate(image=>image.decode());
+  await chat.locator('.assistant-icon[data-look="robot"] .assistant-robot-face').waitFor();
   await chat.getByRole('button',{name:'Companion settings',exact:true}).click();
   await chat.getByLabel('Customize assistant appearance').selectOption('nova');
   await chat.locator('.assistant-icon-artwork').waitFor();
