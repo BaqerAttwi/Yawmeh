@@ -8,7 +8,8 @@ import {randomId} from '../../../shared/id.js';
 import {formText} from '../../../shared/companion-form-language.js';
 import {Currencies,CurrencyFields} from '../features/settings/Currencies.jsx';
 import {CurrencyReport} from '../components/CurrencyReport.jsx';
-import {formatMoney,rateLabel,currencyOf,nativeEntries,captureRates,savedRates,currencyCatalog} from '../../../shared/currency.js';
+import {SpendingBalance} from '../components/SpendingBalance.jsx';
+import {formatMoney,rateLabel,currencyOf,captureRates,savedRates} from '../../../shared/currency.js';
 import {Everyday} from '../features/today/Everyday.jsx';
 import {Sessions} from '../features/settings/Sessions.jsx';
 import {InstallApp} from '../features/settings/InstallApp.jsx';
@@ -236,7 +237,6 @@ export default function App({session}){
  const isToday=page==='overview'&&overviewTab==='checkin';
  const firstTask=can('tasks')&&!data.tasks.length&&!data.cancelled_tasks.length;
  const firstIncome=can('money')&&!data.entries.some(entry=>entry.type==='income'&&!entry.voided_on);
- const spendingCurrency=data.settings.last_currency||'USD';
  const quickPurchases=data.items?.length>0&&<section className="quick-card quick-purchase-card">
    <h3>Quick purchases</h3><p>Tap an item to record one purchase today.</p>
    <div className="quick-items">{data.items.slice(0,4).map((item,i)=><button type="button" key={item.id} className="secondary" disabled={busy||needsRefresh} onClick={()=>logSavedPurchase(item)}>
@@ -253,9 +253,19 @@ export default function App({session}){
  {needsRefresh&&<div className="info-note" role="status">Refresh the latest records before making more changes.<button className="secondary" disabled={busy} onClick={refreshRecords}>Refresh records</button></div>}
  {error&&!modal&&<div className="error" role="alert">{error}<button className="icon-button" onClick={()=>setError('')} aria-label="Dismiss error"><X size={15}/></button></div>}
  {page==='overview'&&<div className="overview-tabs" aria-label="Overview views">{[['checkin','Today'],['dashboard','Dashboard'],['history','History'],['review','Weekly review'],['calendar','Calendar']].map(([key,title])=><button key={key} data-tour={key==='checkin'?'today-tab':undefined} className={overviewTab===key?'selected':''} onClick={()=>setOverviewTab(key)}>{title}</button>)}</div>}
- {can('money')&&(page==='overview'||page==='money')&&<BudgetAlerts data={data}/>}
+ {can('money')&&!isToday&&(page==='overview'||page==='money')&&<BudgetAlerts data={data}/>}
 
  {isToday&&(can('money')||can('tasks'))&&<section className="today-actions" aria-label="Today's quick actions">
+   {can('money')&&<section className="card today-panel today-balance" aria-label="Your spending balance">
+     <SpendingBalance data={data} end={current}/>
+     {showFirstBalance&&!firstIncome&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('expense',{},'en',()=>setShowFirstBalance(false))}>Log an expense</button>}
+   </section>}
+   <div className="button-row">
+     {can('money')&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('transactionChoice')}><Plus size={17}/>Add transaction</button>}
+     {can('tasks')&&<button type="button" className={can('money')?'secondary':'primary'} disabled={busy||needsRefresh} onClick={()=>open('task',{due:current})}><Plus size={17}/>Add task</button>}
+     {can('money')&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('expense')}>Log expense</button>}
+   </div>
+   {can('money')&&quickPurchases}
    {(firstTask||firstIncome)&&<section className="card today-panel first-record">
      <h3>Start with one record</h3>
      <p>Pick what’s useful today. You can set up the rest whenever you’re ready.</p>
@@ -264,20 +274,11 @@ export default function App({session}){
        {firstIncome&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('income',{firstIncome:true},'en',()=>setShowFirstBalance(true))}>Set up my money</button>}
      </div>
    </section>}
-   {can('money')&&showFirstBalance&&!firstIncome&&<section className="card today-panel first-record" aria-label="Your spending balance">
-     <h3>{formatMoney(balances(nativeEntries(data.entries.filter(entry=>entry.date<=current),spendingCurrency),spendingCurrency).available,spendingCurrency,currencyCatalog(data.settings))} available to spend</h3>
-     <button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('expense',{},'en',()=>setShowFirstBalance(false))}>Log an expense</button>
-   </section>}
-   <div className="button-row">
-     {can('tasks')&&<button type="button" className="primary" disabled={busy} onClick={()=>open('task',{due:current})}><Plus size={17}/>Add task</button>}
-     {can('money')&&<button type="button" className="secondary" disabled={busy} onClick={()=>open('expense')}><Plus size={17}/>Log expense</button>}
-     {can('money')&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('transactionChoice')}>Add transaction</button>}
-   </div>
-   {can('money')&&quickPurchases}
  </section>}
+ {isToday&&can('money')&&<BudgetAlerts data={data}/>}
  <GettingStarted user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/>
- {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
  {page==='overview'&&overviewTab==='checkin'&&<TodayScreen data={data} user={user} busy={busy} error={error} renderTask={renderTask} onReviewPayment={subscription=>open('renew',subscription)} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
+ {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
  {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
  {page==='overview'&&overviewTab==='review'&&<WeeklyReview data={data} user={user}/>}
  {page==='overview'&&overviewTab==='calendar'&&<PlanningCalendar data={data} user={user} onOpen={event=>{if(event.kind==='task'){go('tasks');setTaskFilter('all');setCategoryFilter('');setQuery(data.tasks.find(t=>t.id===event.sourceId)?.title||event.title);}else{go('money');setTab('subscriptions');}}}/>}
@@ -341,15 +342,22 @@ function TransactionChoice({onChoose,onClose}){
 
 function EntryModal({modal,close,error,busy,current,addEntry,add,renew,balance,settings,taskCategories,recategorize}){
  const [language,setLanguage]=useState(modal.language||'en');const t=text=>formText(text,language);
- const {type,initial}=modal;const dialog=useRef();useEffect(()=>{dialog.current.showModal();},[]);
+ const {type,initial}=modal;
+ const dialog=useRef();
+ useEffect(()=>{
+  const element=dialog.current;
+  if(!element.open)element.showModal();
+  if(type==='expense')element.querySelector('[name=amount]')?.focus();
+ },[type]);
  const labels={expense:'Log a purchase',income:'Add income',opening:'Add existing savings',withdrawal:'Withdraw from savings',item:'Save an everyday item',budget:'Make a spending plan',subscription:'Add a subscription',task:'Make a little plan',renew:'Record subscription payment',taskCategory:'Change task category'};
  const [entryCurrency,setEntryCurrency]=useState(initial.currency||'USD');
  const [saveItem,setSaveItem]=useState(false);
  const financial=['expense','income','opening','withdrawal'].includes(type);
  return <dialog dir={language==='ar'?'rtl':'ltr'} lang={language} ref={dialog} onCancel={e=>{e.preventDefault();if(!busy)close();}}><div className="modal-heading"><div><span className="eyebrow">{t("YOUR EVERYDAY, ORGANIZED")}</span><h2>{t(labels[type])}</h2></div><button className="icon-button" onClick={close} disabled={busy} aria-label={t("Close dialog")}><X size={20}/></button></div><div className="entry-language-switch" role="group" aria-label="Form language"><button type="button" aria-pressed={language==='en'} onClick={()=>setLanguage('en')}>English</button><button type="button" aria-pressed={language==='ar'} onClick={()=>setLanguage('ar')}>عربي</button></div><CreationGuide key={type} kind={type} language={language}/><form onSubmit={e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));if(type==='renew'){renew(initial,v);return;}if(type==='taskCategory'){recategorize(initial,v.category);return;}if(financial){addEntry({...v,type,save_as_item:type==='expense'&&saveItem});return;}if(type==='task'){add('tasks',{...v,reminder:v.reminder||null,scheduled_time:v.scheduled_time||null,subtasks:(v.subtasks||'').split('\n').map(s=>s.trim()).filter(Boolean)});return;}add({item:'items',budget:'budgets',subscription:'subscriptions'}[type],{...v,amount:Number(v.amount)});}}>
- {type==='renew'?<><div className="info-note">{language==='ar'?<>{initial.title}: المبلغ المخطّط {money(cents(initial.amount))} USD. سجّل المبلغ الفعلي تحت. التجديد بينتقل من <bdi>{dateLabel(initial.renewal)}</bdi> إلى <bdi>{dateLabel(nextRenewal(initial.renewal,initial.cycle))}</bdi>.</>:<>{initial.title} is planned at {money(cents(initial.amount))} USD. Enter the actual payment below. This advances renewal from {dateLabel(initial.renewal)} to {dateLabel(nextRenewal(initial.renewal,initial.cycle))}.</>}</div><CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency}/><Field key={entryCurrency} label={t(`Amount paid (${entryCurrency})`)} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={entryCurrency==='USD'?initial.amount:''} required/></>:type==='taskCategory'?<><p className="category-edit-title">{initial.title}</p><TaskCategoryField language={language} categories={taskCategories} value={taskCategory(initial)}/></>:<><Field label={t(type==='income'?'Income source':type==='withdrawal'?'Transfer name':type==='task'?'What would you like to do?':'Name')} name="title" defaultValue={initial.title||''} placeholder={t(type==='income'?'Monthly salary or freelance work':'Give it a name')} required maxLength={160} autoFocus/>
- {financial&&<CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency}/>}
- {type==='income'?<IncomeAllocation initialAmount={initial.amount} showExample={initial.firstIncome} currency={entryCurrency} language={language}/>:type!=='task'&&<Field label={t(type==='budget'?'Spending limit (USD)':financial?`Amount (${entryCurrency})`:'Amount (USD)')} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required/>}
+ {type==='renew'?<><div className="info-note">{language==='ar'?<>{initial.title}: المبلغ المخطّط {money(cents(initial.amount))} USD. سجّل المبلغ الفعلي تحت. التجديد بينتقل من <bdi>{dateLabel(initial.renewal)}</bdi> إلى <bdi>{dateLabel(nextRenewal(initial.renewal,initial.cycle))}</bdi>.</>:<>{initial.title} is planned at {money(cents(initial.amount))} USD. Enter the actual payment below. This advances renewal from {dateLabel(initial.renewal)} to {dateLabel(nextRenewal(initial.renewal,initial.cycle))}.</>}</div><CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency}/><Field key={entryCurrency} label={t(`Amount paid (${entryCurrency})`)} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={entryCurrency==='USD'?initial.amount:''} required/></>:type==='taskCategory'?<><p className="category-edit-title">{initial.title}</p><TaskCategoryField language={language} categories={taskCategories} value={taskCategory(initial)}/></>:<> {type==='expense'&&<Field label={t(`Amount (${entryCurrency})`)} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required autoFocus/>}<Field label={t(type==='income'?'Income source':type==='withdrawal'?'Transfer name':type==='task'?'What would you like to do?':'Name')} name="title" defaultValue={initial.title||''} placeholder={t(type==='income'?'Monthly salary or freelance work':'Give it a name')} required maxLength={160} autoFocus={type!=='expense'}/>
+ {type==='task'&&<Field label={t("Due date")} name="due" type="date" defaultValue={initial.due||current} required/>}
+ {financial&&<CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency} compact={type==='expense'}/>}
+ {type==='income'?<IncomeAllocation initialAmount={initial.amount} showExample={initial.firstIncome} currency={entryCurrency} language={language}/>:!['task','expense'].includes(type)&&<Field label={t(type==='budget'?'Spending limit (USD)':financial?`Amount (${entryCurrency})`:'Amount (USD)')} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required/>}
  {type==='expense'&&<section>
   <label className="companion-motion-option"><input type="checkbox" checked={saveItem} onChange={event=>setSaveItem(event.target.checked)}/>{language==='ar'?'احفظه كعنصر كمان':'Also save as an item'}</label>
   {saveItem&&<div className="info-note form-guide-steps"><GuideAvatar/><p>{language==='ar'?'أنا Sage. العنصر بيحفظ الاسم والفئة والسعر المعتاد. المرّة الجاية اضغط سجّل الشراء من Today أو Money → Items.':'I’m Sage. An item remembers the name, category, and usual price. Next time, log it with one tap from Today or Money → Items.'}</p></div>}
@@ -359,8 +367,9 @@ function EntryModal({modal,close,error,busy,current,addEntry,add,renew,balance,s
  {['expense','income','item','subscription'].includes(type)&&<label className="field"><span>{t("Category")}</span><select name="category" defaultValue={initial.category||(type==='income'?'Work':'Other')}>{categories.map(c=><option key={c} value={c}>{t(c)}</option>)}</select></label>}
  {type==='budget'&&<div className="field-pair"><Field label={t("Start date")} name="start" type="date" defaultValue={initial.start||current} required/><Field label={t("End date")} name="end" type="date" min={current} defaultValue={current} required/></div>}
  {type==='subscription'&&<div className="field-pair"><label className="field"><span>{t("Renewal cycle")}</span><select name="cycle"><option value="monthly">{t("Monthly")}</option><option value="weekly">{t("Weekly")}</option><option value="yearly">{t("Yearly")}</option></select></label><Field label="Next renewal" name="renewal" type="date" defaultValue={initial.renewal||current} required/></div>}
- {type==='task'&&<><Field label={t("Due date")} name="due" type="date" defaultValue={initial.due||current} required/><details><summary>{t("More options: time, repeat, subtasks and reminders")}</summary><Field label={t("Time estimate (minutes)")} name="estimate_minutes" type="number" min="0" max="1440" step="1" defaultValue="0"/><p className="form-hint">{t("For example: 15 for a quick task, 60 for one hour. 0 means unestimated.")}</p><TaskCategoryField language={language} categories={taskCategories} value={initial.category||'Personal'}/><div className="field-pair"><Field label={t("Start time (optional)")} name="scheduled_time" type="time" defaultValue={initial.scheduled_time||''}/><label className="field"><span>{t("Priority")}</span><select name="priority" defaultValue="medium"><option value="low">{t("Low")}</option><option value="medium">{t("Medium")}</option><option value="high">{t("High")}</option></select></label></div><label className="field"><span>{t("Repeat")}</span><select name="recurrence" defaultValue="none"><option value="none">{t("Does not repeat")}</option><option value="daily">{t("Every day")}</option><option value="weekly">{t("Every week")}</option></select></label><label className="field"><span>{t("Subtasks (optional, one per line)")}</span><textarea name="subtasks" rows={3} maxLength={4800} placeholder={t('Research ideas\nMake a first draft\nReview and finish')}/></label><p className="form-hint">{t("Up to 30 small steps. Repeating tasks get a fresh checklist after completion.")}</p><Field label={t("Email reminder date (optional)")} name="reminder" type="date"/><p className="form-hint">{t("Requires your email and SMTP setup. Reminders are sent on the selected day.")}</p></details></>}
- {(financial||type==='task')&&<label className="field"><span>{t(type==='withdrawal'?'Why are you using your savings? (required)':'Notes (optional)')}</span><textarea name="note" required={type==='withdrawal'} maxLength={2000} rows={3} placeholder={t(type==='withdrawal'?'Keep a clear record for your future self.':'A little context for later…')}/></label>}
+ {type==='task'&&<><details><summary>{t("More options: time, repeat, subtasks and reminders")}</summary><Field label={t("Time estimate (minutes)")} name="estimate_minutes" type="number" min="0" max="1440" step="1" defaultValue="0"/><p className="form-hint">{t("For example: 15 for a quick task, 60 for one hour. 0 means unestimated.")}</p><TaskCategoryField language={language} categories={taskCategories} value={initial.category||'Personal'}/><div className="field-pair"><Field label={t("Start time (optional)")} name="scheduled_time" type="time" defaultValue={initial.scheduled_time||''}/><label className="field"><span>{t("Priority")}</span><select name="priority" defaultValue="medium"><option value="low">{t("Low")}</option><option value="medium">{t("Medium")}</option><option value="high">{t("High")}</option></select></label></div><label className="field"><span>{t("Repeat")}</span><select name="recurrence" defaultValue="none"><option value="none">{t("Does not repeat")}</option><option value="daily">{t("Every day")}</option><option value="weekly">{t("Every week")}</option></select></label><label className="field"><span>{t("Subtasks (optional, one per line)")}</span><textarea name="subtasks" rows={3} maxLength={4800} placeholder={t('Research ideas\nMake a first draft\nReview and finish')}/></label><p className="form-hint">{t("Up to 30 small steps. Repeating tasks get a fresh checklist after completion.")}</p><Field label={t("Email reminder date (optional)")} name="reminder" type="date"/><p className="form-hint">{t("Requires your email and SMTP setup. Reminders are sent on the selected day.")}</p></details></>}
+ {type==='withdrawal'?<label className="field"><span>{t('Why are you using your savings? (required)')}</span><textarea name="note" required maxLength={2000} rows={3}/></label>:
+  (financial||type==='task')&&<details className="entry-extra"><summary>{t('Notes (optional)')}</summary><label className="field"><span>{t('Notes (optional)')}</span><textarea name="note" maxLength={2000} rows={3}/></label></details>}
  {type==='withdrawal'&&<p className="form-hint">{t("Savings are checked in the selected currency. This moves money to spending; log the purchase separately.")}</p>}
  </>}{error&&<div className="error" role="alert">{t(error)}</div>}<div className="modal-footer"><button type="button" className="secondary" onClick={close} disabled={busy}>{t("Cancel")}</button><button className="primary" disabled={busy}>{t(busy?'Saving…':type==='renew'?'Record payment':'Save '+(financial?'transaction':type==='taskCategory'?'category':type))}<Check size={15}/></button></div></form></dialog>;
 }

@@ -148,3 +148,32 @@
   margin-top: 3px;
   line-height: 1.4;
 }
+.today-balance {
+  margin-block-end: 12px;
+}
+
+.today-balance summary {
+  list-style-position: inside;
+}
+
+.today-balance summary strong {
+  font-size: clamp(1rem, 5vw, 1.5rem);
+  overflow-wrap: anywhere;
+}
+
+.today-balance summary span {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.today-balance > button {
+  margin-block-start: 10px;
+}
+
+.entry-extra {
+  margin-block: 0 12px;
+}
+
+.entry-extra > summary {
+  cursor: pointer;
+}

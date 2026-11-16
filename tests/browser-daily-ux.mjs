@@ -58,6 +58,7 @@ try {
   live.setDefaultTimeout(6000);
   const user = {id:321,name:'Tester',role:'user',permissions:['money','tasks'],active:true};
   const records = visibleData(demoData(),user), writes = [];
+  records.subscriptions.push(...records.subscriptions.slice(0,2).map(record=>({...record,id:record.id+100})));
   const coffee = records.items.find(item=>item.title==='Morning coffee');
   await live.route('**/api/**',async route=>{
     const request=route.request(), path=new URL(request.url()).pathname;
@@ -84,12 +85,24 @@ try {
   const firstGuide=live.getByRole('dialog',{name:'Start here'});
   await firstGuide.getByRole('button',{name:'Close getting started'}).click();
   await firstGuide.waitFor({state:'hidden'});
+  const attention=live.getByRole('region',{name:'Needs attention'});
+  assert.equal(await attention.locator('.attention-row:visible').count(),3);
+  await attention.getByText(/^See \d+ more$/).click();
+  assert.ok(await attention.locator('.attention-row:visible').count()>3);
+  const spending=live.getByRole('region',{name:'Your spending balance'});
+  await spending.locator('summary').click();
+  await spending.getByText('Income set aside as savings',{exact:true}).waitFor();
   for(const [option,field] of [['Expense','[name=amount]'],['Income','[name=saved]'],['Existing savings','[name=amount]'],['Withdraw from savings','textarea[required]']]){
     await live.locator('.today-actions').getByRole('button',{name:'Add transaction',exact:true}).click();
     const chooser=live.getByRole('dialog',{name:'Add transaction',exact:true});
     await chooser.getByRole('button',{name:new RegExp('^'+option)}).click();
     const transaction=live.locator('dialog[open]');
     await transaction.locator(field).waitFor();
+    if(option==='Expense'){
+      assert.equal(await transaction.locator('[name=amount]').evaluate(input=>input===document.activeElement),true);
+      assert.equal(await transaction.locator('[name=note]').isVisible(),false);
+      assert.ok(await transaction.locator('[name=date]').inputValue());
+    }
     await transaction.getByRole('button',{name:'Cancel',exact:true}).click();
   }
   assert.equal(writes.length,0);

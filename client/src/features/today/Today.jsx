@@ -21,30 +21,41 @@ export function TodayScreen({data,user,busy,error,renderTask,onReviewPayment,onA
   .sort((a,b)=>(a.due+a.scheduled_time).localeCompare(b.due+b.scheduled_time))[0]:null;
  const bills=moneyAccess?data.subscriptions.filter(subscription=>subscription.active&&subscription.renewal<=addDays(current,7))
   .sort((a,b)=>a.renewal.localeCompare(b.renewal)):[];
+ const overdueRows=tasksAccess?[...overdue].sort((a,b)=>a.due.localeCompare(b.due)).map(task=>({
+  kind:'overdue',record:task,
+ })):[];
+ const billRows=bills.map(record=>({kind:'bill',record}));
+ const attention=[
+  ...overdueRows.slice(0,1),
+  ...(nextScheduled?[{kind:'next',record:nextScheduled}]:[]),
+  ...billRows.slice(0,1),
+  ...overdueRows.slice(1),
+  ...billRows.slice(1),
+ ];
+ function attentionRow({kind,record}){
+  const bill=kind==='bill';
+  const description=bill
+   ?`${record.renewal<current?'Overdue bill':'Bill due'} · ${record.renewal} · ${money(cents(record.amount))} USD`
+   :kind==='overdue'?`Overdue task · ${record.due}`:`Next scheduled task · ${record.due} at ${record.scheduled_time}`;
+  return <div className="attention-row" key={kind+':'+record.id}>
+   <div><strong>{record.title}</strong><small>{description}</small></div>
+   <button type="button" className="secondary" disabled={bill&&busy} onClick={()=>bill?onReviewPayment(record):setFocus(record.id)}>{bill?'Review payment':'Open focus'}</button>
+  </div>;
+ }
  function choose(key){setPreset(key);setRangeError('');if(key!=='custom'){const r=rangeFor(key,current);setRange(r);}}
  return <div className="today-screen">
  {(tasksAccess||moneyAccess)&&<section className="card today-panel today-attention" aria-label="Needs attention">
   <h3>Needs attention</h3>
-  {tasksAccess&&overdue.length>0&&<details>
-   <summary>{overdue.length} overdue {overdue.length===1?'task':'tasks'}</summary>
-   {overdue.map(renderTask)}
+  {attention.slice(0,3).map(attentionRow)}
+  {attention.length>3&&<details>
+   <summary>See {attention.length-3} more</summary>
+   {attention.slice(3).map(attentionRow)}
   </details>}
-  {nextScheduled&&<div className="attention-row">
-   <div><strong>{nextScheduled.title}</strong><small>Next scheduled task · {nextScheduled.due} at {nextScheduled.scheduled_time}</small></div>
-   <button type="button" className="secondary" onClick={()=>setFocus(nextScheduled.id)}>Open focus</button>
-  </div>}
-  {bills.length>0&&<details open={bills.length<=3}>
-   <summary>{bills.length} {bills.length===1?'bill':'bills'} due by {addDays(current,7)}</summary>
-   {bills.map(subscription=><div className="attention-row" key={subscription.id}>
-    <div><strong>{subscription.title}</strong><small>{subscription.renewal<current?'Overdue · ':''}{subscription.renewal} · {money(cents(subscription.amount))} USD</small></div>
-    <button type="button" className="secondary" disabled={busy} onClick={()=>onReviewPayment(subscription)}>Review payment</button>
-   </div>)}
-  </details>}
-  {!(tasksAccess&&overdue.length)&&!nextScheduled&&!bills.length&&<p>No overdue tasks, scheduled tasks, or bills due soon in your workspace.</p>}
+  {!attention.length&&<p>No overdue tasks, scheduled tasks, or bills due soon in your workspace.</p>}
  </section>}
  <section className="card today-hero"><div><span className="eyebrow"><Sun size={14}/> YOUR DAY, CLEARLY</span><h2>{plan?.closed_at?'You’ve wrapped up today.':'Today, one step at a time.'}</h2><p>{plan?.closed_at?'Your reflection is saved. Take the rest of the day at your own pace.':'Your priorities, plans and spending, in one place.'}</p><div className="button-row">{tasksAccess&&<>{plan?.closed_at?<button className="secondary" disabled={busy} onClick={onReopen}>Reopen today</button>:<button className="primary finish-day" onClick={()=>setClosing(true)}><Moon size={15}/>Done for today</button>}</>}</div>{plan?.closed_at&&<p className="today-caption">Reopening keeps your reflection and any tasks you moved.</p>}</div><span className="today-date">{current}</span></section>
  <section className="card today-range" aria-label="Planning date range"><div><h3>How far ahead?</h3><p>Filters task progress, scheduled plans, renewals and recorded spending. Top 3 always belongs to today.</p></div><div className="range-pills">{[['today','Today'],['2days','2 days'],['3days','3 days'],['week','Week'],['custom','Custom']].map(([key,label])=><button key={key} aria-pressed={preset===key} className={preset===key?'selected':''} onClick={()=>choose(key)}>{label}</button>)}</div>{preset==='custom'&&<form className="custom-range" onSubmit={e=>{e.preventDefault();const parsed=viewRangeSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));if(!parsed.success){setRangeError('Choose an end date on or after the start, within 366 days.');return;}setRange(parsed.data);setRangeError('');}}><label>From<input aria-label="Today view start date" name="start" type="date" defaultValue={range.start} required/></label><label>Through<input aria-label="Today view end date" name="end" type="date" defaultValue={range.end} required/></label><button className="secondary">Apply range</button>{rangeError&&<p role="alert">{rangeError}</p>}</form>}<strong className="range-label">Showing {range.start} through {range.end}, inclusive</strong></section>
- {moneyAccess&&<CurrencyReport data={data} start={range.start} end={range.end} explainAvailable/>}<div className="today-metrics">{tasksAccess&&<section className="card today-metric"><Ring value={view.completed} total={view.tasks.length} label="tasks complete"/><div><h3>{view.completed} / {view.tasks.length} tasks</h3><p>{view.minutes} estimated minutes remaining</p><small>Tasks due within the selected range</small></div></section>}</div>
+ {moneyAccess&&<details className="card today-panel"><summary>Money report for this range</summary><CurrencyReport data={data} start={range.start} end={range.end}/></details>}<div className="today-metrics">{tasksAccess&&<section className="card today-metric"><Ring value={view.completed} total={view.tasks.length} label="tasks complete"/><div><h3>{view.completed} / {view.tasks.length} tasks</h3><p>{view.minutes} estimated minutes remaining</p><small>Tasks due within the selected range</small></div></section>}</div>
  <div className="today-columns">{tasksAccess&&<section className="card today-panel"><div className="daily-heading"><h3>Today’s Top 3</h3><span>{priorities.length}/3</span></div>{priorities.map(task=><div className="priority-row" key={task.id}><div><strong>{task.completed?'✓ ':''}{task.title}</strong><small>{task.completed?'Completed':task.estimate_minutes?task.estimate_minutes+' minutes':'No estimate'} · Due {task.due}</small></div><div className="button-row">{!task.completed&&<button className="secondary" onClick={()=>setFocus(task.id)}><Play size={13}/>Focus</button>}<button className="text-button" aria-label={'Remove today priority '+task.title} disabled={busy} onClick={()=>onPlan(current,{top_ids:ids.filter(id=>String(id)!==String(task.id))})}>Remove</button></div></div>)}{!priorities.length&&<p className="today-empty">Pick one small thing that matters. You can choose up to three.</p>}<label className="field"><span>Choose a priority for today</span><select aria-label="Choose a priority for today" value="" disabled={busy||ids.length>=3} onChange={e=>{if(e.target.value)onPlan(current,{top_ids:[...ids,e.target.value]});}}><option value="">Choose a task…</option>{data.tasks.filter(t=>!t.completed&&!ids.some(id=>String(id)===String(t.id))).map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label></section>}
  <section className="card today-panel"><h3>Scheduled in this range</h3>{tasksAccess&&(next?<div className="next-plan"><span className="eyebrow">EARLIEST UNFINISHED PLAN</span><h3>{next.title}</h3><p>{next.due} at {next.scheduled_time} · {next.estimate_minutes||0} minutes</p><button className="secondary" onClick={()=>setFocus(next.id)}>Open focus</button></div>:<p>No unfinished tasks with a start time in this range.</p>)}{moneyAccess&&<><h4>Subscription renewals</h4>{view.renewals.slice(0,5).map(e=><div className="insight-line" key={e.id}><span>{e.title}<small className="today-block">{e.date}{e.projected?' · Forecast':''}</small></span><strong>{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</strong></div>)}{view.renewals.length>5&&<p>{view.renewals.length-5} more renewals in Calendar.</p>}{!view.renewals.length&&<p>No renewals in this range.</p>}</>}</section></div>
  {tasksAccess&&<section className="card"><div className="card-heading"><div><h3>Your tasks in this range</h3><p>Ordered by due date; completed tasks stay visible.</p></div><button className="secondary" onClick={()=>onAddTask(range.start)}>Add task</button></div>{[...view.tasks].sort((a,b)=>a.due.localeCompare(b.due)||Number(a.completed)-Number(b.completed)).map(renderTask)}{!view.tasks.length&&<p className="today-empty">No tasks in this range. Choose another range or add a plan.</p>}</section>}
