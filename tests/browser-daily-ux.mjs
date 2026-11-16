@@ -95,7 +95,19 @@ try {
   assert.equal(writes.length,0);
   await live.locator('.companion-launcher').click();
   const chat=live.getByRole('dialog',{name:'Sage companion chat'});
-  await chat.locator('.assistant-icon-face').waitFor();
+  await chat.locator('img[src="/branding/yawmeh-logo-small.png"]').evaluate(image=>image.decode());
+  await chat.getByRole('button',{name:'Companion settings',exact:true}).click();
+  await chat.getByLabel('Customize assistant appearance').selectOption('nova');
+  await chat.locator('.assistant-icon-artwork').waitFor();
+  assert.equal(await live.evaluate(()=>localStorage.getItem('daywell-companion:live:321:look')),'nova');
+  await chat.getByRole('button',{name:'Examples',exact:true}).click();
+  const examples=chat.getByRole('region',{name:'Request examples'});
+  assert.equal(await examples.evaluate(el=>{
+    const rect=el.getBoundingClientRect();
+    return rect.height>0&&rect.bottom<=el.parentElement.querySelector('.companion-bottom-tools').getBoundingClientRect().top;
+  }),true);
+  await examples.locator('.companion-example-list button').first().click();
+  assert.ok(await chat.locator('#companion-question').inputValue());
   await chat.getByRole('button',{name:'Close companion chat',exact:true}).click();
   const purchase=live.locator('.today-actions').getByRole('button',{name:/Log Morning coffee/});
   assert.match(await purchase.innerText(),/4\.50 USD/);

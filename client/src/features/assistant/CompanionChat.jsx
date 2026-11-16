@@ -10,7 +10,7 @@ import {guidanceChoices,guidanceGoal} from '../../../../shared/companion-guidanc
 import {hasAccess} from '../../../../shared/access.js';
 import {companionLanguage,draftFields,presentReply,replyMetrics} from '../../../../shared/companion-presentation.js';
 import {readCompanionHistory,writeCompanionHistory,rememberConversation,historyKey,historyScope} from '../../../../shared/companion-history.js';
-import {Character} from './Character.jsx';
+import {Character,assistantLooks} from './Character.jsx';
 import {CompanionVoice} from './CompanionVoice.jsx';
 import './companion.css';
 import './companion-chat.css';
@@ -52,6 +52,7 @@ export function CompanionChat(props) {
 }
 function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  const key=`daywell-companion:${mode}:${user.id}`;
+ const [look,setLook]=useState(()=>read(key+':look','logo'));
  const [history,setHistory]=useState(()=>readCompanionHistory(read(historyKey(key),''),user));
  const historyRef=useRef(history);
  const [sessionId,setSessionId]=useState(()=>randomId()),[storageError,setStorageError]=useState(false),[restored,setRestored]=useState(false);
@@ -140,12 +141,12 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  const pageCount=Math.ceil(prompts.length/3),visiblePrompts=prompts.slice((promptPage%pageCount)*3,(promptPage%pageCount)*3+3);
  return <div className={`companion-dock companion-state-${state}`} style={{'--companion-accent':avatar.color,'--companion-viewport-height':viewport.height+'px','--companion-keyboard-gap':viewport.gap+'px'}}>
   {open&&<section className={'companion-chat-panel companion-redesign'+(viewport.keyboard?' companion-keyboard-open':'')} role="dialog" aria-label={`${avatar.name} ${t('companion chat','محادثة المساعد')}`} dir={ar?'rtl':'ltr'} lang={ar?'ar':'en'} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();tools?setTools(null):close();}}}>
-   <header className="companion-panel-header"><div className="companion-header-avatar"><Character state={state}/></div><div className="companion-header-title"><strong>{avatar.name}</strong><small role="status"><i/>{stateLabel}</small></div><button type="button" aria-label={t('Companion settings','إعدادات المساعد')} aria-expanded={tools==='settings'} onClick={()=>setTools(tools==='settings'?null:'settings')}><Settings2 size={19}/></button><button type="button" aria-label={t('Close companion chat','إغلاق المحادثة')} onClick={close}><X size={20}/></button></header>
+   <header className="companion-panel-header"><div className="companion-header-avatar"><Character state={state} look={look}/></div><div className="companion-header-title"><strong>{avatar.name}</strong><small role="status"><i/>{stateLabel}</small></div><button type="button" aria-label={t('Companion settings','إعدادات المساعد')} aria-expanded={tools==='settings'} onClick={()=>setTools(tools==='settings'?null:'settings')}><Settings2 size={19}/></button><button type="button" aria-label={t('Close companion chat','إغلاق المحادثة')} onClick={close}><X size={20}/></button></header>
    <div className="companion-language-tabs" role="group" aria-label={t('Reply language','لغة الرد')}>
     {[['en','English'],['ar','عربي'],['auto',t('Auto','تلقائي')]].map(([value,label])=><button key={value} type="button" aria-pressed={preference===value} onClick={()=>{setPreference(value);save(key+':language',value);}}>{label}</button>)}
     <small>{t('Your everyday companion','رفيق نهارك')}</small>
    </div>
-   {tools==='settings'&&<section className="companion-tools"><label className="companion-motion-option"><input type="checkbox" disabled={!aiAvailable||mode!=='live'} checked={useAI&&aiAvailable&&mode==='live'} onChange={e=>{cancelPending();setUseAI(e.target.checked);save(key+':ai',e.target.checked?'on':'off');setAINotice('');}}/>{t('Understand requests with Gemini','فهم الطلبات مع Gemini')}</label><small>{aiAvailable?t('Sends your message, recent questions and pending draft to Google. Account records stay in this app. 10 AI requests/day; local chat continues after the limit. Shared monthly allowance.','بيبعت رسالتك، الأسئلة الأخيرة والمسودة لـGoogle. سجلاتك بتضل بالتطبيق. ١٠ طلبات AI باليوم، وبعدها بتكمّل الدردشة المحلية. في حد شهري مشترك.'):companionStatusMessage(aiReason||'unavailable',language)}</small></section>}
+   {tools==='settings'&&<section className="companion-tools"><label>{t('Customize assistant appearance','خصّص شكل المساعد')}<select value={assistantLooks.some(option=>option.id===look)?look:'logo'} onChange={event=>{setLook(event.target.value);save(key+':look',event.target.value);}}>{assistantLooks.map(option=><option key={option.id} value={option.id}>{ar?option.ar:option.label}</option>)}</select></label><label className="companion-motion-option"><input type="checkbox" disabled={!aiAvailable||mode!=='live'} checked={useAI&&aiAvailable&&mode==='live'} onChange={e=>{cancelPending();setUseAI(e.target.checked);save(key+':ai',e.target.checked?'on':'off');setAINotice('');}}/>{t('Understand requests with Gemini','فهم الطلبات مع Gemini')}</label><small>{aiAvailable?t('Sends your message, recent questions and pending draft to Google. Account records stay in this app. 10 AI requests/day; local chat continues after the limit. Shared monthly allowance.','بيبعت رسالتك، الأسئلة الأخيرة والمسودة لـGoogle. سجلاتك بتضل بالتطبيق. ١٠ طلبات AI باليوم، وبعدها بتكمّل الدردشة المحلية. في حد شهري مشترك.'):companionStatusMessage(aiReason||'unavailable',language)}</small></section>}
    {mode==='live'&&useAI&&aiAvailable&&tools!=='settings'&&<small className="companion-chat-note">{t('AI is on. Messages, recent questions and pending drafts are sent to Google. Turn off in companion settings.','الذكاء الاصطناعي مفعّل. الرسائل والأسئلة الأخيرة والمسودات بتنبعت لـGoogle. فيك تطفّيه من إعدادات المساعد.')}</small>}
    {mode==='live'&&useAI&&!aiAvailable&&aiReason&&<small className="companion-chat-note" role="status">{companionStatusMessage(aiReason,language)}</small>}
    {aiNotice&&<small className="companion-chat-note" role="status">{aiNotice}</small>}
@@ -168,6 +169,6 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    </div>
    <small className="companion-chat-note">{storageError?t('Chat could not be saved in this browser.','ما قدرنا نحفظ المحادثة بهالمتصفح.'):t('Based on your records · You review every draft','حسب سجلاتك · بتراجع كل مسودة قبل الحفظ')}</small>
   </section>}
-  <button ref={launcher} className={`companion-launcher${state==='speaking'?' is-speaking':''}`} aria-label={open?t('Close companion chat','إغلاق المحادثة'):t(`Chat with ${avatar.name}`,`احكي مع ${avatar.name}`)} aria-expanded={open} onClick={()=>open?close():setOpen(true)}><strong className="companion-greeting">{state==='idle'?t(avatar.intro,avatar.ar):stateLabel}</strong><Character state={state}/><span className="companion-launcher-label">{state==='idle'?(open?t('Close','إغلاق'):t('Ask '+avatar.name,'اسأل '+avatar.name)):stateLabel}</span></button>
+  <button ref={launcher} className={`companion-launcher${state==='speaking'?' is-speaking':''}`} aria-label={open?t('Close companion chat','إغلاق المحادثة'):t(`Chat with ${avatar.name}`,`احكي مع ${avatar.name}`)} aria-expanded={open} onClick={()=>open?close():setOpen(true)}><strong className="companion-greeting">{state==='idle'?t(avatar.intro,avatar.ar):stateLabel}</strong><Character state={state} look={look}/><span className="companion-launcher-label">{state==='idle'?(open?t('Close','إغلاق'):t('Ask '+avatar.name,'اسأل '+avatar.name)):stateLabel}</span></button>
  </div>;
 }

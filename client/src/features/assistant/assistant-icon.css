@@ -12,8 +12,23 @@
 }
 
 .assistant-icon-face {
-  width: 60%;
-  height: 60%;
+  width: 83%;
+  height: 83%;
+  object-fit: contain;
+}
+
+.assistant-icon .assistant-icon-artwork {
+  display: block;
+  position: static;
+  width: 45%;
+  height: 90%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  clip: auto;
+  background-color: transparent;
+  background-size: 400% 100%;
+  background-repeat: no-repeat;
 }
 
 .assistant-icon-badge {

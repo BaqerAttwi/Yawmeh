@@ -30,7 +30,7 @@ try{
   const dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Keep my draft');assert.equal(media.length,0,'No tutorial traffic before opening a guide');
   await dialog.getByRole('button',{name:'Step-by-step guide',exact:true}).click();
   await dialog.getByText('Give the task a name and choose its due date.').waitFor();
-  await dialog.locator('.guide-avatar svg.assistant-icon-face').waitFor();
+  await dialog.locator('.guide-avatar img.assistant-icon-face').evaluate(image=>image.decode());
   assert.equal(await dialog.locator('input[name=title]').inputValue(),'Keep my draft');
   assert.equal(await dialog.locator('video').count(),0);
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -63,7 +63,7 @@ try{
   await dialog.locator('[name=amount]').fill('4.50');
   await dialog.getByRole('checkbox',{name:'Also save as an item'}).check();
   await dialog.getByText(/An item remembers the name/).waitFor();
-  await dialog.locator('.guide-avatar svg.assistant-icon-face').last().waitFor();
+  await dialog.locator('.guide-avatar img.assistant-icon-face').last().evaluate(image=>image.decode());
   await dialog.getByRole('button',{name:'Save transaction',exact:true}).click();
   await dialog.waitFor({state:'hidden'});
   await page.waitForFunction(()=>{
