@@ -116,3 +116,10 @@
   margin: 0;
   font-weight: 600;
 }
+.first-record {
+  margin-bottom: 14px;
+}
+
+.first-record .button-row {
+  margin-top: 12px;
+}

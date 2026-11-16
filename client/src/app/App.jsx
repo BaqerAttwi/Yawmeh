@@ -65,6 +65,7 @@ export default function App({session}){
  function showTrailer(){if(isPhone)closeNavigation();setTrailer(true);}
  function showGuide(){if(isPhone)closeNavigation();setGettingStarted(true);}
  const [gettingStarted,setGettingStarted]=useState(false),[guideActive,setGuideActive]=useState(false);
+ const [showFirstBalance,setShowFirstBalance]=useState(false);
  const [tutorials,setTutorials]=useState(false),[trailer,setTrailer]=useState(false),[overviewTab,setOverviewTab]=useState('checkin');
  async function signOut(){try{await onLogout();}catch(e){setError(e.message);}}
  const [page,setPage]=useState('overview'),[data,setData]=useState(()=>{if(mode==='live')return visibleData(session.data,user);let saved;try{saved=JSON.parse(localStorage.getItem(demoKey));}catch{}return visibleData(saved||{...demoData(),settings:{name:user.name,email:''}},user);}),[launcher,setLauncher]=useState(false),[modal,setModal]=useState(null),[lastSaved,setLastSaved]=useState(null),[toast,setToast]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[filter,setFilter]=useState(can('money')?(can('tasks')?'all':'money'):'tasks'),[tab,setTab]=useState('transactions'),[query,setQuery]=useState(''),[taskFilter,setTaskFilter]=useState('all'),[categoryFilter,setCategoryFilter]=useState('');
@@ -233,6 +234,9 @@ export default function App({session}){
  function exportData(){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`yawmeh-${current}.json`;a.click();URL.revokeObjectURL(url);notify('Data exported');}
  const taskIndex=useMemo(()=>{const parts=new Map(),parents=new Set();for(const part of data.subtasks){const rows=parts.get(part.task_id)||[];rows.push(part);parts.set(part.task_id,rows);}for(const task of data.tasks)if(task.previous_task_id)parents.add(task.previous_task_id);return {parts,parents};},[data.subtasks,data.tasks]);
  const isToday=page==='overview'&&overviewTab==='checkin';
+ const firstTask=can('tasks')&&!data.tasks.length&&!data.cancelled_tasks.length;
+ const firstIncome=can('money')&&!data.entries.some(entry=>entry.type==='income'&&!entry.voided_on);
+ const spendingCurrency=data.settings.last_currency||'USD';
  const quickPurchases=data.items?.length>0&&<section className="quick-card quick-purchase-card">
    <h3>Quick purchases</h3><p>Tap an item to record one purchase today.</p>
    <div className="quick-items">{data.items.slice(0,4).map((item,i)=><button type="button" key={item.id} className="secondary" disabled={busy||needsRefresh} onClick={()=>logSavedPurchase(item)}>
@@ -252,6 +256,18 @@ export default function App({session}){
  {can('money')&&(page==='overview'||page==='money')&&<BudgetAlerts data={data}/>}
 
  {isToday&&(can('money')||can('tasks'))&&<section className="today-actions" aria-label="Today's quick actions">
+   {(firstTask||firstIncome)&&<section className="card today-panel first-record">
+     <h3>Start with one record</h3>
+     <p>Pick what’s useful today. You can set up the rest whenever you’re ready.</p>
+     <div className="button-row">
+       {firstTask&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('task',{due:current})}>Add my first task</button>}
+       {firstIncome&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('income',{firstIncome:true},'en',()=>setShowFirstBalance(true))}>Set up my money</button>}
+     </div>
+   </section>}
+   {can('money')&&showFirstBalance&&!firstIncome&&<section className="card today-panel first-record" aria-label="Your spending balance">
+     <h3>{formatMoney(balances(nativeEntries(data.entries.filter(entry=>entry.date<=current),spendingCurrency),spendingCurrency).available,spendingCurrency,currencyCatalog(data.settings))} available to spend</h3>
+     <button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('expense',{},'en',()=>setShowFirstBalance(false))}>Log an expense</button>
+   </section>}
    <div className="button-row">
      {can('tasks')&&<button type="button" className="primary" disabled={busy} onClick={()=>open('task',{due:current})}><Plus size={17}/>Add task</button>}
      {can('money')&&<button type="button" className="secondary" disabled={busy} onClick={()=>open('expense')}><Plus size={17}/>Log expense</button>}
@@ -310,7 +326,7 @@ function EntryModal({modal,close,error,busy,current,addEntry,add,renew,balance,s
  return <dialog dir={language==='ar'?'rtl':'ltr'} lang={language} ref={dialog} onCancel={e=>{e.preventDefault();if(!busy)close();}}><div className="modal-heading"><div><span className="eyebrow">{t("YOUR EVERYDAY, ORGANIZED")}</span><h2>{t(labels[type])}</h2></div><button className="icon-button" onClick={close} disabled={busy} aria-label={t("Close dialog")}><X size={20}/></button></div><div className="entry-language-switch" role="group" aria-label="Form language"><button type="button" aria-pressed={language==='en'} onClick={()=>setLanguage('en')}>English</button><button type="button" aria-pressed={language==='ar'} onClick={()=>setLanguage('ar')}>عربي</button></div><CreationGuide key={type} kind={type} language={language}/><form onSubmit={e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));if(type==='renew'){renew(initial,v);return;}if(type==='taskCategory'){recategorize(initial,v.category);return;}if(financial){addEntry({...v,type,save_as_item:type==='expense'&&saveItem});return;}if(type==='task'){add('tasks',{...v,reminder:v.reminder||null,scheduled_time:v.scheduled_time||null,subtasks:(v.subtasks||'').split('\n').map(s=>s.trim()).filter(Boolean)});return;}add({item:'items',budget:'budgets',subscription:'subscriptions'}[type],{...v,amount:Number(v.amount)});}}>
  {type==='renew'?<><div className="info-note">{language==='ar'?<>{initial.title}: المبلغ المخطّط {money(cents(initial.amount))} USD. سجّل المبلغ الفعلي تحت. التجديد بينتقل من <bdi>{dateLabel(initial.renewal)}</bdi> إلى <bdi>{dateLabel(nextRenewal(initial.renewal,initial.cycle))}</bdi>.</>:<>{initial.title} is planned at {money(cents(initial.amount))} USD. Enter the actual payment below. This advances renewal from {dateLabel(initial.renewal)} to {dateLabel(nextRenewal(initial.renewal,initial.cycle))}.</>}</div><CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency}/><Field key={entryCurrency} label={t(`Amount paid (${entryCurrency})`)} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={entryCurrency==='USD'?initial.amount:''} required/></>:type==='taskCategory'?<><p className="category-edit-title">{initial.title}</p><TaskCategoryField language={language} categories={taskCategories} value={taskCategory(initial)}/></>:<><Field label={t(type==='income'?'Income source':type==='withdrawal'?'Transfer name':type==='task'?'What would you like to do?':'Name')} name="title" defaultValue={initial.title||''} placeholder={t(type==='income'?'Monthly salary or freelance work':'Give it a name')} required maxLength={160} autoFocus/>
  {financial&&<CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency}/>}
- {type==='income'?<IncomeAllocation initialAmount={initial.amount} currency={entryCurrency} language={language}/>:type!=='task'&&<Field label={t(type==='budget'?'Spending limit (USD)':financial?`Amount (${entryCurrency})`:'Amount (USD)')} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required/>}
+ {type==='income'?<IncomeAllocation initialAmount={initial.amount} showExample={initial.firstIncome} currency={entryCurrency} language={language}/>:type!=='task'&&<Field label={t(type==='budget'?'Spending limit (USD)':financial?`Amount (${entryCurrency})`:'Amount (USD)')} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required/>}
  {type==='expense'&&<section>
   <label className="companion-motion-option"><input type="checkbox" checked={saveItem} onChange={event=>setSaveItem(event.target.checked)}/>{language==='ar'?'احفظه كعنصر كمان':'Also save as an item'}</label>
   {saveItem&&<div className="info-note form-guide-steps"><GuideAvatar/><p>{language==='ar'?'أنا Sage. العنصر بيحفظ الاسم والفئة والسعر المعتاد. المرّة الجاية اضغط سجّل الشراء من Today أو Money → Items.':'I’m Sage. An item remembers the name, category, and usual price. Next time, log it with one tap from Today or Money → Items.'}</p></div>}

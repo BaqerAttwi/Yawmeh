@@ -67,6 +67,7 @@ try {
       const id=1001+writes.length, value=request.postDataJSON();
       writes.push({path,id,value});
       records.entries.push({...value,id});
+      if(value.save_as_item)records.items.unshift({id,title:value.title,amount:value.item_price_usd,category:value.category});
       return route.fulfill({status:201,json:{id}});
     }
     if(path.endsWith('/void')&&request.method()==='POST'){
@@ -98,6 +99,28 @@ try {
   assert.equal(records.entries.find(entry=>entry.id===1001).voided_on,undefined);
   assert.ok(records.entries.find(entry=>entry.id===1002).voided_on);
   assert.equal(await live.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  records.entries.length=0;
+  records.tasks.length=0;
+  await live.reload();
+  await live.getByRole('button',{name:'Add my first task',exact:true}).waitFor();
+  await live.getByRole('button',{name:'Set up my money',exact:true}).click();
+  const form=live.locator('dialog[open]');
+  await form.getByText(/Example only/).waitFor();
+  for(const name of ['Total income received (USD)','Allocate to savings (USD)','Available to spend (USD)']){
+    assert.equal(await form.getByLabel(name,{exact:true}).inputValue(),'');
+  }
+  await form.locator('[name=title]').fill('First payment');
+  await form.locator('[name=amount]').fill('90');
+  await form.locator('[name=saved]').fill('20');
+  await form.getByRole('button',{name:'Save transaction',exact:true}).click();
+  const balance=live.getByRole('region',{name:'Your spending balance'});
+  await balance.getByText(/70.00 available to spend/).waitFor();
+  await balance.getByRole('button',{name:'Log an expense'}).click();
+  await form.locator('[name=title]').fill('Tea');
+  await form.locator('[name=amount]').fill('4');
+  await form.getByRole('checkbox',{name:'Also save as an item'}).check();
+  await form.getByRole('button',{name:'Save transaction',exact:true}).click();
+  await live.locator('.today-actions').getByRole('button',{name:/Log Tea/}).waitFor();
   await live.close();
   console.log('Mobile demo entry, first steps, Today shortcuts and exact-record Undo passed.');
 } finally {

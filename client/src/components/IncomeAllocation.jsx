@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import {cents} from '../../../shared/domain.js';
 import {Field} from './ui.jsx';
 
-export function IncomeAllocation({initialAmount,currency,language}) {
+export function IncomeAllocation({initialAmount,currency,language,showExample=false}) {
  const [amount,setAmount]=useState(initialAmount==null?'':String(initialAmount));
  const [edited,setEdited]=useState({field:'saved',value:'0'});
  const ar=language==='ar';
@@ -14,9 +14,10 @@ export function IncomeAllocation({initialAmount,currency,language}) {
  const edit=field=>event=>setEdited({field,value:event.target.value});
  const label=(english,arabic)=>`${ar?arabic:english} (${currency})`;
  return <>
+  {showExample&&<p className="info-note">{ar?'بلّش بدفعة وحدة قبضتها. الأرقام هون بس للتوضيح: إذا قبضت ١٥٠٠ ووفّرت ١٠٠٠، بيضلّ ٥٠٠ للصرف.':'Start with one payment you received. Example only: if you receive 1,500 and set aside 1,000, you have 500 to spend.'}</p>}
   <Field label={label('Total income received','إجمالي الدخل اللي قبضته')} name="amount" type="number" min="0.01" step="0.01" max="999999999" value={amount} onChange={event=>setAmount(event.target.value)} required/>
   <div className="field-pair">
-   <Field label={label('Allocate to savings','خصّص للادخار')} name="saved" type="number" min="0" max={amount||undefined} step="0.01" value={edited.field==='saved'?edited.value:remainder} onChange={edit('saved')} required/>
+   <Field label={label('Allocate to savings','خصّص للادخار')} name="saved" type="number" min="0" max={amount||undefined} step="0.01" value={edited.field==='saved'?(showExample&&total===null&&edited.value==='0'?'':edited.value):remainder} onChange={edit('saved')} required/>
    <Field label={label('Available to spend','المتاح للصرف')} type="number" min="0" max={amount||undefined} step="0.01" value={edited.field==='spending'?edited.value:remainder} onChange={edit('spending')} required/>
   </div>
   <p className="form-hint">{ar?'حطّ كامل الدخل فوق. اكتب قديش بدّك توفّر أو تصرف تحت، والخانة التانية بتنحسب لحالها.':'Enter the full income above. Enter either savings or spending below, and the other field fills in automatically.'}</p>
