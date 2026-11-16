@@ -84,6 +84,19 @@ try {
   const firstGuide=live.getByRole('dialog',{name:'Start here'});
   await firstGuide.getByRole('button',{name:'Close getting started'}).click();
   await firstGuide.waitFor({state:'hidden'});
+  for(const [option,field] of [['Expense','[name=amount]'],['Income','[name=saved]'],['Existing savings','[name=amount]'],['Withdraw from savings','textarea[required]']]){
+    await live.locator('.today-actions').getByRole('button',{name:'Add transaction',exact:true}).click();
+    const chooser=live.getByRole('dialog',{name:'Add transaction',exact:true});
+    await chooser.getByRole('button',{name:new RegExp('^'+option)}).click();
+    const transaction=live.locator('dialog[open]');
+    await transaction.locator(field).waitFor();
+    await transaction.getByRole('button',{name:'Cancel',exact:true}).click();
+  }
+  assert.equal(writes.length,0);
+  await live.locator('.companion-launcher').click();
+  const chat=live.getByRole('dialog',{name:'Sage companion chat'});
+  await chat.locator('.assistant-icon-face').waitFor();
+  await chat.getByRole('button',{name:'Close companion chat',exact:true}).click();
   const purchase=live.locator('.today-actions').getByRole('button',{name:/Log Morning coffee/});
   assert.match(await purchase.innerText(),/4\.50 USD/);
   const refresh=()=>live.waitForResponse(response=>new URL(response.url()).pathname==='/api/data');

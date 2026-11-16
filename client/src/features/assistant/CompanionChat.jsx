@@ -15,11 +15,7 @@ import {CompanionVoice} from './CompanionVoice.jsx';
 import './companion.css';
 import './companion-chat.css';
 
-const avatars=[
- {id:'sage',name:'Sage',color:'#527f6d',intro:'One small step, a calmer day.',ar:'خطوة صغيرة، ونهار أروق.'},
- {id:'nova',name:'Nova',color:'#7466ab',intro:'Let’s find a little room to grow.',ar:'خلّينا نلاقي مجال لنكبر شوي.'},
- {id:'pip',name:'Pip',color:'#b87746',intro:'Ready when you are. Let’s get it done.',ar:'جاهز وقت ما تكون. يلّا نبلّش.'},
-];
+const avatar={id:'sage',name:'Sage',color:'#527f6d',intro:'One small step, a calmer day.',ar:'خطوة صغيرة، ونهار أروق.'};
 const read=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
 const actionNames={task:['Task','مهمة'],expense:['Expense','مصروف'],income:['Income','دخل'],opening:['Existing savings','مدخرات موجودة'],withdrawal:['Withdrawal','سحب'],budget:['Budget','ميزانية'],subscription:['Subscription','اشتراك'],item:['Frequent item','عملية متكرّرة']};
@@ -60,11 +56,9 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  const historyRef=useRef(history);
  const [sessionId,setSessionId]=useState(()=>randomId()),[storageError,setStorageError]=useState(false),[restored,setRestored]=useState(false);
  const [viewport,setViewport]=useState({height:window.visualViewport?.height||window.innerHeight,gap:0,keyboard:false});
- const [avatarId,setAvatar]=useState(()=>read(key,'sage'));
  const [preference,setPreference]=useState(()=>{const value=read(key+':language','auto');return ['en','ar','auto'].includes(value)?value:'auto';});
  const [lastLanguage,setLastLanguage]=useState(()=>read(key+':last-language',navigator.language?.startsWith('ar')?'ar':'en'));
  const [open,setOpen]=useState(false),[voiceState,setVoiceState]=useState('idle'),[thinking,setThinking]=useState(false),[tools,setTools]=useState(null);
- const [moving,setMoving]=useState(()=>read(key+':motion','moving')!=='paused');
  const [useAI,setUseAI]=useState(()=>read(key+':ai','on')==='on'),[aiAvailable,setAIAvailable]=useState(false),[aiReason,setAIReason]=useState(null),[aiNotice,setAINotice]=useState('');
  const remote=useRef(),requestGeneration=useRef(0),inFlight=useRef(false);
  useEffect(()=>{
@@ -75,7 +69,6 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  },[mode,open]);
  const [text,setText]=useState(''),[start,setStart]=useState(date),[end,setEnd]=useState(date),[messages,setMessages]=useState([]),[promptPage,setPromptPage]=useState(0);
  const conversation=useRef(null),pending=useRef(null),sequence=useRef(0),input=useRef(),launcher=useRef(),bottom=useRef();
- const avatar=avatars.find(a=>a.id===avatarId)||avatars[0];
  const language=companionLanguage(preference,text,lastLanguage),ar=language==='ar',t=(en,arabic)=>ar?arabic:en;
  const state=voiceState!=='idle'?voiceState:thinking?'thinking':'idle';
  const stateLabel={idle:t('Here to help','جاهز ساعدك'),thinking:t('Thinking…','عم حضّر الجواب…'),preparing:t('Preparing voice…','عم حضّر الصوت…'),speaking:t('Speaking…','عم احكي…')}[state];
@@ -145,9 +138,9 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
   ['Weekly report','تقرير الأسبوع'],
  ];
  const pageCount=Math.ceil(prompts.length/3),visiblePrompts=prompts.slice((promptPage%pageCount)*3,(promptPage%pageCount)*3+3);
- return <div className={`companion-dock companion-state-${state}${moving?' companion-motion':''}`} style={{'--companion-accent':avatar.color,'--companion-viewport-height':viewport.height+'px','--companion-keyboard-gap':viewport.gap+'px'}}>
+ return <div className={`companion-dock companion-state-${state}`} style={{'--companion-accent':avatar.color,'--companion-viewport-height':viewport.height+'px','--companion-keyboard-gap':viewport.gap+'px'}}>
   {open&&<section className={'companion-chat-panel companion-redesign'+(viewport.keyboard?' companion-keyboard-open':'')} role="dialog" aria-label={`${avatar.name} ${t('companion chat','محادثة المساعد')}`} dir={ar?'rtl':'ltr'} lang={ar?'ar':'en'} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();tools?setTools(null):close();}}}>
-   <header className="companion-panel-header"><div className="companion-header-avatar"><Character avatar={avatar} animated={false}/></div><div className="companion-header-title"><strong>{avatar.name}</strong><small role="status"><i/>{stateLabel}</small></div><button type="button" aria-label={t('Companion settings','إعدادات المساعد')} aria-expanded={tools==='settings'} onClick={()=>setTools(tools==='settings'?null:'settings')}><Settings2 size={19}/></button><button type="button" aria-label={t('Close companion chat','إغلاق المحادثة')} onClick={close}><X size={20}/></button></header>
+   <header className="companion-panel-header"><div className="companion-header-avatar"><Character state={state}/></div><div className="companion-header-title"><strong>{avatar.name}</strong><small role="status"><i/>{stateLabel}</small></div><button type="button" aria-label={t('Companion settings','إعدادات المساعد')} aria-expanded={tools==='settings'} onClick={()=>setTools(tools==='settings'?null:'settings')}><Settings2 size={19}/></button><button type="button" aria-label={t('Close companion chat','إغلاق المحادثة')} onClick={close}><X size={20}/></button></header>
    <div className="companion-language-tabs" role="group" aria-label={t('Reply language','لغة الرد')}>
     {[['en','English'],['ar','عربي'],['auto',t('Auto','تلقائي')]].map(([value,label])=><button key={value} type="button" aria-pressed={preference===value} onClick={()=>{setPreference(value);save(key+':language',value);}}>{label}</button>)}
     <small>{t('Your everyday companion','رفيق نهارك')}</small>
@@ -156,7 +149,6 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    {mode==='live'&&useAI&&aiAvailable&&tools!=='settings'&&<small className="companion-chat-note">{t('AI is on. Messages, recent questions and pending drafts are sent to Google. Turn off in companion settings.','الذكاء الاصطناعي مفعّل. الرسائل والأسئلة الأخيرة والمسودات بتنبعت لـGoogle. فيك تطفّيه من إعدادات المساعد.')}</small>}
    {mode==='live'&&useAI&&!aiAvailable&&aiReason&&<small className="companion-chat-note" role="status">{companionStatusMessage(aiReason,language)}</small>}
    {aiNotice&&<small className="companion-chat-note" role="status">{aiNotice}</small>}
-   {tools==='settings'&&<section className="companion-tools" aria-label={t('Companion settings','إعدادات المساعد')}><label>{t('Your companion','مساعدك')}<select value={avatar.id} onChange={e=>{setAvatar(e.target.value);save(key,e.target.value);}}>{avatars.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label className="companion-motion-option"><input type="checkbox" checked={moving} onChange={e=>{setMoving(e.target.checked);save(key+':motion',e.target.checked?'moving':'paused');}}/>{t('Animate companion','حركة المساعد')}</label><p>{t(avatar.intro,avatar.ar)}</p></section>}
    {tools==='history'&&<section className="companion-tools companion-history" aria-label={t('Recent chats','المحادثات الأخيرة')}><div className="companion-history-heading"><strong>{t('Recent chats','المحادثات الأخيرة')}</strong><button type="button" onClick={newChat}><MessageSquarePlus size={15}/>{t('New chat','محادثة جديدة')}</button></div><small>{t('Saved on this browser for 30 days. Previous answers are snapshots.','محفوظة بهالمتصفح لـ٣٠ يوم. الأجوبة السابقة بتعكس وقت السؤال.')}</small>{history.length?history.map(saved=><div className="companion-history-row" key={saved.id}><button type="button" onClick={()=>restoreChat(saved)}><strong dir="auto">{saved.messages[0]?.question||saved.text||t('Unfinished chat','محادثة غير مكتملة')}</strong><small>{new Date(saved.updated).toLocaleDateString(ar?'ar-LB':'en-GB')} · {saved.context?.draft?t('Unfinished draft','مسودة غير محفوظة'):t('Conversation','محادثة')}</small></button><button type="button" aria-label={t('Delete chat','حذف المحادثة')} onClick={()=>deleteChat(saved.id)}><Trash2 size={14}/></button></div>):<p>{t('Your chats will appear here.','محادثاتك رح تظهر هون.')}</p>}</section>}
    {tools==='examples'&&<CompanionExamples user={user} language={language} text={text} aiAvailable={mode==='live'&&useAI&&aiAvailable} onChoose={example=>{setText(example);setTools(null);input.current?.focus();}}/>}
    <div className="companion-chat-log" hidden={tools==='history'||tools==='examples'} role="log" aria-label={t('Conversation','المحادثة')} aria-live="polite" aria-busy={thinking}>
@@ -176,6 +168,6 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    </div>
    <small className="companion-chat-note">{storageError?t('Chat could not be saved in this browser.','ما قدرنا نحفظ المحادثة بهالمتصفح.'):t('Based on your records · You review every draft','حسب سجلاتك · بتراجع كل مسودة قبل الحفظ')}</small>
   </section>}
-  <button ref={launcher} className={`companion-launcher${state==='speaking'?' is-speaking':''}`} aria-label={open?t('Close companion chat','إغلاق المحادثة'):t(`Chat with ${avatar.name}`,`احكي مع ${avatar.name}`)} aria-expanded={open} onClick={()=>open?close():setOpen(true)}><strong className="companion-greeting">{state==='idle'?t(avatar.intro,avatar.ar):stateLabel}</strong><Character key={avatar.id} avatar={avatar} animated={moving}/><span className="companion-launcher-label">{state==='idle'?(open?t('Close','إغلاق'):t('Ask '+avatar.name,'اسأل '+avatar.name)):stateLabel}</span></button>
+  <button ref={launcher} className={`companion-launcher${state==='speaking'?' is-speaking':''}`} aria-label={open?t('Close companion chat','إغلاق المحادثة'):t(`Chat with ${avatar.name}`,`احكي مع ${avatar.name}`)} aria-expanded={open} onClick={()=>open?close():setOpen(true)}><strong className="companion-greeting">{state==='idle'?t(avatar.intro,avatar.ar):stateLabel}</strong><Character state={state}/><span className="companion-launcher-label">{state==='idle'?(open?t('Close','إغلاق'):t('Ask '+avatar.name,'اسأل '+avatar.name)):stateLabel}</span></button>
  </div>;
 }

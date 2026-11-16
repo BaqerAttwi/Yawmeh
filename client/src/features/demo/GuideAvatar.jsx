@@ -1,5 +1,6 @@
 import React from 'react';
+import {Character} from '../assistant/Character.jsx';
 
 export function GuideAvatar() {
- return <img className="guide-avatar" src="/characters/sage-guide.webp" alt="" decoding="async"/>;
+ return <Character state="guide" className="guide-avatar"/>;
 }

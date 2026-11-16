@@ -5,21 +5,24 @@ import {isAbsolute} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createApp} from '../server/src/app.js';
 import {demoData} from '../client/src/features/demo/data.js';
+import {visibleData} from '../shared/access.js';
 const module=process.env.PLAYWRIGHT_MODULE||'playwright';
 const {chromium}=await import(isAbsolute(module)?pathToFileURL(module).href:module);
 const server=createApp({db:{},authStore:{},recoveryOptions:null}).listen(0,'127.0.0.1');await once(server,'listening');
 const browser=await chromium.launch({headless:true,channel:'msedge'}),errors=[];
 try{
- for(const width of [375,1440])for(const avatar of ['sage','nova','pip']){
+ for(const width of [375,1440]){
+  const avatar='sage';
   const page=await browser.newPage({viewport:{width,height:900}}),calls=[],writes=[];
   const user={id:12345,name:'Test',role:'user',permissions:['tasks','money'],active:true};
-  await page.addInitScript(avatar=>{
-   localStorage.setItem('daywell-companion:live:12345',avatar);
-  },avatar);
+  await page.addInitScript(()=>{
+   localStorage.setItem('daywell-companion:live:12345','pip');
+   localStorage.setItem('yawmeh-start-here:v1:live:12345','done');
+  });
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const request=route.request(),path=new URL(request.url()).pathname;
-   if(path==='/api/data')return route.fulfill({json:{...demoData(),user}});
+   if(path==='/api/data')return route.fulfill({json:{...visibleData(demoData(),user),user}});
    if(path==='/api/auth/me')return route.fulfill({json:{user}});
    if(path==='/api/companion/ai')return route.fulfill({json:{available:true,reason:null,model:'gemini-3.8-flash'}});
    if(path==='/api/companion/chat'){

@@ -1,6 +1,11 @@
 import React from 'react';
+import {Bot,Ellipsis,Volume2,Compass} from 'lucide-react';
+import './assistant-icon.css';
 
-export function Character({avatar,animated=false}) {
- const id=['sage','nova','pip'].includes(avatar.id)?avatar.id:'sage';
- return <i aria-hidden="true" style={{backgroundImage:`url(/characters/${id}-wave.webp)`}} className={'companion-avatar companion-character waving-character '+(animated?'is-animated':'')}/>;
+export function Character({state='idle',className=''}) {
+ const Badge=state==='speaking'?Volume2:state==='guide'?Compass:['thinking','preparing'].includes(state)?Ellipsis:null;
+ return <i aria-hidden="true" className={`assistant-icon ${className}`} data-state={state}>
+  <Bot className="assistant-icon-face" strokeWidth={1.65}/>
+  {Badge&&<Badge className="assistant-icon-badge" strokeWidth={2}/>}
+ </i>;
 }

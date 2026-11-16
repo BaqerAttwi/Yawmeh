@@ -123,3 +123,28 @@
 .first-record .button-row {
   margin-top: 12px;
 }
+.transaction-choices {
+  display: grid;
+  gap: 8px;
+}
+
+.transaction-choices button {
+  justify-content: flex-start;
+  min-height: 48px;
+  text-align: start;
+  white-space: normal;
+}
+
+.transaction-choices svg {
+  flex-shrink: 0;
+}
+
+.transaction-choices strong,
+.transaction-choices small {
+  display: block;
+}
+
+.transaction-choices small {
+  margin-top: 3px;
+  line-height: 1.4;
+}

@@ -3,7 +3,7 @@
   display: block;
   flex-shrink: 0;
   width: 42px;
-  height: 84px;
+  height: 42px;
   object-fit: contain;
 }
 
@@ -21,6 +21,6 @@
 @media (max-width: 700px) {
   .guide-avatar {
     width: 32px;
-    height: 64px;
+    height: 32px;
   }
 }

@@ -1,0 +1,38 @@
+.assistant-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid #bfd5c7;
+  border-radius: 14px;
+  background: #e7f1eb;
+  color: #315d48;
+}
+
+.assistant-icon-face {
+  width: 60%;
+  height: 60%;
+}
+
+.assistant-icon-badge {
+  position: absolute;
+  inset-block-end: 1px;
+  inset-inline-end: 1px;
+  width: 15px;
+  height: 15px;
+  padding: 1px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.assistant-icon[data-state="speaking"] {
+  background: #d5eddf;
+}
+
+.companion-header-avatar:has(.assistant-icon) {
+  width: auto;
+  height: auto;
+  background: transparent;
+}
