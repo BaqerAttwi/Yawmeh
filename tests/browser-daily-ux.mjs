@@ -64,6 +64,11 @@ try {
     const request=route.request(), path=new URL(request.url()).pathname;
     if(path==='/api/data')return route.fulfill({json:{...records,user}});
     if(path==='/api/auth/me')return route.fulfill({json:{user}});
+    if(path==='/api/tasks'&&request.method()==='POST'){
+      const id=3001;
+      records.tasks.unshift({...request.postDataJSON(),id,completed:0});
+      return route.fulfill({status:201,json:{id}});
+    }
     if(path==='/api/entries'&&request.method()==='POST'){
       const id=1001+writes.length, value=request.postDataJSON();
       writes.push({path,id,value});
@@ -141,7 +146,9 @@ try {
   records.tasks.length=0;
   await live.reload();
   await live.getByRole('button',{name:'Add my first task',exact:true}).waitFor();
-  await live.getByRole('button',{name:'Set up my money',exact:true}).click();
+  const guideButton=live.locator('.topbar-actions').getByRole('button',{name:'Guide',exact:true});
+  await guideButton.click();
+  await firstGuide.getByRole('button',{name:'Start with Money',exact:true}).click();
   const form=live.locator('dialog[open]');
   await form.getByText(/Example only/).waitFor();
   for(const name of ['Total income received (USD)','Allocate to savings (USD)','Available to spend (USD)']){
@@ -150,6 +157,7 @@ try {
   await form.locator('[name=title]').fill('First payment');
   await form.locator('[name=amount]').fill('90');
   await form.locator('[name=saved]').fill('20');
+  assert.deepEqual(await form.locator('.money-effect dd').allTextContents(),['$90.00','$20.00','$70.00']);
   await form.getByRole('button',{name:'Save transaction',exact:true}).click();
   const balance=live.getByRole('region',{name:'Your spending balance'});
   await balance.getByText(/70.00 available to spend/).waitFor();
@@ -159,6 +167,20 @@ try {
   await form.getByRole('checkbox',{name:'Also save as an item'}).check();
   await form.getByRole('button',{name:'Save transaction',exact:true}).click();
   await live.locator('.today-actions').getByRole('button',{name:/Log Tea/}).waitFor();
+  await live.locator('.today-actions').getByRole('button',{name:'Add transaction',exact:true}).click();
+  await live.getByRole('dialog',{name:'Add transaction',exact:true}).getByRole('button',{name:/^Withdraw from savings/}).click();
+  await form.locator('[name=amount]').fill('5');
+  assert.deepEqual(await form.locator('.money-effect dd').allTextContents(),['$20.00 → $15.00','$66.00 → $71.00']);
+  await form.locator('[name=amount]').fill('21');
+  await form.getByRole('alert').filter({hasText:'exceeds the savings'}).waitFor();
+  assert.equal(await form.locator('.money-effect').count(),0);
+  await form.getByRole('button',{name:'Cancel',exact:true}).click();
+  await guideButton.click();
+  await firstGuide.getByRole('button',{name:'Start with Tasks',exact:true}).click();
+  assert.equal(await form.locator('[name=title]').inputValue(),'');
+  await form.locator('[name=title]').fill('My first task');
+  await form.getByRole('button',{name:'Save task',exact:true}).click();
+  await live.getByRole('region',{name:'Your first task'}).getByText('My first task',{exact:true}).waitFor();
   const date=records.entries[0].date;
   records.entries.push(
     {id:2001,type:'income',title:'LBP payment',amount:90000,currency:'LBP',exchange_rate:90000,saved:0,date},

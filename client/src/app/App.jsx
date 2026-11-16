@@ -4,12 +4,13 @@ import {DemoGuides} from '../features/demo/DemoGuides.jsx';
 import {CreationGuide} from '../features/demo/CreationGuide.jsx';
 import {GuideAvatar} from '../features/demo/GuideAvatar.jsx';
 import {IncomeAllocation} from '../components/IncomeAllocation.jsx';
+import {WithdrawalAmount} from '../components/WithdrawalAmount.jsx';
 import {randomId} from '../../../shared/id.js';
 import {formText} from '../../../shared/companion-form-language.js';
 import {Currencies,CurrencyFields} from '../features/settings/Currencies.jsx';
 import {CurrencyReport} from '../components/CurrencyReport.jsx';
 import {SpendingBalance} from '../components/SpendingBalance.jsx';
-import {formatMoney,rateLabel,currencyOf,captureRates,savedRates} from '../../../shared/currency.js';
+import {formatMoney,rateLabel,currencyOf,captureRates,savedRates,currencyCatalog} from '../../../shared/currency.js';
 import {Everyday} from '../features/today/Everyday.jsx';
 import {Sessions} from '../features/settings/Sessions.jsx';
 import {InstallApp} from '../features/settings/InstallApp.jsx';
@@ -67,6 +68,7 @@ export default function App({session}){
  function showGuide(){if(isPhone)closeNavigation();setGettingStarted(true);}
  const [gettingStarted,setGettingStarted]=useState(false),[guideActive,setGuideActive]=useState(false);
  const [showFirstBalance,setShowFirstBalance]=useState(false);
+ const [firstTaskId,setFirstTaskId]=useState(null);
  const [tutorials,setTutorials]=useState(false),[trailer,setTrailer]=useState(false),[overviewTab,setOverviewTab]=useState('checkin');
  async function signOut(){try{await onLogout();}catch(e){setError(e.message);}}
  const [page,setPage]=useState('overview'),[data,setData]=useState(()=>{if(mode==='live')return visibleData(session.data,user);let saved;try{saved=JSON.parse(localStorage.getItem(demoKey));}catch{}return visibleData(saved||{...demoData(),settings:{name:user.name,email:''}},user);}),[launcher,setLauncher]=useState(false),[modal,setModal]=useState(null),[lastSaved,setLastSaved]=useState(null),[toast,setToast]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[filter,setFilter]=useState(can('money')?(can('tasks')?'all':'money'):'tasks'),[tab,setTab]=useState('transactions'),[query,setQuery]=useState(''),[taskFilter,setTaskFilter]=useState('all'),[categoryFilter,setCategoryFilter]=useState('');
@@ -102,13 +104,13 @@ export default function App({session}){
        receipt=action.demo(next);
        setData(next);
      }
-     modal?.onSaved?.();setModal(null);setLastSaved(new Date());
+     modal?.onSaved?.(receipt);setModal(null);setLastSaved(new Date());
      notify(action.message||'Saved successfully',action.undoPurchase?receipt?.id:undefined);
      return true;
    }catch(e){
      if(e instanceof SaveStateError){
        refreshLock.current=true;setNeedsRefresh(true);
-       if(e.state==='saved'){modal?.onSaved?.();setModal(null);}
+       if(e.state==='saved'){modal?.onSaved?.(receipt);setModal(null);}
      }
      setError(e.message);
      return e instanceof SaveStateError&&e.state==='saved';
@@ -146,7 +148,7 @@ export default function App({session}){
      type:'expense',title:item.title,amount:item.amount,category:item.category,date:current,currency:'USD',
    },`${item.title} recorded · ${money(cents(item.amount))} USD`,true);
  }
- function add(table,value){try{value=schemas[table].parse(value);}catch(e){setError(e.issues.map(i=>i.message).join('; '));return false;}return change({path:'/'+table,value,demo:d=>{const {subtasks,...record}=value;const id=randomId();d[table].unshift({...record,id,...(table==='tasks'?{completed:0}:{}),...(table==='subscriptions'?{active:1}:{})});if(table==='tasks')d.subtasks.push(...subtasks.map(title=>({id:randomId(),task_id:id,title,completed:0})));}});}
+ function add(table,value){try{value=schemas[table].parse(value);}catch(e){setError(e.issues.map(i=>i.message).join('; '));return false;}return change({path:'/'+table,value,demo:d=>{const {subtasks,...record}=value;const id=randomId();d[table].unshift({...record,id,...(table==='tasks'?{completed:0}:{}),...(table==='subscriptions'?{active:1}:{})});if(table==='tasks')d.subtasks.push(...subtasks.map(title=>({id:randomId(),task_id:id,title,completed:0})));return {id};}});}
  function toggleTask(t){return change({path:'/tasks/'+t.id,method:'PATCH',value:{completed:!t.completed},demo:d=>completeDemoTask(d,t.id,!t.completed,current),message:t.completed?'Task reopened':t.recurrence&&t.recurrence!=='none'?'Done! Your next occurrence is ready.':'One more thing done. Nice work!'});}
  function changeRecurrence(task,recurrence){return change({path:'/tasks/'+task.id+'/recurrence',method:'PATCH',value:{recurrence},demo:d=>{d.tasks.find(t=>t.id===task.id).recurrence=recurrence;},message:recurrence==='none'?'Repeating stopped':'Repeat schedule updated'});}
  function addSubtask(task,title){const parsed=subtaskSchema.safeParse({title});if(!parsed.success){setError(parsed.error.issues[0].message);return false;}return change({path:'/tasks/'+task.id+'/subtasks',value:parsed.data,demo:d=>{if(task.completed)throw new PlannerError('Reopen the task before adding subtasks.');if(d.subtasks.filter(s=>s.task_id===task.id).length>=30)throw new PlannerError('A task can have up to 30 subtasks.');d.subtasks.push({id:randomId(),task_id:task.id,title:parsed.data.title,completed:0});},message:'Small step added'});}
@@ -237,6 +239,17 @@ export default function App({session}){
  const isToday=page==='overview'&&overviewTab==='checkin';
  const firstTask=can('tasks')&&!data.tasks.length&&!data.cancelled_tasks.length;
  const firstIncome=can('money')&&!data.entries.some(entry=>entry.type==='income'&&!entry.voided_on);
+ const savedFirstTask=can('tasks')&&firstTaskId!=null?data.tasks.find(task=>String(task.id)===String(firstTaskId)):null;
+ function startFirstRecord(type){
+   if(busy||needsRefresh||!(type==='task'?firstTask:type==='income'&&firstIncome))return;
+   open(type,type==='task'?{due:current}:{firstIncome:true},'en',receipt=>{
+     go('overview');
+     setOverviewTab('checkin');
+     if(type==='task')setFirstTaskId(receipt?.id??null);
+     else setShowFirstBalance(true);
+     window.scrollTo(0,0);
+   });
+ }
  const quickPurchases=data.items?.length>0&&<section className="quick-card quick-purchase-card">
    <h3>Quick purchases</h3><p>Tap an item to record one purchase today.</p>
    <div className="quick-items">{data.items.slice(0,4).map((item,i)=><button type="button" key={item.id} className="secondary" disabled={busy||needsRefresh} onClick={()=>logSavedPurchase(item)}>
@@ -266,17 +279,21 @@ export default function App({session}){
      {can('money')&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('expense')}>Log expense</button>}
    </div>
    {can('money')&&quickPurchases}
+   {savedFirstTask&&<section className="card today-panel first-record" aria-label="Your first task">
+     <h3>Task saved</h3>
+     <p><strong>{savedFirstTask.title}</strong> · Due {dateLabel(savedFirstTask.due)}</p>
+   </section>}
    {(firstTask||firstIncome)&&<section className="card today-panel first-record">
      <h3>Start with one record</h3>
      <p>Pick what’s useful today. You can set up the rest whenever you’re ready.</p>
      <div className="button-row">
-       {firstTask&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('task',{due:current})}>Add my first task</button>}
-       {firstIncome&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('income',{firstIncome:true},'en',()=>setShowFirstBalance(true))}>Set up my money</button>}
+       {firstTask&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>startFirstRecord('task')}>Add my first task</button>}
+       {firstIncome&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>startFirstRecord('income')}>Set up my money</button>}
      </div>
    </section>}
  </section>}
  {isToday&&can('money')&&<BudgetAlerts data={data}/>}
- <GettingStarted user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/>
+ <GettingStarted firstTask={firstTask} firstIncome={firstIncome} onStartRecord={startFirstRecord} user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/>
  {page==='overview'&&overviewTab==='checkin'&&<TodayScreen data={data} user={user} busy={busy} error={error} renderTask={renderTask} onReviewPayment={subscription=>open('renew',subscription)} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
  {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
  {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
@@ -316,7 +333,7 @@ export default function App({session}){
 
  {mode==='demo'&&(page==='overview'||page==='tasks'||page==='money')&&<DemoGuides can={app=>app===page||page==='overview'&&can(app)}/>}{page==='users'&&user.role==='admin'&&<UserManager mode={mode} api={api} onPreview={onPreview}/>}
  <footer className="page-footer"><span><Leaf size={13}/> A little more intentional, every day.</span><span>Made for your everyday.</span></footer>
- </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
+ </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal data={data} modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
 }
 function TransactionChoice({onChoose,onClose}){
  const dialog=useRef(null);
@@ -340,7 +357,7 @@ function TransactionChoice({onChoose,onClose}){
  </dialog>;
 }
 
-function EntryModal({modal,close,error,busy,current,addEntry,add,renew,balance,settings,taskCategories,recategorize}){
+function EntryModal({data,modal,close,error,busy,current,addEntry,add,renew,balance,settings,taskCategories,recategorize}){
  const [language,setLanguage]=useState(modal.language||'en');const t=text=>formText(text,language);
  const {type,initial}=modal;
  const dialog=useRef();
@@ -357,7 +374,7 @@ function EntryModal({modal,close,error,busy,current,addEntry,add,renew,balance,s
  {type==='renew'?<><div className="info-note">{language==='ar'?<>{initial.title}: المبلغ المخطّط {money(cents(initial.amount))} USD. سجّل المبلغ الفعلي تحت. التجديد بينتقل من <bdi>{dateLabel(initial.renewal)}</bdi> إلى <bdi>{dateLabel(nextRenewal(initial.renewal,initial.cycle))}</bdi>.</>:<>{initial.title} is planned at {money(cents(initial.amount))} USD. Enter the actual payment below. This advances renewal from {dateLabel(initial.renewal)} to {dateLabel(nextRenewal(initial.renewal,initial.cycle))}.</>}</div><CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency}/><Field key={entryCurrency} label={t(`Amount paid (${entryCurrency})`)} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={entryCurrency==='USD'?initial.amount:''} required/></>:type==='taskCategory'?<><p className="category-edit-title">{initial.title}</p><TaskCategoryField language={language} categories={taskCategories} value={taskCategory(initial)}/></>:<> {type==='expense'&&<Field label={t(`Amount (${entryCurrency})`)} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required autoFocus/>}<Field label={t(type==='income'?'Income source':type==='withdrawal'?'Transfer name':type==='task'?'What would you like to do?':'Name')} name="title" defaultValue={initial.title||''} placeholder={t(type==='income'?'Monthly salary or freelance work':'Give it a name')} required maxLength={160} autoFocus={type!=='expense'}/>
  {type==='task'&&<Field label={t("Due date")} name="due" type="date" defaultValue={initial.due||current} required/>}
  {financial&&<CurrencyFields language={language} settings={settings} currency={entryCurrency} setCurrency={setEntryCurrency} compact={type==='expense'}/>}
- {type==='income'?<IncomeAllocation initialAmount={initial.amount} showExample={initial.firstIncome} currency={entryCurrency} language={language}/>:!['task','expense'].includes(type)&&<Field label={t(type==='budget'?'Spending limit (USD)':financial?`Amount (${entryCurrency})`:'Amount (USD)')} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required/>}
+ {type==='income'?<IncomeAllocation initialAmount={initial.amount} showExample={initial.firstIncome} currency={entryCurrency} language={language} catalog={currencyCatalog(settings)}/>:type==='withdrawal'?<WithdrawalAmount initialAmount={initial.amount} currency={entryCurrency} language={language} data={data} current={current}/>:!['task','expense'].includes(type)&&<Field label={t(type==='budget'?'Spending limit (USD)':financial?`Amount (${entryCurrency})`:'Amount (USD)')} name="amount" type="number" min="0.01" step="0.01" max="999999999" defaultValue={initial.amount||''} required/>}
  {type==='expense'&&<section>
   <label className="companion-motion-option"><input type="checkbox" checked={saveItem} onChange={event=>setSaveItem(event.target.checked)}/>{language==='ar'?'احفظه كعنصر كمان':'Also save as an item'}</label>
   {saveItem&&<div className="info-note form-guide-steps"><GuideAvatar/><p>{language==='ar'?'أنا Sage. العنصر بيحفظ الاسم والفئة والسعر المعتاد. المرّة الجاية اضغط سجّل الشراء من Today أو Money → Items.':'I’m Sage. An item remembers the name, category, and usual price. Next time, log it with one tap from Today or Money → Items.'}</p></div>}

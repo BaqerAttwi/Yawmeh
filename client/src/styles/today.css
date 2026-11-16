@@ -182,3 +182,25 @@
   text-decoration: none;
   overflow-wrap: anywhere;
 }
+.money-effect {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 18px;
+  padding: 12px;
+  border: 1px solid #c9ddcf;
+  border-radius: 10px;
+  background: #edf5ee;
+}
+
+.money-effect > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.money-effect dd {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}

@@ -6,7 +6,7 @@ import {DemoGuides} from './DemoGuides.jsx';
 import {gettingStartedSteps,guideStepReached,guideTopics} from '../../../../shared/getting-started.js';
 import './getting-started.css';
 
-export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,onOpen,onNavigate,onTourChange}) {
+export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,onOpen,onNavigate,onTourChange,onStartRecord,firstTask,firstIncome}) {
  const key=`yawmeh-start-here:v1:${mode}:${user.id}`;
  const [dismissed,setDismissed]=useState(()=>{try{return localStorage.getItem(key)==='done';}catch{return false;}});
  const [view,setView]=useState('choices'),[index,setIndex]=useState(null),[completed,setCompleted]=useState(false);
@@ -38,6 +38,10 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
   {showDialog&&<dialog ref={dialog} className="start-here-dialog" aria-label="Start here" onCancel={e=>{e.preventDefault();dismissGuide();}}>
    <header><span className="eyebrow">YOUR FIRST SMALL STEPS</span><button type="button" className="icon-button" aria-label="Close getting started" onClick={dismissGuide}><X size={20}/></button></header>
    <div className="start-here-intro"><GuideAvatar/><div><h2>{completed?'You know your way around.':'Let’s find your starting point.'}</h2><p>{completed?'Come back any time for a refresher.':'I’m Sage. Start with the guided tour, or watch the steps before trying them yourself.'}</p></div></div>
+   {(firstTask||firstIncome)&&<div className="start-topic-buttons">
+    {firstTask&&<button type="button" className="primary" onClick={()=>{dismissGuide();onStartRecord('task');}}>Start with Tasks <ArrowRight size={15}/></button>}
+    {firstIncome&&<button type="button" className="primary" onClick={()=>{dismissGuide();onStartRecord('income');}}>Start with Money <ArrowRight size={15}/></button>}
+   </div>}
    <div className="start-topic-buttons">
     {can('tasks')&&<button type="button" className="secondary" onClick={()=>begin('tasks')}>All task steps <ArrowRight size={15}/></button>}
     {can('money')&&<button type="button" className="secondary" onClick={()=>begin('money')}>All money steps <ArrowRight size={15}/></button>}
