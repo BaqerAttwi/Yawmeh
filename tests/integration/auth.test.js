@@ -38,6 +38,23 @@ async function fixture(t) {
   return {call,login,users,sessions,queries,records,password,db};
 }
 
+test('expense shortcuts save an owned item with the purchase and reject invalid requests',async t=>{
+ const f=await fixture(t),maya=await f.login('maya@test.local'),sam=await f.login('sam@test.local');
+ const expense={type:'expense',title:'Coffee',amount:4,currency:'USD',category:'Food & drinks',date:'2026-10-01',save_as_item:true};
+ const send=(cookie,body)=>f.call('/entries',{cookie,method:'POST',body});
+ assert.equal((await send(sam,expense)).status,403);
+ assert.equal((await send(maya,{...expense,currency:'LBP'})).status,400);
+ assert.equal((await send(maya,{...expense,type:'income'})).status,400);
+ assert.equal((await send(maya,{...expense,amount:99999})).status,400);
+ assert.equal(f.records.items.length,0);
+ assert.equal(f.records.entries.length,1);
+ assert.equal((await send(maya,{...expense,user_id:2})).status,201);
+ assert.equal(f.records.entries.at(-1).user_id,3);
+ assert.deepEqual(f.records.items.map(({title,amount,category,user_id})=>({title,amount,category,user_id})),[
+  {title:'Coffee',amount:4,category:'Food & drinks',user_id:3},
+ ]);
+});
+
 test('passwords are salted, verifiable and never stored as plaintext',async()=>{
   const first=await hashPassword('a sufficiently long secret'),second=await hashPassword('a sufficiently long secret');
   assert.notEqual(first,second);assert.equal(await verifyPassword('a sufficiently long secret',first),true);assert.equal(await verifyPassword('wrong password',first),false);assert.equal(await verifyPassword('anything','broken'),false);

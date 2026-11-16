@@ -36,14 +36,22 @@ try {
   const openGuide = ()=>demo.locator('.topbar-actions').getByRole('button',{name:'Guide',exact:true}).click();
   const coach = demo.getByRole('region',{name:'Guided tour'});
   await openGuide();
-  await demo.getByRole('button',{name:'Start with tasks',exact:true}).click();
+  await demo.getByRole('button',{name:'All task steps',exact:true}).click();
   await coach.getByText('Then, add your first task',{exact:true}).waitFor();
   await coach.getByRole('button',{name:'Take me there',exact:true}).click();
   await coach.getByText('You’re in the right place.',{exact:true}).waitFor();
   await coach.getByRole('button',{name:'Pause guided tour',exact:true}).click();
   await openGuide();
-  await demo.getByRole('button',{name:'Start with money',exact:true}).click();
+  await demo.getByRole('button',{name:'All money steps',exact:true}).click();
   await coach.getByText('First, set your currencies',{exact:true}).waitFor();
+  await coach.getByRole('button',{name:'Pause guided tour',exact:true}).click();
+  await openGuide();
+  await demo.getByLabel('Or choose one topic').selectOption('items');
+  await demo.getByRole('button',{name:'Start topic'}).click();
+  await coach.getByText('Save purchases you repeat',{exact:true}).waitFor();
+  await coach.getByRole('button',{name:'Take me there',exact:true}).click();
+  await demo.locator('[data-tour="add-item"].tour-target').waitFor();
+  await coach.getByRole('button',{name:'Finish tour',exact:true}).click();
   await demo.close();
 
   const live = await browser.newPage({viewport});
@@ -72,6 +80,9 @@ try {
     return route.fulfill({json:{available:false,google:false}});
   });
   await live.goto(url);
+  const firstGuide=live.getByRole('dialog',{name:'Start here'});
+  await firstGuide.getByRole('button',{name:'Close getting started'}).click();
+  await firstGuide.waitFor({state:'hidden'});
   const purchase=live.locator('.today-actions').getByRole('button',{name:/Log Morning coffee/});
   assert.match(await purchase.innerText(),/4\.50 USD/);
   const refresh=()=>live.waitForResponse(response=>new URL(response.url()).pathname==='/api/data');

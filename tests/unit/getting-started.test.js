@@ -4,9 +4,9 @@ import {gettingStartedSteps,guideStepReached} from '../../shared/getting-started
 test('recommended tour only includes pages the account can access',()=>{
  const pages=permissions=>gettingStartedSteps({role:'user',permissions}).map(s=>s.page);
  assert.deepEqual(pages(['tasks']),['settings','tasks','overview']);
- assert.deepEqual(pages(['money']),['settings','money','money','money','overview']);
+ assert.deepEqual(pages(['money']),['settings',...Array(7).fill('money'),'overview']);
  assert.deepEqual(pages([]),['settings','overview']);
- assert.deepEqual(gettingStartedSteps({role:'admin'}).map(s=>s.id),['currencies','savings','income','expense','tasks','overview']);
+ assert.deepEqual(gettingStartedSteps({role:'admin'}).map(s=>s.id),['currencies','savings','income','expense','items','budgets','subscriptions','goals','tasks','overview']);
 });
 test('guide checks the relevant money tab and Today view, not just the page',()=>{
  const steps=gettingStartedSteps({role:'admin'}),savings=steps.find(s=>s.id==='savings'),income=steps.find(s=>s.id==='income');
@@ -19,6 +19,9 @@ test('guide checks the relevant money tab and Today view, not just the page',()=
 test('first steps offer focused task and money tours within account permissions',()=>{
  const admin={role:'admin'};
  assert.deepEqual(gettingStartedSteps(admin,'tasks').map(s=>s.id),['tasks','overview']);
- assert.deepEqual(gettingStartedSteps(admin,'money').map(s=>s.id),['currencies','savings','income','expense','overview']);
+ assert.deepEqual(gettingStartedSteps(admin,'money').map(s=>s.id),['currencies','savings','income','expense','items','budgets','subscriptions','goals','overview']);
+ assert.deepEqual(gettingStartedSteps(admin,'topic:items').map(s=>s.id),['items']);
+ assert.deepEqual(gettingStartedSteps(admin,'topic:expense').map(s=>s.id),['expense']);
+ assert.ok(gettingStartedSteps({role:'user',permissions:['tasks']},'topic:items').every(s=>s.page!=='money'));
  assert.ok(gettingStartedSteps({role:'user',permissions:['tasks']},'money').every(s=>s.page!=='money'));
 });

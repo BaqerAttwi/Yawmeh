@@ -14,7 +14,7 @@ export function memoryDatabase(records,users,queries=[]){
     if(match)return [records[match[1]].filter(r=>r.id===Number(args[0])&&r.user_id===args[1])];
     if(sql==='SELECT * FROM subtasks WHERE task_id=? AND user_id=?')return [records.subtasks.filter(r=>r.task_id===args[0]&&r.user_id===args[1])];
     if(sql==='SELECT id FROM tasks WHERE previous_task_id=? AND user_id=?')return [records.tasks.filter(r=>r.previous_task_id===args[0]&&r.user_id===args[1]).map(r=>({id:r.id}))];
-    match=sql.match(/^INSERT INTO (tasks|subtasks|goals|goal_moves|entries|day_plans|inbox) SET \?$/);
+    match=sql.match(/^INSERT INTO (tasks|subtasks|goals|goal_moves|entries|day_plans|inbox|items) SET \?$/);
     if(match){const table=records[match[1]],id=Math.max(0,...table.map(r=>r.id))+1;table.push({...args,id});return [{insertId:id}];}
     if(sql==='UPDATE subscriptions SET renewal=? WHERE id=? AND user_id=?'){const row=records.subscriptions.find(r=>r.id===Number(args[1])&&r.user_id===args[2]);if(row)row.renewal=args[0];return [{affectedRows:row?1:0}];}
     if(sql==='UPDATE tasks SET completed=?,completed_on=? WHERE id=? AND user_id=?'){

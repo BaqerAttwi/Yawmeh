@@ -1,17 +1,33 @@
 import {hasAccess} from './access.js';
 
+export const guideTopics = [
+ ['tasks','Add a task','tasks'],['overview','Use Today'],
+ ['currencies','Set currencies','money'],['savings','Add existing savings','money'],
+ ['income','Record income','money'],['expense','Log an expense','money'],
+ ['items','Save a reusable item','money'],['budgets','Set a budget','money'],
+ ['subscriptions','Track a subscription','money'],['goals','Set a savings goal','money'],
+];
+
 export function gettingStartedSteps(user,focus='all') {
  const money=hasAccess(user,'money');
  const steps=[money?{id:'currencies',page:'settings',target:'home-currency',title:'First, set your currencies',instruction:'Open Settings, then Your currencies.',explanation:'Choose your home currency for reports and save it. Add any other currency you use and set its manual rate. Each transaction keeps its own currency; the home currency only changes how reports open. New rates do not rewrite old entries.'}:{id:'settings',page:'settings',target:'profile-settings',title:'First, check your settings',instruction:'Click Settings in the sidebar.',explanation:'Check your name and reminder email. Email reminders need a configured server and your reminder address. Quiet hours control when those emails can arrive.'}];
  if(money)steps.push(
   {id:'savings',page:'money',tab:'savings',target:'add-savings',title:'Start with your existing savings',instruction:'Open Money, then the Savings tab.',explanation:'Choose Add existing savings for money you already had saved before using Yawmeh. Enter its amount, currency and date once. This adds to savings; it is not new income and does not add spending money.',example:'Example only: add 500 USD of existing savings → savings 500 USD, available spending 0 USD.'},
   {id:'income',page:'money',tab:'transactions',target:'add-income',title:'Next, record income and split it',instruction:'Open Money, then Transactions.',explanation:'Choose Income for new money you receive. Enter the full amount, then choose the part to save. That saved part comes out of the income; the rest is available to spend. Do not also add that saved part as existing savings.',example:'Example only: income 700 USD, save 200 USD → 500 USD to spend. With the earlier 500 USD, total savings becomes 700 USD.'},
-  {id:'expense',page:'money',tab:'transactions',target:'add-expense',title:'Now, record your expenses',instruction:'Open Money, then Transactions.',explanation:'Choose Expense for a purchase you already made. Check the amount, currency, category and date. Expenses reduce available spending. Savings stay separate; use Withdraw savings only when you move saved money back to spending.',example:'Example only: spend 15 USD from the previous 500 USD → 485 USD available, with 700 USD still saved.'}
+  {id:'expense',page:'money',tab:'transactions',target:'add-expense',title:'Now, record your expenses',instruction:'Open Money, then Transactions.',explanation:'Choose Expense for a purchase you already made. Check the amount, currency, category and date. For something you buy often, select Also save as an item before saving.',example:'Example only: spend 15 USD from the previous 500 USD → 485 USD available, with 700 USD still saved.'},
+  {id:'items',page:'money',tab:'items',target:'add-item',title:'Save purchases you repeat',instruction:'Open Money, then Items.',explanation:'Use New item to save a usual price and category without recording an expense. The next time you buy it, tap Log purchase. You can also create an item while logging an expense.'},
+  {id:'budgets',page:'money',tab:'budgets',target:'add-budget',title:'Set a spending limit',instruction:'Open Money, then Budgets.',explanation:'Choose a limit and date range. Your budget tracks spending during that period.'},
+  {id:'subscriptions',page:'money',tab:'subscriptions',target:'add-subscription',title:'Track recurring bills',instruction:'Open Money, then Subscriptions.',explanation:'Enter the usual charge, billing cycle and next renewal. When you pay, use Record payment to log the expense.'},
+  {id:'goals',page:'money',tab:'goals',target:'add-goal',title:'Set a savings goal',instruction:'Open Money, then Goals.',explanation:'Set a target and optionally a deadline. Assign money from existing savings as you go.'}
  );
  if(hasAccess(user,'tasks'))steps.push({id:'tasks',page:'tasks',target:'add-task',title:'Then, add your first task',instruction:'Click Tasks in the sidebar.',explanation:'Choose Add task, give it a clear name and pick a due date. Optional details include a time, priority, repeat schedule and reminder. Save when ready, then use the checkbox when you finish. Start with one small thing for today.'});
  steps.push({id:'overview',page:'overview',target:'today-tab',overviewTab:'checkin',title:'Return to Today each day',instruction:'Click Overview, then Today.',explanation:'Review what is due and choose your next small step. Your money summaries come from the records you save. You can reopen the G Guide whenever you need a refresher.'});
  if(focus==='tasks'&&hasAccess(user,'tasks'))return steps.filter(step=>['tasks','overview'].includes(step.id));
  if(focus==='money'&&money)return steps.filter(step=>step.id!=='tasks');
+ if(focus.startsWith('topic:')){
+  const selected=steps.find(step=>step.id===focus.slice(6));
+  if(selected)return [selected];
+ }
  return steps;
 }
 

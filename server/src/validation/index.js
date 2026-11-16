@@ -1,1 +1,1 @@
-export {entrySchema,schemas,taskCategorySchema} from '../../../shared/validation.js';
+export {entrySchema,expenseItem,schemas,taskCategorySchema} from '../../../shared/validation.js';

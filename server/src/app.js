@@ -16,7 +16,7 @@ import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {z} from 'zod';
 import {pool,snapshot} from './database/connection.js';
-import {entrySchema,schemas,taskCategorySchema} from './validation/index.js';
+import {entrySchema,expenseItem,schemas,taskCategorySchema} from './validation/index.js';
 import {checkEntry,nextRenewal,today,periodSummary,balances} from '../../shared/domain.js';
 import {hasAccess} from '../../shared/access.js';
 import {aiRequest,aiText,providers} from './modules/ai/providers.js';
@@ -67,7 +67,14 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
  app.post('/api/entries',requireAccess('money'),async(req,res)=>{
    const entry=entrySchema.parse(req.body);
    if(entry.date>today(process.env.TIMEZONE||'Asia/Beirut'))return res.status(400).json({error:'Transactions cannot be dated in the future.'});
-   const id=await ledgerTransaction(req.user.id,connection=>insertEntry(connection,req.user.id,entry));res.status(201).json({id});
+   let item;
+   try{item=expenseItem(entry,req.body);}catch(error){return res.status(400).json({error:error.issues?.[0]?.message||error.message});}
+   const id=await ledgerTransaction(req.user.id,async connection=>{
+     const entryId=await insertEntry(connection,req.user.id,entry);
+     if(item)await connection.query('INSERT INTO items SET ?',{...item,user_id:req.user.id});
+     return entryId;
+   });
+   res.status(201).json({id});
  });
  mountCurrencies(app,ledgerTransaction);
  mountPlanner(app,db,ledgerTransaction);

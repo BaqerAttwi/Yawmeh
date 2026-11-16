@@ -3,7 +3,7 @@ import {ArrowRight,Check,ChevronLeft,Compass,Play,X} from 'lucide-react';
 import {GuideAvatar} from './GuideAvatar.jsx';
 import './creation-guide.css';
 import {DemoGuides} from './DemoGuides.jsx';
-import {gettingStartedSteps,guideStepReached} from '../../../../shared/getting-started.js';
+import {gettingStartedSteps,guideStepReached,guideTopics} from '../../../../shared/getting-started.js';
 import './getting-started.css';
 
 export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,onOpen,onNavigate,onTourChange}) {
@@ -11,6 +11,7 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
  const [dismissed,setDismissed]=useState(()=>{try{return localStorage.getItem(key)==='done';}catch{return false;}});
  const [view,setView]=useState('choices'),[index,setIndex]=useState(null),[completed,setCompleted]=useState(false);
  const [focus,setFocus]=useState('all');
+ const [topic,setTopic]=useState('');
  const dialog=useRef(),next=useRef();const steps=gettingStartedSteps(user,focus),step=index===null?null:steps[index],reached=guideStepReached(step,{page,tab,overviewTab});
  const remember=()=>{setDismissed(true);try{localStorage.setItem(key,'done');}catch{}};
  const showDialog=open||(mode==='live'&&!dismissed&&index===null);
@@ -38,10 +39,17 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
    <header><span className="eyebrow">YOUR FIRST SMALL STEPS</span><button type="button" className="icon-button" aria-label="Close getting started" onClick={dismissGuide}><X size={20}/></button></header>
    <div className="start-here-intro"><GuideAvatar/><div><h2>{completed?'You know your way around.':'Let’s find your starting point.'}</h2><p>{completed?'Come back any time for a refresher.':'I’m Sage. Start with the guided tour, or watch the steps before trying them yourself.'}</p></div></div>
    <div className="start-topic-buttons">
-    {can('tasks')&&<button type="button" className="primary" onClick={()=>begin('tasks')}>Start with tasks <ArrowRight size={15}/></button>}
-    {can('money')&&<button type="button" className="secondary" onClick={()=>begin('money')}>Start with money <ArrowRight size={15}/></button>}
+    {can('tasks')&&<button type="button" className="secondary" onClick={()=>begin('tasks')}>All task steps <ArrowRight size={15}/></button>}
+    {can('money')&&<button type="button" className="secondary" onClick={()=>begin('money')}>All money steps <ArrowRight size={15}/></button>}
    </div>
-   <div className="start-here-choices"><button onClick={()=>begin('all')}><Compass size={24}/><strong>Guide me step by step</strong><small>Take the full tour of the workspace at your own pace.</small><span>Start full tour <ArrowRight size={15}/></span></button><button onClick={()=>setView(view==='videos'?'choices':'videos')} aria-expanded={view==='videos'}><Play size={24}/><strong>Watch, then try</strong><small>A first-day walkthrough, followed by short task and money tutorials. English / عربي captions.</small><span>{view==='videos'?'Hide videos':'Show videos'} <ArrowRight size={15}/></span></button></div>
+   <div className="start-topic-buttons">
+    <label className="field"><span>Or choose one topic</span><select value={topic} onChange={event=>setTopic(event.target.value)}>
+     <option value="">Select a topic</option>
+     {guideTopics.filter(([, ,permission])=>!permission||can(permission)).map(([id,label])=><option key={id} value={id}>{label}</option>)}
+    </select></label>
+    <button type="button" className="secondary" disabled={!topic} onClick={()=>begin('topic:'+topic)}>Start topic</button>
+   </div>
+   <div className="start-here-choices"><button onClick={()=>begin('all')}><Compass size={24}/><strong>Guide me step by step</strong><small>{can('tasks')&&can('money')?'Cover Money and Tasks, then finish on Today.':'Cover your available features, then finish on Today.'}</small><span>Start full tour <ArrowRight size={15}/></span></button><button onClick={()=>setView(view==='videos'?'choices':'videos')} aria-expanded={view==='videos'}><Play size={24}/><strong>Watch, then try</strong><small>A first-day walkthrough, followed by short task and money tutorials. English / عربي captions.</small><span>{view==='videos'?'Hide videos':'Show videos'} <ArrowRight size={15}/></span></button></div>
    {view==='videos'&&<section className="start-here-videos"><h3>Your first day, step by step</h3><p>Start in Settings, add your first record, then return to Today. Recorded in a demo workspace.</p><video controls playsInline preload="none" aria-label="Getting started walkthrough"><source src="/guides/getting-started.webm" type="video/webm"/><track kind="captions" src="/guides/getting-started.en.vtt" srcLang="en" label="English" default/><track kind="captions" src="/guides/getting-started.ar.vtt" srcLang="ar" label="العربية"/></video><DemoGuides can={can}/></section>}
    <footer><button className="text-button" onClick={dismissGuide}>I’ll explore on my own</button><small>Look for the G Guide button in the sidebar or top bar.</small></footer>
   </dialog>}

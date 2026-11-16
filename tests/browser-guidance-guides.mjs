@@ -58,6 +58,19 @@ try{
   await dialog.getByRole('button',{name:'Save transaction',exact:true}).click();
   await dialog.waitFor({state:'hidden'});
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('daywell-demo')).entries.some(entry=>entry.title==='Income split check'&&entry.amount===1500&&entry.saved===1000));
+  await page.getByRole('button',{name:'Expense',exact:true}).click();
+  await dialog.locator('[name=title]').fill('Coffee shortcut check');
+  await dialog.locator('[name=amount]').fill('4.50');
+  await dialog.getByRole('checkbox',{name:'Also save as an item'}).check();
+  await dialog.getByText(/An item remembers the name/).waitFor();
+  await dialog.locator('img.guide-avatar').last().evaluate(image=>image.decode());
+  await dialog.getByRole('button',{name:'Save transaction',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  await page.waitForFunction(()=>{
+   const {items,entries}=JSON.parse(localStorage.getItem('daywell-demo'));
+   return items.some(item=>item.title==='Coffee shortcut check'&&item.amount===4.5)&&
+    entries.some(entry=>entry.title==='Coffee shortcut check'&&entry.type==='expense'&&entry.amount===4.5);
+  });
   await page.locator('.filterbar').getByRole('button',{name:'Subscriptions',exact:true}).click();
   await page.getByRole('button',{name:'Subscription',exact:true}).click();
   await dialog.locator('[name=title]').fill('Example subscription');
