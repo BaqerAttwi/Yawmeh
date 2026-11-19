@@ -16,6 +16,7 @@ import {Sessions} from '../features/settings/Sessions.jsx';
 import {InstallApp} from '../features/settings/InstallApp.jsx';
 import {PasswordForm} from '../features/auth/PasswordForm.jsx';
 import {CompanionChat} from '../features/assistant/CompanionChat.jsx';
+import {Reports} from '../features/reports/Reports.jsx';
 import {CompanionChangeReview} from '../features/assistant/CompanionChangeReview.jsx';
 import {canReviewChange,changeCandidates,changeTable,companionChangeSchema} from '../../../shared/companion-changes.js';
 
@@ -33,7 +34,7 @@ import {checkVoid} from '../../../shared/insights.js';
 import '../styles/insights.css';
 import React,{useState,useEffect,useRef,useMemo} from 'react';
 
-import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronDown,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,TrendingUp,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Send,Sun,Grid3X3,Leaf,ExternalLink,Users,Play,Compass,Menu} from 'lucide-react';
+import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronDown,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,TrendingUp,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Send,Sun,Grid3X3,Leaf,ExternalLink,Users,Play,Compass,Menu,FileChartColumn} from 'lucide-react';
 import {balances,cents,today,periodSummary,checkEntry,nextRenewal,daysUntil,DEFAULT_TASK_CATEGORIES,taskCategory} from '../../../shared/domain.js';
 import {demoData} from '../features/demo/data.js';
 import {entrySchema,expenseItem,schemas,taskCategorySchema} from '../../../shared/validation.js';
@@ -52,11 +53,11 @@ import '../styles/planning.css';
 const money=formatMoney;
 const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const categories=['Food & drinks','Groceries','Transport','Shopping','Health','Learning','Entertainment','Bills','Work','Freelance','Savings','Other'];
-const pages={overview:{name:'Overview',icon:LayoutDashboard,caption:'Your day, at a glance.'},money:{name:'Money',icon:Wallet,caption:'Make room for what matters.'},tasks:{name:'Tasks',icon:CheckSquare,caption:'Small steps. Meaningful progress.'},users:{name:'Users & access',icon:Users,caption:'The right apps, for the right people.'},settings:{name:'Settings',icon:Settings,caption:'Make yawmeh.me your own.'}};
+const pages={overview:{name:'Overview',icon:LayoutDashboard,caption:'Your day, at a glance.'},money:{name:'Money',icon:Wallet,caption:'Make room for what matters.'},tasks:{name:'Tasks',icon:CheckSquare,caption:'Small steps. Meaningful progress.'},reports:{name:'Reports',icon:FileChartColumn,caption:'Review your money and tasks by period.'},users:{name:'Users & access',icon:Users,caption:'The right apps, for the right people.'},settings:{name:'Settings',icon:Settings,caption:'Make yawmeh.me your own.'}};
 export default function App({session}){
  const {mode,onLogout,onExpired,onPreview}=session,user=session.user;
  const can=app=>hasAccess(user,app);
- const allowed=page=>page!=='assistant'&&(page==='overview'||page==='settings'||(page==='users'?user.role==='admin':can(page))); 
+ const allowed=page=>page!=='assistant'&&(page==='overview'||page==='settings'||(page==='users'?user.role==='admin':page==='reports'?(can('money')||can('tasks')):can(page)));
  const demoKey=user.id==='demo-admin'?'daywell-demo':'daywell-demo-'+user.id;
  const [isPhone,setIsPhone]=useState(()=>window.matchMedia('(max-width:700px)').matches),[sidebarOpen,setSidebarOpen]=useState(()=>!window.matchMedia('(max-width:700px)').matches);
  const navigationToggle=useRef();
@@ -320,6 +321,7 @@ export default function App({session}){
  {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
  {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
  {page==='overview'&&overviewTab==='review'&&<WeeklyReview data={data} user={user}/>}
+ {page==='reports'&&allowed('reports')&&<Reports data={data} user={user} current={current}/>}
  {page==='overview'&&overviewTab==='calendar'&&<PlanningCalendar data={data} user={user} onOpen={event=>{if(event.kind==='task'){go('tasks');setTaskFilter('all');setCategoryFilter('');setQuery(data.tasks.find(t=>t.id===event.sourceId)?.title||event.title);}else{go('money');setTab('subscriptions');}}}/>}
  {((page==='overview'&&overviewTab==='dashboard')||page==='money')&&<div className="filterbar"><div className="segmented">{(page==='overview'?['all','money','tasks'].filter(f=>f==='all'?(can('money')&&can('tasks')):can(f)):['transactions','savings','goals','items','budgets','subscriptions']).map(t=><button key={t} className={(page==='overview'?filter:tab)===t?'selected':''} onClick={()=>page==='overview'?setFilter(t):setTab(t)}>{t==='all'?'All overview':t[0].toUpperCase()+t.slice(1)}</button>)}</div><div className="date-range"><CalendarDays size={15}/><input aria-label="Start date" type="date" value={start} max={end} onChange={e=>setStart(e.target.value)}/><span>–</span><input aria-label="End date" type="date" min={start} value={end} onChange={e=>setEnd(e.target.value)}/></div></div>}
  {page==='overview'&&overviewTab==='dashboard'&&<>{can('money')&&filter!=='tasks'&&<CurrencyReport data={data} start={start} end={end}/>}<p className="form-hint">Budget comparisons below use approximate USD totals at saved rates.</p>

@@ -1,0 +1,59 @@
+.reports-workspace{display:grid;grid-template-columns:minmax(190px,235px) minmax(0,1fr);gap:20px;align-items:start}
+.report-index{padding:14px}
+.report-index section+section{border-top:1px solid #e4ebe5;margin-top:10px;padding-top:10px}
+.report-index h2{display:flex;align-items:center;gap:8px;font-size:13px;color:#3a624d;padding:9px 8px}
+.report-index button{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:start;width:100%;padding:8px;min-height:36px;font-size:13px;color:#3e4d43}
+.report-index button svg{flex-shrink:0;color:#567763}
+.report-index button:hover,.report-index button[aria-current]{background:#eaf3eb;color:#204d37}
+.report-index button[aria-current]{font-weight:650}
+.report-mobile-picker.field{display:none}
+.report-card{min-width:0;overflow:hidden}
+.report-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:22px}
+.report-heading h2{font-size:23px;color:#254533}
+.report-heading p,.report-note{color:#4b5e51;font-size:13px;line-height:1.55}
+.report-heading p{margin-top:5px}
+.report-heading button{flex-shrink:0}
+.report-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr));gap:10px;padding:15px 22px;border-block:1px solid #e5ebe6;background:#f7faf7}
+.report-filters .field,.report-mobile-picker.field{margin:0;min-width:0}
+.report-filters input,.report-filters select,.report-mobile-picker select{width:100%;min-width:0;min-height:42px}
+.report-note{padding:12px 22px}
+.report-chart{margin:0 22px 16px;padding:14px;background:#f7faf7;border:1px solid #e5ebe6;border-radius:10px;font-size:12px;color:#365541}
+.report-chart figcaption{font-weight:650}
+.report-chart-key{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0 12px}
+.report-chart-key span{display:flex;align-items:center;gap:5px}
+.report-chart-key span:before{content:'';height:8px;width:8px;border-radius:2px;background:#48775f}
+.report-chart-key span+span:before{background:#a35e49}
+.report-chart-months{display:grid;gap:8px}
+.report-chart-row{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;align-items:center;font-variant-numeric:tabular-nums}
+.report-chart-row>div{display:grid;gap:3px}
+.report-chart-row [role=img]{height:7px;background:#e8eee9;border-radius:4px;overflow:hidden}
+.report-chart-row [role=img] span{display:block;height:100%;background:#48775f}
+.report-chart-row [role=img]+[role=img] span{background:#a35e49}
+.report-empty{padding:28px 16px;text-align:center;color:#4b5e51;font-size:13px}
+.report-empty svg{margin-bottom:8px;color:#567763}
+.report-table-wrap{overflow-x:auto;max-width:100%}
+.report-table-wrap:focus-visible{outline:2px solid #48775f;outline-offset:-2px}
+.report-table{width:100%;border-collapse:collapse;text-align:start;font-size:13px}
+.report-table th,.report-table td{padding:12px 16px;border-bottom:1px solid #e8eee9;vertical-align:top;text-align:start;min-width:96px;overflow-wrap:anywhere;font-size:inherit}
+.report-table thead th{background:#eef4ee;color:#365541;font-weight:650}
+.report-table tbody th{font-weight:600;color:#294736}
+.report-table tbody tr:nth-child(even){background:#fafcf9}
+.report-table small{display:block;margin-top:4px;font-size:10px}
+.report-table .report-number{text-align:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+.report-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;color:#4b5e51;font-size:12px}
+.report-pagination>div{display:flex;gap:6px}
+.report-pagination button{min-width:42px;min-height:42px;padding:8px}
+@media(max-width:1050px){
+ .reports-workspace{display:block}
+ .report-index{display:none}
+ .report-mobile-picker.field{display:grid;margin-bottom:14px}
+}
+@media(max-width:560px){
+ .report-heading{flex-wrap:wrap;padding:16px}
+ .report-heading h2{font-size:20px}
+ .report-filters,.report-note{padding-inline:16px}
+ .report-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .report-filters input,.report-filters select{padding-inline:8px;font-size:13px}
+ .report-chart{margin-inline:16px}
+ .report-table th,.report-table td{padding:9px 12px}
+}
