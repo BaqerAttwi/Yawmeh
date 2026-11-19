@@ -5,6 +5,47 @@ const user={role:'user',permissions:['money','tasks']},date='2026-10-05';
 const data={entries:[{type:'income',amount:700,saved:300,date},{type:'expense',amount:50,category:'Food',date}],budgets:[{title:'October',amount:100,start:'2026-10-01',end:'2026-10-31'}],tasks:[{title:'Finish work',due:date,estimate_minutes:30,priority:'high',completed:false}],goals:[],subscriptions:[]};
 const ask=(q,u=user,ctx=null)=>localCompanion(data,u,q,date,{start:date,end:date},ctx);
 
+test('currency symbols resolve in initial messages, amount replies and corrections',()=>{
+ const settings={last_currency:'LBP',custom_currencies:[
+  {code:'Euro',name:'Euro',symbol:'€',rate:0.9},
+  {code:'Canadian Dollar',name:'Canadian Dollar',symbol:'$',rate:1.4},
+  {code:'UK Pound',name:'UK Pound',symbol:'£',rate:0.8},
+  {code:'Egyptian Pound',name:'Egyptian Pound',symbol:'£',rate:50},
+  {code:'UAE Dirham',name:'UAE Dirham',symbol:'د.إ',rate:3.67},
+ ]};
+ const chat=(q,context=null,account=user)=>localCompanion({...data,settings},account,q,date,{start:date,end:date},context);
+ for(const question of ['add 100$','add $100','ضيف ١٠٠$']){
+  const first=chat(question);
+  assert.deepEqual(first.context.transaction,{amount:100,currency:'USD'});
+  const expense=chat('Expense',first.context);
+  assert.equal(expense.context.field,'title');
+  assert.equal(chat('Lunch',expense.context).action.initial.currency,'USD');
+ }
+ for(const [question,currency] of [
+  ['add expense 100$ for Lunch','USD'],
+  ['add expense €100 for Lunch','Euro'],
+  ['add expense 100€ for Lunch','Euro'],
+  ['add expense 100د.إ for Lunch','UAE Dirham'],
+  ['صرفت ١٠٠د.إ على الغدا','UAE Dirham'],
+  ['add expense 100 Canadian Dollar for Lunch','Canadian Dollar'],
+ ]){
+  const result=chat(question);
+  assert.equal(result.action?.initial.currency,currency,question);
+  assert.equal(result.action?.initial.amount,100,question);
+ }
+ const awaitingAmount=chat('add expense for Lunch');
+ const priced=chat('100€',awaitingAmount.context);
+ assert.equal(priced.action.initial.currency,'Euro');
+ assert.equal(chat('change the amount to 25$',priced.context).action.initial.currency,'USD');
+ for(const value of ['100£','100¥','$100€','100 EUR','EUR 100']){
+  const result=chat('add expense '+value+' for Lunch');
+  assert.match(result.answer,/Choose one configured currency/,value);
+  assert.equal(result.action,undefined);
+  assert.equal(chat('USD',result.context).action.initial.title,'Lunch');
+ }
+ assert.equal(chat('add 100$',null,{role:'user',permissions:['tasks']}).context,undefined);
+});
+
 test('spoken expense requests prepare drafts instead of reports',()=>{
  for(const q of ['Can you add expenses?','Can you help me in adding more expenses?','Could you please add expense 15 for lunch?']){
   const result=ask(q);

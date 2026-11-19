@@ -88,3 +88,6 @@
   padding-top: 8px;
   border-top: 1px solid #e7eee4;
 }
+.companion-recommendation{margin-top:10px;padding:10px 12px;border-inline-start:3px solid var(--companion-accent);background:#f3f7f2;border-radius:8px;overflow-wrap:anywhere}
+.companion-recommendation strong{font-size:12px}
+.companion-recommendation p{margin:4px 0 0}

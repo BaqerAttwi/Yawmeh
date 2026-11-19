@@ -11,11 +11,14 @@ export function normalizeLebanese(input){
  let q=input.trim().replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/٫/g,'.').replace(/٬/g,'');
  const arabic=/[\u0600-\u06ff]/.test(q);
  if(!arabic)return {question:q,arabic:arabizi};
+ if(/^(?:add|record|log)\s/i.test(q))return {question:q,arabic};
  if(/^(مرحبا|اهلا|هاي|كيفك|شكرا|يسلمو)[!؟?. ]*$/.test(q))return {arabic,answer:'اهلا! كيف فيني ساعدك اليوم؟ فيك تقلي «ذكرني العب فوتبول بكرا الساعة 9 المسا» او «صرفت 15 دولار على الغدا».'};
  if(/^(الغي|الغيها|خلص بلاش|بلاها|الغاء)$/.test(q))return {arabic,question:'cancel'};
  q=q.replace(/^انا\s+/,'');
  if(/^(?:استلفت|اقترضت|سلفت)\s/.test(q))return {arabic,answer:'تقصد مبلغ استلفته أو سلّفته لحدا؟ التطبيق ما فيه سجل ديون مستقل. فيك تسجّل حركة المصاري بعد ما توضّح إذا دخل أو مصروف، وما انحفظ شي.'};
  q=q.replace(/^(?:(?:لو سمحت|بليز|بدي|بدّي|ممكن)\s+)+/,'').replace(/^اعرف\s+/,'');
+ const shortAdd=q.match(/^(?:ضيف|اضف|سجل)\s+(?=[\p{Sc}\d])(.+)$/u);
+ if(shortAdd)return {arabic,question:'add '+shortAdd[1].replace(/دولار(?:ات)?/g,'USD')};
  q=q.replace(/^(?:زيدي|زيد|ضيفي|اضيفي|اضيف)\s+(?:ع(?:لى)?(?:ال|\s+ال)?|الى\s+ال)?(?:سبسكريبشن|سابسكريبشن|اشتراك|الاشتراك)\s*/,'ضيف اشتراك ').replace(/^(?:ضيف|اضف|سجل)\s+(?:سبسكريبشن|سابسكريبشن)\s*/,'ضيف اشتراك ');
  if(/^(?:ضيف|اضف|سجل) مصروف[؟? ]*$/.test(q))return {arabic,question:'add expense',needsCurrency:true};
  const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|انفقت|ضيف مصروف|سجل مصروف|قبضت|استلمت|ضيف دخل|سجل دخل|ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت|ضيف اشتراك|اضف اشتراك|سجل اشتراك)\s+(.+)$/);

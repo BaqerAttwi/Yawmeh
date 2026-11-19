@@ -10,13 +10,13 @@ New users can choose **Start here** from the welcome banner or the visible **G G
 
 The alternative **Watch, then try** option includes a captioned first-day walkthrough and the existing task and money videos. Videos load only when requested. The tour works without an AI key and does not create or modify records. Avatar animation images use smaller WebP files for faster loading.
 
-The companion supports open-ended AI conversation and follow-ups in English or Lebanese Arabic. In the server `.env`, configure `GEMINI_API_KEY` and `COMPANION_AI_ENABLED=true` to enable it. Without these, the companion uses the local app helper. Existing AI usage limits still apply.
+In the server `.env`, configure `GEMINI_API_KEY` and `COMPANION_AI_ENABLED=true` to enable report recommendations in English or Lebanese Arabic. Existing AI usage limits still apply.
 
 Type messages to the companion. Turn on **Read replies aloud** for spoken responses. Device voices work when supported by your browser. For optional natural voices, configure `OPENAI_API_KEY` and `COMPANION_VOICE_ENABLED=true` and choose Natural voice in Voice settings.
 
 Companion understanding now accepts “add to saving $500”, natural Arabic such as “انا صرفت اليوم 500” and “انا استلمت اليوم 500”, and questions that interrupt unfinished drafts. Missing details are requested before a draft is ready; borrowing is not silently treated as income.
 
-The companion defaults to `gemini-3.8-flash` with the model’s normal reasoning settings and a larger response budget. Set `COMPANION_AI_MODEL` to override it (for example `gemini-3.1-flash-lite` for lower cost). Model access and billing depend on the server’s Google account; existing app usage limits still apply. See [Google’s model documentation](https://aistudio.google.com/docs/models/gemini-3.8-flash). Missing configuration, app allowance, provider quota, rejected credentials, unsupported models, timeouts, and malformed replies now produce distinct messages instead of a combined “unavailable or allowance reached” notice.
+Optional Gemini recommendations run only for supported reports, such as planning today or tomorrow, finding ways to save, and reviewing the week. Yawmeh calculates the report and sends Gemini a small set of summary flags. Drafts, chat history, and full records stay in Yawmeh. Reports and record actions work locally when Gemini is off or unavailable. Set `COMPANION_AI_MODEL` to override the default model.
 
 Mobile browser recognition merges overlapping sentence snapshots so growing hypotheses do not become repeated commands. Arabic subscription requests such as “زيدي عالسبسكريبشن كلود ب 20 دولار 16 الشهر” prepare a draft for review. If AI still fails, retry once and inspect `journalctl -u daywell -n 100 --no-pager | grep '\[companion-ai\]'`. These diagnostic lines include only the public failure code, processing phase, and upstream HTTP status when available; they exclude messages, provider response bodies, and credentials. They distinguish provider request rejection or outage from allowance-database and record-loading failures.
 

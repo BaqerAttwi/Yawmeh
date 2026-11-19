@@ -1,0 +1,19 @@
+
+ [0:v]trim=start=0.881:duration=25,setpts=PTS-STARTPTS+2/TB,scale=700:700,setsar=1[app];
+ color=c=0xf7f8fa:s=1080x1920:r=25:d=30,
+ drawbox=x=75:y=245:w=930:h=1120:color=0x19382b:t=fill,
+ drawbox=x=75:y=245:w=930:h=1120:color=0x68967a:t=3,
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text=TECHBYATTWI:fontsize=30:fontcolor=0xf7f8fa:x=132:y=307,
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text=yawmeh.me:fontsize=28:fontcolor=0xc1e3ce:x=785:y=310,
+ drawbox=x=132:y=371:w=816:h=2:color=0x68967a:t=fill,
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Give your money a plan.':fontsize=57:fontcolor=0xf7f8fa:x=132:y=500:enable='lt(t,2)',
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Track spending, savings and renewals.':fontsize=31:fontcolor=0xc1e3ce:x=132:y=596:enable='lt(t,2)',
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Your money':fontsize=65:fontcolor=0xf7f8fa:x=132:y=416:enable='gte(t,2)*lt(t,7)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Savings':fontsize=65:fontcolor=0xf7f8fa:x=132:y=416:enable='gte(t,7)*lt(t,12)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Budgets':fontsize=65:fontcolor=0xf7f8fa:x=132:y=416:enable='gte(t,12)*lt(t,17)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Subscriptions':fontsize=65:fontcolor=0xf7f8fa:x=132:y=416:enable='gte(t,17)*lt(t,22)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Your dashboard':fontsize=65:fontcolor=0xf7f8fa:x=132:y=416:enable='gte(t,22)*lt(t,27)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='See your spending records.':fontsize=29:fontcolor=0xc1e3ce:x=132:y=505:enable='gte(t,2)*lt(t,7)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Keep savings in view.':fontsize=29:fontcolor=0xc1e3ce:x=132:y=505:enable='gte(t,7)*lt(t,12)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Compare spending with your plan.':fontsize=29:fontcolor=0xc1e3ce:x=132:y=505:enable='gte(t,12)*lt(t,17)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Know which renewals are next.':fontsize=29:fontcolor=0xc1e3ce:x=132:y=505:enable='gte(t,17)*lt(t,22)',drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Bring the numbers together.':fontsize=29:fontcolor=0xc1e3ce:x=132:y=505:enable='gte(t,22)*lt(t,27)'[bg];
+ [bg][app]overlay=x=190:y=575:enable='gte(t,2)*lt(t,27)'[withapp];
+ [withapp]drawbox=x=132:y=1276:w=816:h=116:color=0x19382b:t=fill,
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text=yawmeh.me:fontsize=89:fontcolor=0xf7f8fa:x=(w-tw)/2:y=980:enable='gte(t,27)',
+ drawtext=fontfile='C\:/Windows/Fonts/segoeuib.ttf':text='Explore your workspace':fontsize=34:fontcolor=0xc1e3ce:x=(w-tw)/2:y=1100:enable='gte(t,27)'[endbg];
+ [1:v]scale=255:255:force_original_aspect_ratio=decrease[logo];
+ [endbg][logo]overlay=x=(W-w)/2:y=690:enable='gte(t,27)'[story];
+ color=c=0xb2dfc4:s=154x5:r=25:d=30[glow];
+ [story][glow]overlay=x='169+584*(0.5-0.5*cos(2*PI*t/3.2))':y=245[out]

@@ -1,7 +1,8 @@
 import {arabiziRequest,arabiziRest} from './arabizi-requests.js';
 import {commonRequestAlias} from './companion-requests.js';
-export function normalizeFollowupText(text){
- return text.trim().replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/٫/g,'.').replace(/٬/g,'').replace(/[؟?!]+$/,'').trim();
+export function normalizeFollowupText(text,{punctuation=true}={}){
+ const normalized=text.trim().replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/٫/g,'.').replace(/٬/g,'');
+ return punctuation?normalized.replace(/[؟?!]+$/,'').trim():normalized;
 }
 
 export function draftCorrection(text){
@@ -37,11 +38,46 @@ export function isLocalCompanionFollowup(text,context){
  return !!context?.field||!!draftCorrection(text)||/^(?:cancel|never mind|nevermind|الغي|الغيها|خلص بلاش|بلاها|لغّي|الغاء)[.!؟?\s]*$/i.test(q);
 }
 
+const builtInAliases={
+ USD:['USD','$','dollar','dollars','dolar','دولار','دولارات'],
+ LBP:['LBP','ليرة','ليره','ل.ل','ليرة لبنانية','ليره لبنانيه','لبناني','ليرة لبناني','lebanese pound','lebanese pounds','lira','liret'],
+};
+const currencyKey=value=>normalizeFollowupText(value,{punctuation:false}).toLowerCase();
+const aliasesFor=c=>[c.code,c.name,c.symbol,...(Object.hasOwn(builtInAliases,c.code)?builtInAliases[c.code]:[])].filter(Boolean);
+const isoCurrencies=new Set(Intl.supportedValuesOf?.('currency')||['EUR','GBP']);
 export function followupCurrency(value,catalog){
- const normalized=normalizeFollowupText(arabiziRest(value)).toLowerCase();
- const code=/^(?:دولار|دولارات|dollars?|dolar|usd|\$)$/.test(normalized)?'USD':/^(?:ليرة|ليره|ليرة لبنانية|ليره لبنانيه|لبناني|ليرة لبناني|lebanese pounds?|lira|liret|lbp)$/.test(normalized)?'LBP':normalized;
- const matches=catalog.filter(c=>[c.code,c.name,c.symbol].some(v=>v&&v.toLowerCase()===code.toLowerCase()));
+ const key=currencyKey(value);
+ if(key==='$')return 'USD';
+ const exactCode=catalog.find(c=>c.code.toLowerCase()===value.trim().toLowerCase()&&(!c.symbol||c.name||currencyKey(c.symbol)!==key));
+ if(exactCode)return exactCode.code;
+ const matches=catalog.filter(c=>aliasesFor(c).some(alias=>currencyKey(alias)===key));
  return matches.length===1?matches[0].code:null;
+}
+
+// Match currency markers next to the amount, leaving the entry title intact.
+export function companionAmount(text,catalog,{whole=false}={}){
+ const aliases=catalog.flatMap(aliasesFor);
+ const escapedAliases=[...new Set([...aliases,...aliases.map(currencyKey)])].sort((a,b)=>b.length-a.length)
+  .map(alias=>alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+ const marker='(?:'+[...escapedAliases,'\\p{Sc}+'].join('|')+')';
+ const number=String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?`;
+ const pattern=new RegExp(String.raw`(?:^|\s)(?:(${marker})\s*)?(${number})(?:\s*(${marker}))?(?=\s|$)(?![.,]\d)`,'iu');
+ const match=text.match(pattern);
+ if(!match)return null;
+ const [,prefix,digits,suffix]=match;
+ const amount=Number(digits.replaceAll(',',''));
+ if(amount<=0||amount>999999999)return null;
+ const currency=followupCurrency(prefix||suffix||'',catalog);
+ const start=match.index,end=start+match[0].length;
+ const before=text.slice(0,start).trimEnd();
+ const leadingCode=!prefix&&before.match(/(?:^|\s)([A-Z]{3})$/)?.[1];
+ const followingCode=!suffix&&text.slice(end).match(/^\s+([A-Z]{3})(?=\s|$)/)?.[1];
+ const unknownCode=code=>isoCurrencies.has(code)&&!followupCurrency(code,catalog);
+ const index=unknownCode(leadingCode)?before.length-leadingCode.length:start;
+ const stop=unknownCode(followingCode)?end+text.slice(end).match(/^\s+/)[0].length+followingCode.length:end;
+ if(whole&&text.slice(index,stop).trim()!==text.trim())return null;
+ const unknown=index!==start||stop!==end,explicit=!!(prefix||suffix||unknown);
+ return {amount,currency,explicit,unresolved:explicit&&(unknown||!currency||!!(prefix&&suffix&&followupCurrency(suffix,catalog)!==currency)),index,length:stop-index};
 }
 
 export function followupClock(value){

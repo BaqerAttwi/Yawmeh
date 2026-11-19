@@ -25,9 +25,9 @@ export const companionRequests=[
  {id:'cancel_task',group:'drafts',permission:'tasks',title:['Review a task cancellation','راجع إلغاء مهمة'],examples:['Delete task Call the dentist','احذف مهمة اتصل بطبيب الاسنان','bde shil task Call the dentist']},
  {id:'reverse_income',group:'drafts',permission:'money',title:['Review an income reversal','راجع عكس عملية دخل'],examples:['Reverse income Monthly salary because duplicate','احذف دخل الراتب بسبب سجل مكرّر','bde shil income Monthly salary']},
  {id:'rename_entry',group:'drafts',permission:'money',title:['Review a name change','راجع تغيير اسم عملية'],examples:['Rename expense Lunch to Team lunch','غير مصروف الغدا إلى غدا مع الفريق','ghayyer expense Lunch to Team lunch']},
- {id:'steps',group:'ideas',ai:true,title:['Break a goal into steps','قسّم هدفك لخطوات'],examples:['Help me break a big project into small steps','ساعدني قسّم مشروع كبير لخطوات صغيرة','sa3edne 2assem project la small steps']},
- {id:'writing',group:'ideas',ai:true,title:['Write a short message','اكتب رسالة قصيرة'],examples:['Help me write a polite follow-up message','ساعدني اكتب رسالة متابعة مهذبة','bade message mratabe la follow up']},
- {id:'explain',group:'ideas',ai:true,title:['Explain something simply','اشرح فكرة ببساطة'],examples:['Explain the difference between a budget and available money','شو الفرق بين الميزانية والمصاري المتاحة؟','shou el fare2 ben budget w available money']},
+ {id:'tomorrow_plan',group:'tasks',title:['Plan tomorrow','رتّب بكرا'],examples:['Plan tomorrow','رتّب يومي بكرا','ratteb yomi bokra'],canonical:'plan tomorrow',aliases:['رتّب يومي بكرا','ratteb yomi bokra']},
+ {id:'weekly_review',group:'reports',title:['Review my week','راجع أسبوعي'],examples:['Weekly report','تقرير الأسبوع','ta2rir hal esbou3'],canonical:'weekly report',aliases:['تقرير الأسبوع','ta2rir hal esbou3']},
+ {id:'monthly_review',group:'reports',title:['Review this month','راجع هالشهر'],examples:['Monthly report','تقرير هالشهر','ta2rir hal shaher'],canonical:'report this month',aliases:['Monthly report','This month’s report','تقرير هالشهر','ta2rir hal shaher']},
 ];
 export function availableCompanionRequests(user){return companionRequests.filter(row=>(!row.permission||hasAccess(user,row.permission))&&(!['tasks','money'].includes(row.group)||hasAccess(user,row.group)));}
 const normalize=text=>text.normalize('NFKC').toLowerCase().replace(/[أإآ]/g,'ا').replace(/[\u064b-\u065f\u0670]/g,'').replace(/[؟?!.]+$/,'').replace(/\s+/g,' ').trim();

@@ -3,11 +3,12 @@ import {arabicDetail} from './companion-detail-ar.js';
 // Presentation only: preserve original amounts, dates, names, and draft values.
 export const companionLanguage=detectedCompanionLanguage;
 
-export function draftFields(action,language='en') {
+export function draftFields(action,language='en',catalog=[]) {
  const ar=language==='ar',d=action.initial;
+ const symbol=catalog.find(c=>c.code===d.currency)?.symbol||d.currency;
  return [
   [ar?'الاسم':'Name',d.title],
-  [ar?'المبلغ':'Amount',d.amount==null?null:`${d.amount} ${d.currency||'USD'}`],
+  [ar?'المبلغ':'Amount',d.amount==null?null:!d.currency||d.currency==='USD'?`$${d.amount}`:`${d.amount} ${symbol}`],
   [ar?'التاريخ':'Date',d.due||d.date||d.renewal||d.start],
   [ar?'الوقت':'Time',d.scheduled_time],
  ].filter(([,value])=>value!==undefined&&value!==null&&value!=='');
@@ -37,6 +38,7 @@ export function presentReply(result,language) {
   return {...result,language:'en',answer:known[result.answer]||result.answer};
  }
  if(result.action)return {...result,language:'ar',answer:'المسودة جاهزة. راجع التفاصيل قبل الحفظ؛ بعد ما انحفظ شي.'};
+ if(result.context?.transaction&&result.answer.startsWith('How should I record '))return {...result,language:'ar',answer:result.answer.replace(/^How should I record (.*?)\? Choose .*$/,'كيف بدّك سجّل $1؟ اختار نوع العملية.')};
  if(result.context?.field){
   if(result.context.field==='time')return {...result,language:'ar',answer:'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة؛ ما انحفظ شي بسجلاتك.'};
   if(result.context.field==='date')return {...result,language:'ar',answer:'بأي تاريخ؟ قلّي اليوم أو بكرا، أو اكتب تاريخ مثل 2026-11-04. ما انحفظ شي.'};

@@ -9,7 +9,7 @@ import {chatReport} from './companion-chat.js';
 import {daySchema} from './daily.js';
 import {normalizeLebanese} from './lebanese-companion.js';
 import {everydayCompanion} from './companion-everyday.js';
-import {draftCorrection,normalizeFollowupText,followupCurrency,followupClock,isLocalCompanionFollowup} from './companion-followup.js';
+import {draftCorrection,normalizeFollowupText,followupCurrency,companionAmount,followupClock,isLocalCompanionFollowup} from './companion-followup.js';
 import {companionDraftSchema} from './companion-ai.js';
 import {guidanceGoal,guidanceReply} from './companion-guidance.js';
 import {dictionaryWord} from './chat-dictionary.js';
@@ -38,11 +38,8 @@ export function localCompanion(data,user,question,current,selected,context=null)
  const translated=normalizeLebanese(question);
  if(translated.answer)return {answer:translated.answer,context};
  if(translated.arabic&&!context?.field&&!/^(?:ضيف|اضف|سجل|ذكرني|صرفت|دفعت|قبضت)\s/.test(question.trim())){const everyday=everydayCompanion(data,user,question,current,true);if(everyday)return everyday;}
- if(translated.arabic&&!translated.question&&!context?.field)return {answer:'ما فهمت الطلب منيح. جرب «شو عندي اليوم؟»، «قديش صرفت هالشهر؟» او «صرفت 15 دولار على الغدا». بفهم طلبات محددة، وما انحفظ شي.',context};
- let result=localCompanionCore(data,user,translated.question||question,current,selected,context);
- if(translated.needsCurrency&&(result.action||result.context?.draft)){
-  const draft=structuredClone(result.action||result.context.draft);delete draft.initial.currency;result=finishDraft(draft);
- }
+ if(translated.arabic&&!translated.question&&!context?.field&&!context?.transaction)return {answer:'ما فهمت الطلب منيح. جرب «شو عندي اليوم؟»، «قديش صرفت هالشهر؟» او «صرفت 15 دولار على الغدا». بفهم طلبات محددة، وما انحفظ شي.',context};
+ const result=localCompanionCore(data,user,translated.question||question,current,selected,context,translated.needsCurrency);
  if(translated.arabic&&result.action){const d=result.action.initial;result.answer=`حضرتلك مسودة: ${d.title}${d.amount?' · '+d.amount+' '+(d.currency||'USD'):''} · ${d.due||d.date||''}${d.scheduled_time?' · '+d.scheduled_time:''}. راجع التفاصيل واضغط حفظ. بعد ما انحفظ شي.`;}
  else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='time'?'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة.':result.context.field==='date'?'بأي تاريخ؟ قلّي اليوم أو بكرا أو اكتب YYYY-MM-DD.':result.context.field==='currency'?`بأي عملة لـ${result.context.draft?.initial.title||'هالعملية'}؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.`:result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':`قديش المبلغ لـ${result.context.draft?.initial.title||'هالعملية'}؟ اكتب المبلغ والعملة، مثل 20 دولار. فيك تقول «الغي» لنوقف.`;
  else if(translated.arabic&&translated.question==='cancel')result.answer='لغيت المسودة. ما انحفظ شي.';
@@ -55,13 +52,14 @@ function correctCompanionDraft(data,user,{field,value},current,context){
  const raw=normalizeFollowupText(arabiziRest(value)),catalog=currencyCatalog(data.settings),currency=followupCurrency(raw,catalog);
  const day={today:current,tomorrow:addDays(current,1),yesterday:addDays(current,-1),اليوم:current,بكرا:addDays(current,1),بكرة:addDays(current,1),مبارح:addDays(current,-1),bokra:addDays(current,1),bukra:addDays(current,1),lyoum:current,elyoum:current,mbarah:addDays(current,-1)}[raw.toLowerCase()]||raw;
  const validDate=daySchema.safeParse(day).success;
- const amount=raw.match(/^\$?(\d+(?:\.\d{1,2})?)\s*(USD|LBP|EUR|GBP|دولار|ليرة|ليره)?$/i);
+ const amount=companionAmount(raw,catalog,{whole:true});
  const clock=followupClock(raw);
  if(field==='auto')field=currency?'currency':validDate?'date':amount?'amount':clock?'time':'unknown';
  if(field==='date'&&validDate&&draft.type!=='item')draft.initial[draft.type==='task'?'due':draft.type==='subscription'?'renewal':draft.type==='budget'?'start':'date']=day;
- else if(field==='amount'&&draft.type!=='task'&&amount&&Number(amount[1])>0){
-  draft.initial.amount=Number(amount[1]);
-  if(amount[2]){const code=followupCurrency(amount[2],catalog);if(!code)return {answer:'Choose one configured currency: '+catalog.map(c=>c.code).join(', ')+'. Nothing was saved.',context};draft.initial.currency=code;}
+ else if(field==='amount'&&draft.type!=='task'&&amount){
+  if(amount.unresolved)return currencyPrompt(catalog,context);
+  draft.initial.amount=amount.amount;
+  if(amount.currency)draft.initial.currency=amount.currency;
  }else if(field==='currency'&&draft.type!=='task'&&currency)draft.initial.currency=currency;
  else if(field==='title'&&value.trim()&&value.trim().length<=160)draft.initial.title=value.trim();
  else if(field==='time'&&draft.type==='task'&&clock)draft.initial.scheduled_time=clock;
@@ -70,7 +68,10 @@ function correctCompanionDraft(data,user,{field,value},current,context){
  if(!['task','expense','income','opening','withdrawal'].includes(draft.type)&&draft.initial.currency&&draft.initial.currency!=='USD')return {answer:'Budgets, subscription plans and saved items use USD in v1. For an LBP transaction, add income, expense or savings instead.',context};
  return finishDraft(draft);
 }
-function localCompanionCore(data,user,question,current,selected,context=null){
+function currencyPrompt(catalog,context){
+ return {answer:'Choose one configured currency: '+catalog.map(c=>c.symbol?c.code+' ('+c.symbol+')':c.code).join(', ')+'. Nothing was saved.',context,handled:true};
+}
+function localCompanionCore(data,user,question,current,selected,context=null,needsCurrency=false){
  let q=question.trim();
  // Spoken requests often include a name, a greeting, or a polite question.
  q=q.replace(/^(?:(?:oh\s+)?thanks[,.!]\s*|(?:sage|osage|nova|pip)[,.]\s*)+/i,'');
@@ -82,17 +83,22 @@ function localCompanionCore(data,user,question,current,selected,context=null){
  if(/^(cancel|never mind|nevermind)$/i.test(q))return {answer:'Draft cancelled. Nothing was saved.'};
  // Explicit requests must not become a pending draft's title or amount.
  if(context?.field&&/^(?:please\s+)?(?:add|create|record|log|schedule|remind me|i spent|i paid|i earned|i received|budget status|plan my day|compare spending|review subscriptions|what|how|can i)\b/i.test(q))context=null;
- const correction=q.match(/^(?:change|make|set)\s+(?:that|it|the amount|the date)\s+to\s+(.+)$/i);
- if(correction&&context?.draft){
-  const draft=structuredClone(context.draft),value=correction[1].trim();
-  if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
-  const date={today:current,tomorrow:addDays(current,1),yesterday:addDays(current,-1)}[value.toLowerCase()]||value;
-  if(daySchema.safeParse(date).success){draft.initial[draft.type==='task'?'due':draft.type==='subscription'?'renewal':draft.type==='budget'?'start':'date']=date;}
-  else if(draft.type!=='task'&&/^\$?\d+(\.\d{1,2})?$/.test(value)&&Number(value.replace('$',''))>0)draft.initial.amount=Number(value.replace('$',''));
-  else return {answer:'I can change this draft to today, tomorrow, a YYYY-MM-DD date, or a positive money amount. Nothing was saved.',context};
-  return finishDraft(draft);
+ const catalog=currencyCatalog(data.settings);
+ const shortAmount=q.match(/^(?:please\s+)?(?:add|record|log)\s+(.+)$/i);
+ const shorthand=shortAmount&&companionAmount(shortAmount[1],catalog,{whole:true});
+ if(shorthand?.explicit){
+  if(!hasAccess(user,'money'))return {answer:'Your account does not have Money access.',handled:true};
+  if(shorthand.unresolved)return currencyPrompt(catalog,context);
+  const {amount,currency}=shorthand;
+  return {answer:`How should I record ${formatMoney(cents(amount),currency,catalog)}? Choose Income, Expense, Existing savings or Withdrawal.`,context:{transaction:{amount,currency}},handled:true};
  }
- if(correction)return {answer:'Prepare a draft first, then tell me what to change. Existing saved records must be edited in their app.'};
+ if(context?.transaction){
+  const types={income:'income',expense:'expense',savings:'opening','existing savings':'opening',withdrawal:'withdrawal',دخل:'income',مصروف:'expense',مدخرات:'opening',سحب:'withdrawal'};
+  const type=Object.hasOwn(types,lower)?types[lower]:undefined;
+  if(type&&hasAccess(user,'money')&&catalog.some(c=>c.code===context.transaction.currency)){
+   return finishDraft({type,initial:{...context.transaction,date:current,...(type==='opening'?{title:'Existing savings'}:{})}});
+  }
+ }
  if(context?.draft&&context.field){
   const draft=structuredClone(context.draft);
   if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
@@ -103,29 +109,33 @@ function localCompanionCore(data,user,question,current,selected,context=null){
   }
   if(context.field==='date')return correctCompanionDraft(data,user,{field:'date',value:q},current,context);
   if(context.field==='currency'){
-   const currency=followupCurrency(q,currencyCatalog(data.settings));
-   if(!currency)return {answer:'Choose one configured currency: '+currencyCatalog(data.settings).map(c=>c.code).join(', ')+'. Nothing was saved.',context};
+   const currency=followupCurrency(q,catalog);
+   if(!currency)return currencyPrompt(catalog,context);
    draft.initial.currency=currency;return finishDraft(draft);
   }
   if(context.field==='title')draft.initial.title=q.slice(0,160);
   else {
    const value=normalizeFollowupText(arabiziRest(q)).replace(/^(?:yes|yeah|eh|اي|نعم)[,،\s]+/i,'');
-   const amount=value.match(/^\$?\s*(\d+(?:\.\d{1,2})?)\s*(USD|LBP|EUR|GBP|dollars?|دولار|ليرة|ليره)?$/i);
-   if(!amount||Number(amount[1])<=0||Number(amount[1])>999999999)return {answer:`What is the amount for ${draft.initial.title||'this draft'}? Include its currency, for example 20 USD, or say cancel.`,context};
-   if(amount[2]){
-    const currency=followupCurrency(amount[2],currencyCatalog(data.settings));
-    if(!currency)return {answer:'Choose one configured currency: '+currencyCatalog(data.settings).map(c=>c.code).join(', ')+'. Nothing was saved.',context};
-    if(['subscription','budget','item'].includes(draft.type)&&currency!=='USD')return {answer:'This plan uses USD. Please give the price in USD; I have not converted it or saved anything.',context};
-    if(!['subscription','budget','item'].includes(draft.type))draft.initial.currency=currency;
+   const amount=companionAmount(value,catalog,{whole:true});
+   if(!amount)return {answer:`What is the amount for ${draft.initial.title||'this draft'}? Include its currency, for example 20 USD, or say cancel.`,context};
+   if(amount.unresolved)return currencyPrompt(catalog,context);
+   if(amount.currency){
+    if(['subscription','budget','item'].includes(draft.type)&&amount.currency!=='USD')return {answer:'This plan uses USD. Please give the price in USD; I have not converted it or saved anything.',context,handled:true};
+    if(!['subscription','budget','item'].includes(draft.type))draft.initial.currency=amount.currency;
    }
-   draft.initial.amount=Number(amount[1]);
+   draft.initial.amount=amount.amount;
   }
   return finishDraft(draft);
  }
  const normalized=q.replace(/^i (?:spent|paid)\s+/i,'add expense ').replace(/^remind me\s+(?:to\s+)?/i,'add task ').replace(/^i (?:earned|received)\s+/i,'add income ');
  const everyday=everydayCompanion(data,user,normalized,current);
- const intent=/^(?:help|what (?:else )?can (?:i ask|you do)|show (?:me )?examples)[?!. ]*$/i.test(normalized)?everyday:companionIntent(normalized,user,current);
- if(intent){if(intent.action&&['expense','income','opening','withdrawal'].includes(intent.action.type))intent.action.initial.currency??=data.settings?.last_currency||'USD';return intent.action?finishDraft(intent.action):intent;}
+ const intent=/^(?:help|what (?:else )?can (?:i ask|you do)|show (?:me )?examples)[?!. ]*$/i.test(normalized)?everyday:companionIntent(normalized,user,current,catalog);
+ if(intent?.action){
+  if(!needsCurrency&&!intent.needsCurrency&&['expense','income','opening','withdrawal'].includes(intent.action.type))intent.action.initial.currency??=data.settings?.last_currency||'USD';
+  const result=finishDraft(intent.action);
+  return intent.needsCurrency&&result.context?.field==='currency'?currencyPrompt(catalog,result.context):result;
+ }
+ if(intent)return intent;
  if(everyday)return everyday;
  const money=hasAccess(user,'money'),tasks=hasAccess(user,'tasks');
  const entries=money?(data.entries||[]).filter(e=>!e.voided_on&&e.date<=current):[];
@@ -150,16 +160,18 @@ function localCompanionCore(data,user,question,current,selected,context=null){
  }
  if(/afford|can i (?:buy|spend)/i.test(q)){
   if(!money)return {answer:'Your account does not have Money access.'};
-  const amount=q.match(/\$?\b(\d+(?:\.\d{1,2})?)\b/);
+  const amount=companionAmount(q,catalog);
   if(!amount)return {answer:'How much would it cost? Ask “Can I afford $100?”'};
-  const currency=/\bLBP\b/i.test(q)?'LBP':'USD',native=balances(nativeEntries(entries,currency),currency);
-  const cost=cents(amount[1]);
-  if(currency==='LBP')return {answer:`Your native LBP spending balance is ${(native.available/100).toLocaleString()} LBP. This purchase costs ${Number(amount[1]).toLocaleString()} LBP. ${cost>native.available?'Your LBP balance does not cover it.':'Your LBP balance covers it.'} USD balances are separate; no currency exchange is performed.`};
+  if(amount.unresolved)return currencyPrompt(catalog,context);
+  const currency=amount.currency||'USD',native=balances(nativeEntries(entries,currency),currency);
+  const cost=cents(amount.amount);
+  if(currency==='LBP')return {answer:`Your native LBP spending balance is ${(native.available/100).toLocaleString()} LBP. This purchase costs ${amount.amount.toLocaleString()} LBP. ${cost>native.available?'Your LBP balance does not cover it.':'Your LBP balance covers it.'} USD balances are separate; no currency exchange is performed.`,handled:amount.explicit};
+  if(currency!=='USD')return {answer:`Available to spend: ${formatMoney(native.available,currency,catalog)}. Purchase cost: ${formatMoney(cost,currency,catalog)}. ${cost>native.available?'This exceeds your recorded spending balance.':'Your recorded balance covers this purchase.'}`,handled:true};
   const budgets=(data.budgets||[]).filter(x=>x.start<=current&&x.end>=current);
   const lines=[`You have ${usd(native.available)} available to spend in USD. A ${usd(cost)} purchase would leave ${usd(native.available-cost)}.`,cost>native.available?'This exceeds your recorded spending balance.':'Your recorded balance covers this purchase.'];
   for(const budget of budgets){const spent=entries.filter(e=>e.type==='expense'&&e.date>=budget.start&&e.date<=budget.end).reduce((s,e)=>s+entryCents(e),0);const remaining=cents(budget.amount)-spent;lines.push(`${budget.title}: ${usd(remaining)} remains through ${budget.end}. ${cost>remaining?'This purchase would exceed that budget by '+usd(cost-remaining)+'.':'After this purchase: '+usd(remaining-cost)+' remains.'}`);}
   if(!budgets.length)lines.push('No active spending budget is recorded. Add one to check this against your plan.');
-  lines.push('Recorded balances only; unpaid bills and future income are not deducted or predicted. Savings are not treated as spending money.');return {answer:lines.join('\n\n')};
+  lines.push('Recorded balances only; unpaid bills and future income are not deducted or predicted. Savings are not treated as spending money.');return {answer:lines.join('\n\n'),handled:amount.explicit};
  }
  if(/plan (?:my |a |the )?(?:day|tomorrow)|what should i do|overdue|prioriti|overwhelmed|too much to do/.test(lower)){
   if(!tasks)return {answer:'Your account does not have Tasks access.'};

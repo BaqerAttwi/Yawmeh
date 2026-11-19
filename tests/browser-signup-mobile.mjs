@@ -19,12 +19,18 @@ try{
  for(const width of [320,375,1440]){
   const context=await browser.newContext({viewport:{width,height:width<700?800:1000},hasTouch:width<700,isMobile:width<700,timezoneId:'Asia/Beirut'}),page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   const press=async locator=>width<700?locator.tap():locator.click();
+  const navigate=async(target,name)=>{
+   const toggle=target.getByRole('button',{name:'Open navigation',exact:true});
+   await target.locator('.main-shell').waitFor();
+   if(await toggle.isVisible())await press(toggle);
+   await press(target.locator('.sidebar').getByRole('button',{name,exact:true}));
+  };
   await page.goto(base);await press(page.getByRole('button',{name:'Try admin demo',exact:true}));
-  await press(page.locator('.sidebar').getByRole('button',{name:'Settings',exact:true}));await page.getByText('Your account & access',{exact:true}).waitFor();
+  await navigate(page,'Settings');await page.getByText('Your account & access',{exact:true}).waitFor();
   await press(page.getByRole('button',{name:'Open app launcher',exact:true}));await press(page.locator('.launcher').getByRole('button',{name:'Tasks',exact:true}));
   await press(page.getByRole('button',{name:'Add task',exact:true}));let dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Mobile task '+width);await press(dialog.getByRole('button',{name:'Save task',exact:true}));await dialog.waitFor({state:'detached'});
   const guide=page.locator('.demo-guides');await press(guide.getByRole('button',{name:'Watch guide · English / عربي',exact:true}));assert.match(await guide.locator('source').getAttribute('src'),/create-task/);await press(guide.getByRole('button',{name:'Watch guide · English / عربي',exact:true}));
-  await press(page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}));await press(page.getByRole('button',{name:'Income',exact:true}));dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Mobile income');await dialog.locator('input[name=amount]').fill('100');await press(dialog.getByRole('button',{name:'Save transaction',exact:true}));await dialog.waitFor({state:'detached'});
+  await navigate(page,'Money');await press(page.getByRole('button',{name:'Income',exact:true}));dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Mobile income');await dialog.locator('input[name=amount]').fill('100');await press(dialog.getByRole('button',{name:'Save transaction',exact:true}));await dialog.waitFor({state:'detached'});
   await press(guide.getByRole('button',{name:'Watch guide · English / عربي',exact:true}));assert.match(await guide.locator('source').getAttribute('src'),/record-money/);
   await press(page.getByRole('button',{name:'Create your account',exact:true}));await page.getByRole('heading',{name:'Create your account',exact:true}).waitFor();
   assert.equal(await page.getByRole('link',{name:'Continue with Google',exact:true}).getAttribute('href'),'/api/auth/google');
@@ -32,9 +38,10 @@ try{
   const user=users.at(-1);assert.equal(user.active,false);assert.equal(user.payment_status,'unpaid');
   await context.request.get(base+'/api/auth/verify-email?token='+sent.at(-1)[2],{maxRedirects:0});assert.equal(user.email_verified,true);
   const ownerContext=await browser.newContext({viewport:{width,height:width<700?800:1000},hasTouch:width<700,isMobile:width<700,timezoneId:'Asia/Beirut'});await ownerContext.addCookies([{name:'daywell_session',value:'a'.repeat(64),url:base}]);const ownerPage=await ownerContext.newPage();ownerPage.on('pageerror',error=>errors.push(error.message));await ownerPage.goto(base);
-  await press(ownerPage.locator('.sidebar').getByRole('button',{name:'Users & access',exact:true}));const row=ownerPage.locator('.user-row').filter({hasText:user.email});await row.getByText(/Unpaid/).waitFor();await press(row.getByRole('button',{name:'Edit access',exact:true}));await ownerPage.getByRole('checkbox',{name:/Account enabled/}).check();await ownerPage.locator('select[name=accessMode]').selectOption('until');
+  await press(ownerPage.getByRole('button',{name:'Close getting started',exact:true}));
+  await navigate(ownerPage,'Users & access');const row=ownerPage.locator('.user-row').filter({hasText:user.email});await row.getByText(/Unpaid/).waitFor();await press(row.getByRole('button',{name:'Edit access',exact:true}));await ownerPage.getByRole('checkbox',{name:/Account enabled/}).check();await ownerPage.locator('select[name=accessMode]').selectOption('until');
   const local=await ownerPage.evaluate(()=>{const date=new Date(Date.now()+3600000);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);});await ownerPage.locator('input[name=accessUntil]').fill(local);await press(ownerPage.getByRole('button',{name:'Save access',exact:true}));await row.getByText('Active',{exact:true}).waitFor();assert.equal(accountEnabled(user),true);assert.ok(user.access_expires_at);
-  await press(page.getByRole('button',{name:'Back to sign in',exact:true}));await page.locator('input[name=email]').fill(user.email);await page.locator('input[name=password]').fill('12345678');await press(page.getByRole('button',{name:'Sign in',exact:true}));await page.locator('.sidebar').waitFor();
+  await press(page.getByRole('button',{name:'Back to sign in',exact:true}));await page.locator('input[name=email]').fill(user.email);await page.locator('input[name=password]').fill('12345678');await press(page.getByRole('button',{name:'Sign in',exact:true}));await page.locator('.main-shell').waitFor();
   user.access_expires_at='2020-01-01T00:00:00.000Z';await page.reload();await page.getByRole('heading',{name:'Your account is inactive',exact:true}).waitFor();
   await press(row.getByRole('button',{name:'Edit access',exact:true}));await ownerPage.locator('select[name=accessMode]').selectOption('forever');await press(ownerPage.getByRole('button',{name:'Save access',exact:true}));assert.equal(user.access_expires_at,null);
   assert.ok(await ownerPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await ownerPage.screenshot({path:`test-results/signup-owner-${width}.png`,fullPage:true});

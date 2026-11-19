@@ -22,7 +22,7 @@ try{
   assert.equal(await page.locator('.companion-question').count(),0,'choosing an example must not send it');
   assert.equal(await page.locator('.companion-chat-panel').getAttribute('lang'),'ar');
   await page.locator('.companion-chat-input button').click();await page.locator('.companion-draft').getByText('Claude',{exact:true}).waitFor();
-  assert.match(await page.locator('.companion-draft').innerText(),/20 USD/);
+  assert.match(await page.locator('.companion-draft').innerText(),/\$20/);
   await page.screenshot({path:`test-results/lebanese/draft-${width}.png`});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.close();console.log(`Lebanese request examples passed at ${width}px`);
@@ -35,18 +35,18 @@ try{
   if(path==='/api/data')return route.fulfill({json:{...demoData(),user}});
   if(path==='/api/auth/me')return route.fulfill({json:{user}});
   if(path==='/api/companion/ai')return route.fulfill({json:{available:true,reason:null}});
-  if(path==='/api/companion/chat'){calls.push(route.request().postDataJSON());return route.fulfill({json:{answer:'أكيد، شو بتحب نقول بالرسالة؟',language:'ar',engine:'gemini'}});}
+  if(path==='/api/companion/chat'){calls.push(route.request().postDataJSON());return route.fulfill({json:{answer:'هيدي أولوياتك لليوم.',recommendation:'بلّش بمهمة وحدة وخد استراحة.',language:'ar',engine:'gemini'}});}
   return route.fulfill({json:{available:false,google:false}});
  });
  await page.goto(`http://127.0.0.1:${server.address().port}`);
  await page.getByRole('button',{name:'Close getting started'}).click();
  await page.locator('.companion-launcher').click();
- await page.locator('#companion-question').fill('kteb li msg la followup');await page.locator('.companion-chat-input button').click();
- await page.getByText('أكيد، شو بتحب نقول بالرسالة؟',{exact:true}).waitFor();assert.equal(calls[0].languageMode,'auto');
- await page.locator('#companion-question').fill('500');assert.equal(await page.locator('.companion-chat-panel').getAttribute('lang'),'ar','AI-resolved language carries into a short follow-up');
+ await page.locator('#companion-question').fill('ratteb yomi');await page.locator('.companion-chat-input button').click();
+ await page.getByText('بلّش بمهمة وحدة وخد استراحة.',{exact:true}).waitFor();assert.equal(calls[0].language,'ar');
+ await page.locator('#companion-question').fill('500');assert.equal(await page.locator('.companion-chat-panel').getAttribute('lang'),'ar','Locally detected language carries into a short follow-up');
  await page.locator('.companion-language-tabs').getByRole('button',{name:'English',exact:true}).click();
  await page.locator('#companion-question').fill('bdi zakkerni call Mama bokra');assert.equal(await page.locator('.companion-chat-panel').getAttribute('lang'),'en');
  await page.locator('.companion-bottom-tools').getByRole('button',{name:'Examples',exact:true}).click();
  assert.equal(await page.locator('.companion-examples').getByRole('button',{name:/Track a subscription/}).count(),0,'Tasks-only account does not receive Money examples');
- assert.deepEqual(errors,[]);console.log('AI-resolved Auto language, explicit preference and example permissions passed.');
+ assert.deepEqual(errors,[]);console.log('Local Auto language, Arabic report recommendations, explicit preference and example permissions passed.');
 }finally{await browser.close();server.closeAllConnections();server.close();}

@@ -2,9 +2,11 @@ import {addDays} from './planner.js';
 import {daySchema} from './daily.js';
 import {hasAccess} from './access.js';
 import {normalizeChatRequest} from './chat-dictionary.js';
+import {currencyCatalog} from './currency.js';
+import {companionAmount} from './companion-followup.js';
 
 // Drafts only: existing forms validate and persist after the user presses Save.
-export function companionIntent(question,user,current) {
+export function companionIntent(question,user,current,catalog=currencyCatalog()) {
  question=normalizeChatRequest(question).text;
  const text=question.trim().replace(/^(?:put|deposit)\s+(\$?[\d,.]+(?:\s*(?:USD|LBP|dollars?))?)\s+(?:in(?:to)?|to)\s+(?:my\s+)?savings?\b/i,'add savings $1').replace(/^((?:please\s+)?(?:add|create|record|log|schedule|make)\s+(?:to\s+)?(?:(?:my|the|a|an|new|quick)\s+)*)saving\b/i,'$1savings'),q=text.toLowerCase();
  if(/^(what are you|who are you|what can you do|help)[?.! ]*$/.test(q))return {answer:'I’m your yawmeh.me companion. I can prepare tasks, expenses, income, savings withdrawals, budgets, subscriptions and frequent items, or report on your records. Try “add a task called football at 9 pm tomorrow” or “add expense 15 for lunch”. I open a draft for you to review and save; I never change your records silently.'};
@@ -25,6 +27,7 @@ export function companionIntent(question,user,current) {
  else if(/\byesterday\b/i.test(rest)){date=addDays(current,-1);rest=rest.replace(/\b(?:on\s+)?yesterday\b/i,'');}
  else rest=rest.replace(/\b(?:on\s+)?today\b/i,'');
  const initial={};
+ let needsCurrency=false;
  if(type==='task'){
   if(date)initial.due=date;
   const time=rest.match(/\bat\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
@@ -39,16 +42,22 @@ export function companionIntent(question,user,current) {
   initial.title=rest.replace(/^(?:called|named|to)\s+/i,'').trim().replace(/^['"]|['"]$/g,'');
   if(needsDate)return {answer:'Which date should I use? Say today, tomorrow, or enter YYYY-MM-DD. Your task draft is still here.',context:{draft:{type,initial},field:'date'}};
  }else{
-  if(['expense','income','opening','withdrawal'].includes(type)){initial.date=date;if(/\blbp\b/i.test(rest))initial.currency='LBP';else if(/\busd\b|dollars|\$/i.test(rest))initial.currency='USD';}
-  if(/\blbp\b/i.test(rest)&&!['expense','income','opening','withdrawal'].includes(type))return {answer:'Budgets, subscription plans and saved items use USD in v1. For an LBP transaction, add income, expense or savings instead.'};
+  const transaction=['expense','income','opening','withdrawal'].includes(type);
+  if(transaction)initial.date=date;
   if(type==='subscription')initial.renewal=date;
   if(type==='budget')initial.start=date;
-  const amount=rest.match(/(?:^|\s)(?:\$\s*)?(\d+(?:\.\d{1,2})?)(?:\s*(?:usd|dollars|lbp))?(?=\s|$)/i);
-  if(amount){initial.amount=Number(amount[1]);rest=rest.replace(amount[0],' ');}
+  const amount=companionAmount(rest,catalog);
+  if(amount){
+   if(!transaction&&(amount.unresolved||amount.currency&&amount.currency!=='USD'))return {answer:'This plan uses USD. Please give the price in USD; I have not converted it or saved anything.',handled:true};
+   needsCurrency=amount.unresolved;
+   initial.amount=amount.amount;
+   if(transaction&&amount.currency&&!needsCurrency)initial.currency=amount.currency;
+   rest=rest.slice(0,amount.index)+' '+rest.slice(amount.index+amount.length);
+  }
   initial.title=rest.trim().replace(/^(?:called|named|for|from|of)\s+/i,'').trim();
   if(type==='opening'&&!initial.title&&initial.amount)initial.title='Existing savings';
  }
- return {action:{type,initial},answer:`Draft ready. Review the ${type==='opening'?'existing savings':type} details below, then press Save. Nothing has been saved yet.`};
+ return {action:{type,initial},...(needsCurrency?{needsCurrency}:{}),answer:`Draft ready. Review the ${type==='opening'?'existing savings':type} details below, then press Save. Nothing has been saved yet.`};
 }
 
 

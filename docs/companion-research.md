@@ -2,6 +2,8 @@
 
 Research checked 5 November 2026. This is a design brief for Yawmeh, not an analysis of private user conversations or a claim about the most frequent requests in this app. Examples in the application and tests were written for this project; no research dataset or social-media messages were imported for training.
 
+This brief describes the original Companion design. The current [AI settings](../README.md) limit Gemini to recommendations for supported reports.
+
 ## What the research supports
 
 - [Identifying Code-switching in Arabizi, WANLP 2022](https://aclanthology.org/2022.wanlp-1.18/) treats language identification at word level because Latin-script Arabic can occur alongside English, French and Arabic script in one message. Design implication: combine lexical evidence and conversation context; do not equate Latin letters with English.

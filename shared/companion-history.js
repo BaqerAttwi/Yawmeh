@@ -3,7 +3,7 @@ import {hasAccess} from './access.js';
 import {companionDraftSchema as action,companionContextSchema as context} from './companion-ai.js';
 import {canReviewChange,companionChangeSchema} from './companion-changes.js';
 
-const message=z.object({id:z.number().int().nonnegative(),question:z.string().max(1000),answer:z.string().max(24000),language:z.enum(['en','ar']),engine:z.enum(['gemini']).optional(),shareable:z.boolean().optional(),action:action.optional(),change:companionChangeSchema.optional(),context:context.optional(),hasEnglishDetails:z.boolean().optional(),dismissed:z.boolean().optional(),saved:z.boolean().optional()});
+const message=z.object({id:z.number().int().nonnegative(),question:z.string().max(1000),answer:z.string().max(24000),language:z.enum(['en','ar']),engine:z.enum(['gemini']).optional(),recommendation:z.string().max(500).optional(),action:action.optional(),change:companionChangeSchema.optional(),context:context.optional(),hasEnglishDetails:z.boolean().optional(),dismissed:z.boolean().optional(),saved:z.boolean().optional()});
 const session=z.object({id:z.string().max(80),updated:z.number().finite(),messages:z.array(message).max(20),text:z.string().max(1000),context,start:z.string().max(10),end:z.string().max(10)});
 export const historyKey=key=>key+':history:v1';
 export const historyScope=user=>['money','tasks'].filter(app=>hasAccess(user,app)).join(',');
@@ -18,7 +18,8 @@ export function readCompanionHistory(raw,user,now=Date.now()) {
    if(!parsed.success||now-row.updated>30*86400000||row.updated>now+60000)return [];
    const result=parsed.data;
    const permitted=draft=>!draft||hasAccess(user,draft.type==='task'?'tasks':'money');
-   if(!permitted(result.context?.draft)||result.messages.some(m=>!permitted(m.action)||!permitted(m.context?.draft)||(m.change&&!canReviewChange(user,m.change))))return [];
+   const permittedContext=value=>permitted(value?.draft)&&(!value?.transaction||hasAccess(user,'money'));
+   if(!permittedContext(result.context)||result.messages.some(m=>!permitted(m.action)||!permittedContext(m.context)||(m.change&&!canReviewChange(user,m.change))))return [];
    return [result];
   }).sort((a,b)=>b.updated-a.updated);
  }catch{return [];}
