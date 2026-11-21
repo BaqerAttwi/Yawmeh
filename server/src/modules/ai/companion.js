@@ -14,6 +14,9 @@ import {mysqlCompanionUsage} from './companion-usage.js';
 import {companionStatusMessage} from '../../../../shared/companion-status.js';
 import {workspaceOverview} from '../../../../shared/workspace-reports.js';
 
+const defaultCompanionModel='gemini-3.8-flash';
+const reportFallbackModel='gemini-3.5-flash-lite';
+
 export function companionAIReason(env){
  if(env.COMPANION_AI_ENABLED!=='true')return 'disabled';
  if(!env.GEMINI_API_KEY?.trim())return 'missing_key';
@@ -21,7 +24,7 @@ export function companionAIReason(env){
  return null;
 }
 export function companionAIModel(env){
- const model=env.COMPANION_AI_MODEL?.trim()||'gemini-3.8-flash';
+ const model=env.COMPANION_AI_MODEL?.trim()||defaultCompanionModel;
  if(!/^gemini-[a-z0-9.-]{1,90}$/.test(model))throw new Error('model_unavailable');
  return model;
 }
@@ -84,7 +87,7 @@ function geminiCompanionRequest(input,report,signals,model,env){
   ?' Use 2 to 4 ordered steps to explain what to look at, what the signals mean, and how to decide what needs attention. Give each step a short title and one or two sentences. Use recommendation for a specific improvement to try next. The app renders the chart from its own records. Do not supply chart values.'
   :report.area?' Keep the summary and recommendation to one short sentence each.':'';
  const body={systemInstruction:{parts:[{text:instructions+summaryInstruction+detailInstruction}]},contents:[{role:'user',parts:[{text:JSON.stringify({language:input.language,signals})}]}],generationConfig:{maxOutputTokens:8192,responseMimeType:'application/json',responseJsonSchema:z.toJSONSchema(reportResponseSchema(report))}};
- if(report.area&&model==='gemini-3.8-flash')body.generationConfig.thinkingConfig={thinkingLevel:'LOW'};
+ if(report.area&&model===defaultCompanionModel)body.generationConfig.thinkingConfig={thinkingLevel:'LOW'};
  return {url:`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body};
 }
 
@@ -124,15 +127,21 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    if(controller.signal.aborted)throw new Error('timeout');
    const selected={start:input.start,end:input.end};
    const reply=report.area?{language:input.language}:presentReply(localCompanion(data,reportUser,report.command,current,selected),input.language);
-   const request=geminiCompanionRequest(input,report,reportSignals(report,data,reportUser,current,selected),model,env);
+   const signals=reportSignals(report,data,reportUser,current,selected);
+   const send=targetModel=>{
+    const request=geminiCompanionRequest(input,report,signals,targetModel,env);
+    return fetchAI(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'});
+   };
    phase='provider';
-   const options={method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'};
-   let response=await fetchAI(request.url,options);
-   if(report.format==='detailed'&&response.status===503&&!response.headers.has('retry-after')&&Date.now()-started+1000<timeoutMs){
-    // Retry temporary overload once within the original deadline and allowance.
+   let response=await send(model);
+   const alternate=report.area&&model===defaultCompanionModel?reportFallbackModel:null;
+   if((alternate||report.format==='detailed')&&response.status===503&&!response.headers.has('retry-after')&&Date.now()-started+1000<timeoutMs){
+    // Use one recovery attempt within the original deadline and allowance.
+    providerStatus=response.status;
     void response.body?.cancel().catch(()=>{});
-    await pause(750,undefined,{signal:controller.signal});
-    response=await fetchAI(request.url,options);
+    if(!alternate)await pause(750,undefined,{signal:controller.signal});
+    model=alternate||model;
+    response=await send(model);
    }
    providerStatus=response.status;
    if(!response.ok)throw new Error(response.status===429?'provider_quota':[401,403].includes(response.status)?'provider_auth':response.status===404?'model_unavailable':response.status===400?'provider_request':response.status>=500?'provider_busy':'unavailable');

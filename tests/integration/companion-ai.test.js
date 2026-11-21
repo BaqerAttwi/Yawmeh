@@ -218,7 +218,7 @@ test('detailed report reviews return ordered explanations and reject provider-su
  }
 });
 
-test('detailed summaries retry a temporary upstream overload once within the same allowance',async t=>{
+test('report summaries try Flash-Lite once during default model overload',async t=>{
  const advice={summary:'Review your report.',recommendation:'Pick a next task.',steps:[
   {title:'Check due dates',explanation:'Open the tasks due in this period.'},
   {title:'Decide what to start',explanation:'Choose the task that needs attention first.'},
@@ -233,7 +233,11 @@ test('detailed summaries retry a temporary upstream overload once within the sam
  assert.equal(response.status,200);
  assert.equal((await response.json()).summary,advice.summary);
  assert.equal(f.requests.length,2);
+ assert.match(f.requests[0].url,/gemini-3\.8-flash:generateContent$/);
+ assert.match(f.requests[1].url,/gemini-3\.5-flash-lite:generateContent$/);
  assert.equal(f.requests[0].signal,f.requests[1].signal);
+ assert.deepEqual(f.requests[0].body.contents,f.requests[1].body.contents);
+ assert.deepEqual(f.requests[0].body.generationConfig.responseJsonSchema,f.requests[1].body.generationConfig.responseJsonSchema);
  assert.equal(f.reservations.length,1);
  const unavailable=await fixture(t,{providerStatus:503});
  const failed=await unavailable.call(body);
@@ -241,4 +245,11 @@ test('detailed summaries retry a temporary upstream overload once within the sam
  assert.equal((await failed.json()).code,'provider_busy');
  assert.equal(unavailable.requests.length,2);
  assert.equal(unavailable.reservations.length,1);
+ const short={...body,reportFormat:'short'};
+ const scheduled=await fixture(t,{fetchOverride:()=>new Response('Busy',{status:503,headers:{'Retry-After':'30'}})});
+ assert.equal((await scheduled.call(short)).status,503);
+ assert.equal(scheduled.requests.length,1);
+ const quota=await fixture(t,{providerStatus:429});
+ assert.equal((await quota.call(short)).status,503);
+ assert.equal(quota.requests.length,1);
 });
