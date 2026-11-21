@@ -5,6 +5,73 @@ const user={role:'user',permissions:['money','tasks']},date='2026-10-05';
 const data={entries:[{type:'income',amount:700,saved:300,date},{type:'expense',amount:50,category:'Food',date}],budgets:[{title:'October',amount:100,start:'2026-10-01',end:'2026-10-31'}],tasks:[{title:'Finish work',due:date,estimate_minutes:30,priority:'high',completed:false}],goals:[],subscriptions:[]};
 const ask=(q,u=user,ctx=null)=>localCompanion(data,u,q,date,{start:date,end:date},ctx);
 
+test('everyday money phrasings preserve the title, amount and date',()=>{
+ for(const [question,title,amount,currency,recordedDate] of [
+  ['I spend 15$ on Lunch','Lunch',15,'USD',date],
+  ['Spent $12.50, coffee','coffee',12.5,'USD',date],
+  ['I just paid $30 for gas yesterday','gas',30,'USD','2026-10-04'],
+  ['Yesterday, I spent $10 on parking','parking',10,'USD','2026-10-04'],
+  ['I was charged $12 for delivery','delivery',12,'USD',date],
+  ['I bought an iPhone 16 for $400','an iPhone 16',400,'USD',date],
+  ['I spent one hundred twenty-five bucks on groceries','groceries',125,'USD',date],
+  ['I paid for parking $5','parking',5,'USD',date],
+  ['Lunch $9','Lunch',9,'USD',date],
+  ['Lunch $9.','Lunch',9,'USD',date],
+  ['$8 coffee','coffee',8,'USD',date],
+  ['I spend 15$ on قهوة','قهوة',15,'USD',date],
+  ['اشتريت قهوة ب ٥ دولار','قهوة',5,'USD',date],
+  ['ana sraft 150,000 LBP 3al taxi','taxi',150000,'LBP',date],
+ ]){
+  const result=ask(question);
+  assert.equal(result.action?.type,'expense',question);
+  assert.deepEqual(result.action.initial,{title,amount,currency,date:recordedDate},question);
+ }
+ const income=ask('I got paid $250 from Freelance');
+ assert.deepEqual(income.action,{type:'income',initial:{title:'Freelance',amount:250,currency:'USD',date}});
+ assert.equal(ask('Set a reminder to call Mom tomorrow at 7 pm').action.initial.scheduled_time,'19:00');
+});
+
+test('incomplete and ambiguous requests keep people in a safe draft flow',()=>{
+ for(const phrase of ['I spend','I spent','I spend it','صرفت','sarfet']){
+  const pending=ask(phrase);
+  assert.equal(pending.context?.draft?.type,'expense',phrase);
+  assert.equal(pending.context?.field,'title',phrase);
+  assert.equal(ask('Lunch $15',user,pending.context).action.initial.amount,15);
+  const priced=ask('15$',user,pending.context);
+  assert.equal(priced.context.field,'title');
+  assert.equal(ask('Lunch',user,priced.context).action.initial.amount,15);
+ }
+ const incompleteTask=ask('add task');
+ assert.equal(ask('I spend',user,incompleteTask.context).context.draft.type,'expense');
+ const yesterday=ask('I spent yesterday');
+ assert.equal(ask('Lunch $15',user,yesterday.context).action.initial.date,'2026-10-04');
+ const phone=ask('I bought iPhone 16');
+ assert.equal(phone.context.field,'amount');
+ assert.equal(phone.context.draft.initial.title,'iPhone 16');
+ assert.equal(ask('twenty dollars.',user,phone.context).action.initial.amount,20);
+ for(const question of ['I spent $12 on lunch and $4 on coffee','I spend 15 on coffee and $20 on lunch','I spend 12 and 4 on lunch','I spend $20 every week','I received a $20 refund','Paid back $30','Did I pay $30 for gas?','Lent Karim $40']){
+  const result=ask(question);
+  assert.equal(result.action,undefined,question);
+  assert.equal(result.context?.draft,undefined,question);
+ }
+ assert.match(ask('I spend 15$ on Lunch',{role:'user',permissions:['tasks']}).answer,/Money access/);
+});
+
+test('a specific spending question totals matched expenses in their original currencies',()=>{
+ const entries=[
+  {type:'expense',title:'Coffee at work',date,amount:4},
+  {type:'expense',title:'Cafe',category:'Coffee',date,amount:150000,currency:'LBP'},
+  {type:'expense',title:'Bus',date,amount:10},
+  {type:'expense',title:'Coffee',date,amount:99,voided_on:date},
+ ];
+ const question='How much did I spend on coffee this week?';
+ const result=localCompanion({...data,entries},user,question,date,{start:date,end:date});
+ assert.match(result.answer,/coffee.*2026-10-05 through 2026-10-11.*\$4\.00.*150,000/);
+ assert.doesNotMatch(result.answer,/\$10\.00|\$99\.00/);
+ assert.equal(result.action,undefined);
+ assert.match(ask(question,{role:'user',permissions:['tasks']}).answer,/Money access/);
+});
+
 test('currency symbols resolve in initial messages, amount replies and corrections',()=>{
  const settings={last_currency:'LBP',custom_currencies:[
   {code:'Euro',name:'Euro',symbol:'€',rate:0.9},

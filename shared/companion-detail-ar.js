@@ -1,5 +1,10 @@
 // Translate supported templates only. Captured names, amounts and dates stay intact.
 export function arabicDetail(line){
+ const spending=line.match(/^Spending matching “(.*?)” from (\d{4}-\d{2}-\d{2}) through (\d{4}-\d{2}-\d{2}): (.*)\. Matches transaction names and categories\.$/);
+ if(spending){
+  const [,name,start,end,total]=spending;
+  return `المصاريف المطابقة لـ«${name}» من ${start} لغاية ${end}: ${total==='no recorded expenses'?'ما في مصاريف مسجّلة':total}. البحث بيشمل اسم العملية والفئة.`;
+ }
  const exact={
   'No expenses recorded this month.':'ما في مصاريف مسجّلة هالشهر.',
   'Let’s make this manageable. Would you like a plan from your tasks, to add a task, or to review overdue work? Nothing changes until you confirm.':'خلّينا نسهّلها. بدّك نرتّب نهارك من مهامك، نضيف مهمة، أو نراجع المتأخر؟ ما بيتغيّر شي بلا تأكيدك.',

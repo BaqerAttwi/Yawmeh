@@ -8,14 +8,19 @@ import {APP_ACCESS} from '../../../../shared/access.js';
 
 export const demoAdmin = {id:'demo-admin',name:'Alex',email:'admin@demo.local',role:'admin',permissions:APP_ACCESS,active:true};
 export const demoMember = {id:'demo-tasks',name:'Sam',email:'sam@demo.local',role:'user',permissions:['tasks'],active:true};
-export async function request(path, method='GET', body) {
-  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),20000);
+export async function request(path, method='GET', body, {timeoutMs=20000}={}) {
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
   try{
   const response=await fetch('/api'+path,{method,credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
   let result;try{result=await response.json();}catch{throw new Error('The server is unavailable. Please try again shortly.');}
   if(!response.ok){const error=new Error(result.error||'Request failed.');error.status=response.status;error.code=result.code;throw error;}
   return result;
-  }catch(error){if(error.name==='AbortError')throw new Error('The connection is taking too long. Please try again.');throw error;}finally{clearTimeout(timeout);}
+  }catch(error){
+   if(error.name!=='AbortError')throw error;
+   const failure=new Error('The connection is taking too long. Please try again.');
+   failure.code='request_timeout';
+   throw failure;
+  }finally{clearTimeout(timeout);}
 }
 
 export function AuthGate({children}) {

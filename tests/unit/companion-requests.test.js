@@ -24,10 +24,12 @@ test('query aliases map to supported record reports without writing data',()=>{
  assert.deepEqual(data,before);
 });
 test('action examples create the expected drafts in English, Lebanese and Arabizi',()=>{
- for(const [id,type] of [['task','task'],['expense','expense'],['income','income'],['savings','opening'],['subscription','subscription']]){
+ for(const [id,type] of [['task','task'],['expense','expense'],['expense_quick','expense'],['expense_lbp','expense'],['expense_yesterday','expense'],['income','income'],['income_client','income'],['savings','opening'],['subscription','subscription']]){
   for(const example of companionRequests.find(row=>row.id===id).examples){const reply=ask(example);assert.equal(reply.action?.type,type,example);}
  }
  for(const text of companionRequests.find(row=>row.id==='quick').examples)assert.doesNotMatch(ask(text).answer,/What would you like help with/);
+ for(const text of companionRequests.find(row=>row.id==='expense_start').examples)assert.equal(ask(text).context?.draft?.type,'expense',text);
+ for(const text of companionRequests.find(row=>row.id==='filtered_expense').examples)assert.match(ask(text).answer,/Spending matching “.+” from 2026-11-02 through 2026-11-08/,text);
 });
 test('general coaching and writing questions do not become pending task titles',()=>{
  const context=ask('add task').context;
@@ -35,7 +37,7 @@ test('general coaching and writing questions do not become pending task titles',
 });
 
 test('report recommendations recognize all advertised writing styles and check access',()=>{
- for(const [id,kind] of [['plan','day_plan'],['tomorrow_plan','day_plan'],['save_more','saving_advice'],['weekly_review','review'],['monthly_review','review']]){
+ for(const [id,kind] of [['plan','day_plan'],['tomorrow_plan','day_plan'],['save_more','saving_advice'],['weekly_review','review'],['monthly_review','review'],['last_month_review','review'],['yesterday_review','review']]){
   for(const phrase of companionRequests.find(row=>row.id===id).examples)assert.equal(companionReportRequest(phrase,admin)?.kind,kind,phrase);
  }
  assert.equal(companionReportRequest('How should I plan my day?',admin)?.kind,'day_plan');

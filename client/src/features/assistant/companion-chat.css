@@ -72,6 +72,16 @@
   max-height: none;
   overflow: visible;
 }
+.companion-examples-search {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #d8e3da;
+  border-radius: 9px;
+  background: #fff;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 16px;
+}
 
 .companion-examples .companion-example-list button {
   height: auto;

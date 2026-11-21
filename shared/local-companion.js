@@ -5,7 +5,7 @@ import {balances,cents,daysUntil} from './domain.js';
 import {addDays,goalBalance} from './planner.js';
 import {hasAccess} from './access.js';
 import {companionIntent} from './companion-actions.js';
-import {chatReport} from './companion-chat.js';
+import {chatReport,spendingReport} from './companion-chat.js';
 import {daySchema} from './daily.js';
 import {normalizeLebanese} from './lebanese-companion.js';
 import {everydayCompanion} from './companion-everyday.js';
@@ -14,6 +14,7 @@ import {companionDraftSchema} from './companion-ai.js';
 import {guidanceGoal,guidanceReply} from './companion-guidance.js';
 import {dictionaryWord} from './chat-dictionary.js';
 import {languageProfile} from './lebanese-language.js';
+import {naturalCapture,normalizeSpokenMoney} from './companion-capture.js';
 const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100)+' (USD estimate)';
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
@@ -39,7 +40,7 @@ export function localCompanion(data,user,question,current,selected,context=null)
  if(translated.answer)return {answer:translated.answer,context};
  if(translated.arabic&&!context?.field&&!/^(?:ضيف|اضف|سجل|ذكرني|صرفت|دفعت|قبضت)\s/.test(question.trim())){const everyday=everydayCompanion(data,user,question,current,true);if(everyday)return everyday;}
  if(translated.arabic&&!translated.question&&!context?.field&&!context?.transaction)return {answer:'ما فهمت الطلب منيح. جرب «شو عندي اليوم؟»، «قديش صرفت هالشهر؟» او «صرفت 15 دولار على الغدا». بفهم طلبات محددة، وما انحفظ شي.',context};
- const result=localCompanionCore(data,user,translated.question||question,current,selected,context,translated.needsCurrency);
+ const result=localCompanionCore(data,user,translated.question||question,current,selected,context,translated);
  if(translated.arabic&&result.action){const d=result.action.initial;result.answer=`حضرتلك مسودة: ${d.title}${d.amount?' · '+d.amount+' '+(d.currency||'USD'):''} · ${d.due||d.date||''}${d.scheduled_time?' · '+d.scheduled_time:''}. راجع التفاصيل واضغط حفظ. بعد ما انحفظ شي.`;}
  else if(translated.arabic&&result.context?.field)result.answer=result.context.field==='time'?'حدّد الوقت مثل 1 المسا أو 13:00. طلبك بعده محفوظ كمسودة.':result.context.field==='date'?'بأي تاريخ؟ قلّي اليوم أو بكرا أو اكتب YYYY-MM-DD.':result.context.field==='currency'?`بأي عملة لـ${result.context.draft?.initial.title||'هالعملية'}؟ اكتب USD، LBP، او اسم العملة اللي ضفتها بالاعدادات.`:result.context.field==='title'?'على شو؟ اكتب اسم المصروف او الدخل. فيك تقول «الغي» لنوقف.':`قديش المبلغ لـ${result.context.draft?.initial.title||'هالعملية'}؟ اكتب المبلغ والعملة، مثل 20 دولار. فيك تقول «الغي» لنوقف.`;
  else if(translated.arabic&&translated.question==='cancel')result.answer='لغيت المسودة. ما انحفظ شي.';
@@ -49,7 +50,7 @@ function correctCompanionDraft(data,user,{field,value},current,context){
  if(!context?.draft)return {answer:'Prepare a draft first, then tell me what to change. Existing saved records must be edited in their app.'};
  const draft=structuredClone(context.draft);
  if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
- const raw=normalizeFollowupText(arabiziRest(value)),catalog=currencyCatalog(data.settings),currency=followupCurrency(raw,catalog);
+ const raw=normalizeFollowupText(arabiziRest(field==='amount'||field==='auto'?normalizeSpokenMoney(value,{bare:field==='amount'}):value)),catalog=currencyCatalog(data.settings),currency=followupCurrency(raw,catalog);
  const day={today:current,tomorrow:addDays(current,1),yesterday:addDays(current,-1),اليوم:current,بكرا:addDays(current,1),بكرة:addDays(current,1),مبارح:addDays(current,-1),bokra:addDays(current,1),bukra:addDays(current,1),lyoum:current,elyoum:current,mbarah:addDays(current,-1)}[raw.toLowerCase()]||raw;
  const validDate=daySchema.safeParse(day).success;
  const amount=companionAmount(raw,catalog,{whole:true});
@@ -71,12 +72,21 @@ function correctCompanionDraft(data,user,{field,value},current,context){
 function currencyPrompt(catalog,context){
  return {answer:'Choose one configured currency: '+catalog.map(c=>c.symbol?c.code+' ('+c.symbol+')':c.code).join(', ')+'. Nothing was saved.',context,handled:true};
 }
-function localCompanionCore(data,user,question,current,selected,context=null,needsCurrency=false){
+function expenseShorthand(text,catalog){
+ if(/[?؟]$/.test(text)||/^(?:i|my|we|you|is|was|it|can|could|should|how|what|when|where|why|show|list|review|report|add|record|log|create|set|edit|change|plan|schedule|transfer|delete|remove|complete|borrow(?:ed)?|lend|lent|refund(?:ed)?|repay(?:ment)?|compare)\b/i.test(text))return false;
+ const amount=companionAmount(text,catalog,{preferExplicit:true});
+ if(!amount?.explicit)return false;
+ const before=text.slice(0,amount.index).trim(),after=text.slice(amount.index+amount.length).replace(/^[\s,;:.!]+/,'').trim();
+ return (!before||!after)&&/\p{L}/u.test(before||after);
+}
+function localCompanionCore(data,user,question,current,selected,context=null,{needsCurrency,requiresAmountMarker}={}){
  let q=question.trim();
  // Spoken requests often include a name, a greeting, or a polite question.
  q=q.replace(/^(?:(?:oh\s+)?thanks[,.!]\s*|(?:sage|osage|nova|pip)[,.]\s*)+/i,'');
  if(/\b(?:can|could) you hear me\b|\bare you listening\b/i.test(q))return {answer:'Your message reached me as text. If you used Speak, your words were transcribed. Tell me what you would like to add or ask.',context};
  q=q.replace(/^(?:so\s+)?(?:can|could|would) you\s+(?:please\s+)?(?:help me\s+(?:(?:with|in)\s+)?)?(?=(?:add(?:ing)?|create|record|log|schedule|plan)\b)/i,'');
+ const capture=naturalCapture(q);
+ const isQuestion=/[?؟]$/.test(q);
  q=q.replace(/^adding\b/i,'add').replace(/^(add\s+)(?:more\s+)?expenses\b/i,'$1expense').replace(/\?\s*$/,'');
  if(/^(?:no[, ]+)?(?:what i meant is|i meant)\s+adding[.! ]*$/i.test(q)&&context?.topic==='money')q='add expense';
  const lower=q.toLowerCase();
@@ -84,6 +94,10 @@ function localCompanionCore(data,user,question,current,selected,context=null,nee
  // Explicit requests must not become a pending draft's title or amount.
  if(context?.field&&/^(?:please\s+)?(?:add|create|record|log|schedule|remind me|i spent|i paid|i earned|i received|budget status|plan my day|compare spending|review subscriptions|what|how|can i)\b/i.test(q))context=null;
  const catalog=currencyCatalog(data.settings);
+ if(capture?.issue)return {answer:hasAccess(user,'money')?capture.issue:'Your account does not have Money access.',handled:true};
+ if(capture)context=null;
+ const shorthandExpense=!capture&&!isQuestion&&(!context?.field||(context.field==='title'&&context.draft?.type==='expense'&&!context.draft.initial.amount))
+  &&expenseShorthand(q,catalog);
  const shortAmount=q.match(/^(?:please\s+)?(?:add|record|log)\s+(.+)$/i);
  const shorthand=shortAmount&&companionAmount(shortAmount[1],catalog,{whole:true});
  if(shorthand?.explicit){
@@ -99,7 +113,7 @@ function localCompanionCore(data,user,question,current,selected,context=null,nee
    return finishDraft({type,initial:{...context.transaction,date:current,...(type==='opening'?{title:'Existing savings'}:{})}});
   }
  }
- if(context?.draft&&context.field){
+ if(context?.draft&&context.field&&!shorthandExpense){
   const draft=structuredClone(context.draft);
   if(!hasAccess(user,draft.type==='task'?'tasks':'money'))return {answer:'Your access changed. This draft is no longer available.'};
   if(context.field==='time'){
@@ -113,9 +127,16 @@ function localCompanionCore(data,user,question,current,selected,context=null,nee
    if(!currency)return currencyPrompt(catalog,context);
    draft.initial.currency=currency;return finishDraft(draft);
   }
-  if(context.field==='title')draft.initial.title=q.slice(0,160);
+  if(context.field==='title'){
+   if(!draft.initial.amount&&['expense','income','opening','withdrawal'].includes(draft.type)){
+    const value=normalizeFollowupText(arabiziRest(normalizeSpokenMoney(q,{bare:true})));
+    if(companionAmount(value,catalog,{whole:true}))return correctCompanionDraft(data,user,{field:'amount',value:q},current,context);
+   }
+   draft.initial.title=q.slice(0,160);
+  }
   else {
-   const value=normalizeFollowupText(arabiziRest(q)).replace(/^(?:yes|yeah|eh|اي|نعم)[,،\s]+/i,'');
+   const stripped=q.replace(/^(?:yes|yeah|eh|اي|نعم)[,،\s]+/i,'');
+   const value=normalizeFollowupText(arabiziRest(normalizeSpokenMoney(stripped,{bare:true})));
    const amount=companionAmount(value,catalog,{whole:true});
    if(!amount)return {answer:`What is the amount for ${draft.initial.title||'this draft'}? Include its currency, for example 20 USD, or say cancel.`,context};
    if(amount.unresolved)return currencyPrompt(catalog,context);
@@ -127,15 +148,18 @@ function localCompanionCore(data,user,question,current,selected,context=null,nee
   }
   return finishDraft(draft);
  }
- const normalized=q.replace(/^i (?:spent|paid)\s+/i,'add expense ').replace(/^remind me\s+(?:to\s+)?/i,'add task ').replace(/^i (?:earned|received)\s+/i,'add income ');
+ const normalized=capture?`add ${capture.type} ${capture.type==='task'?capture.details:normalizeSpokenMoney(capture.details)}`:shorthandExpense?`add expense ${q}`:q;
  const everyday=everydayCompanion(data,user,normalized,current);
- const intent=/^(?:help|what (?:else )?can (?:i ask|you do)|show (?:me )?examples)[?!. ]*$/i.test(normalized)?everyday:companionIntent(normalized,user,current,catalog);
+ const intent=/^(?:help|what (?:else )?can (?:i ask|you do)|show (?:me )?examples)[?!. ]*$/i.test(normalized)?everyday:companionIntent(normalized,user,current,catalog,{requiresAmountMarker:capture?.requiresAmountMarker||requiresAmountMarker});
  if(intent?.action){
+  if(shorthandExpense&&context?.field==='title'&&context.draft.initial.date&&!/\b(?:today|yesterday|tomorrow|\d{4}-\d{2}-\d{2})\b/i.test(q))intent.action.initial.date=context.draft.initial.date;
   if(!needsCurrency&&!intent.needsCurrency&&['expense','income','opening','withdrawal'].includes(intent.action.type))intent.action.initial.currency??=data.settings?.last_currency||'USD';
   const result=finishDraft(intent.action);
   return intent.needsCurrency&&result.context?.field==='currency'?currencyPrompt(catalog,result.context):result;
  }
  if(intent)return intent;
+ const spending=spendingReport(data,user,q,current,selected);
+ if(spending)return {answer:spending};
  if(everyday)return everyday;
  const money=hasAccess(user,'money'),tasks=hasAccess(user,'tasks');
  const entries=money?(data.entries||[]).filter(e=>!e.voided_on&&e.date<=current):[];

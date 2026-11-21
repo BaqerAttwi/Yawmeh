@@ -190,6 +190,7 @@ test('Reports requests get scoped summaries without sending records or widening 
  const response=await f.call(body,{token:'b'});
  assert.equal(response.status,200);
  assert.deepEqual(await response.json(),{language:'en',...advice,engine:'gemini'});
+ assert.deepEqual(f.requests[0].body.generationConfig.thinkingConfig,{thinkingLevel:'LOW'});
  const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);
  assert.deepEqual(sent,{language:'en',signals:{hasRecentExpenses:false,hasRarelyUsedSubscriptions:false,hasActiveBudget:false,hasActivity:false}});
  assert.doesNotMatch(JSON.stringify(f.requests[0].body),/Private task|private-email|2026-11-01/);

@@ -1,4 +1,5 @@
 import {arabiziRequest} from './arabizi-requests.js';
+import {naturalCapture} from './companion-capture.js';
 // Small, explicit dialect vocabulary; never infer an unsupported financial action.
 export function normalizeLebanese(input){
  const roman=arabiziRequest(input);if(roman)input=roman.question;
@@ -11,7 +12,7 @@ export function normalizeLebanese(input){
  let q=input.trim().replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/٫/g,'.').replace(/٬/g,'');
  const arabic=/[\u0600-\u06ff]/.test(q);
  if(!arabic)return {question:q,arabic:arabizi};
- if(/^(?:add|record|log)\s/i.test(q))return {question:q,arabic};
+ if(/^(?:add|record|log)\s/i.test(q)||naturalCapture(q))return {question:q,arabic};
  if(/^(مرحبا|اهلا|هاي|كيفك|شكرا|يسلمو)[!؟?. ]*$/.test(q))return {arabic,answer:'اهلا! كيف فيني ساعدك اليوم؟ فيك تقلي «ذكرني العب فوتبول بكرا الساعة 9 المسا» او «صرفت 15 دولار على الغدا».'};
  if(/^(الغي|الغيها|خلص بلاش|بلاها|الغاء)$/.test(q))return {arabic,question:'cancel'};
  q=q.replace(/^انا\s+/,'');
@@ -21,10 +22,10 @@ export function normalizeLebanese(input){
  if(shortAdd)return {arabic,question:'add '+shortAdd[1].replace(/دولار(?:ات)?/g,'USD')};
  q=q.replace(/^(?:زيدي|زيد|ضيفي|اضيفي|اضيف)\s+(?:ع(?:لى)?(?:ال|\s+ال)?|الى\s+ال)?(?:سبسكريبشن|سابسكريبشن|اشتراك|الاشتراك)\s*/,'ضيف اشتراك ').replace(/^(?:ضيف|اضف|سجل)\s+(?:سبسكريبشن|سابسكريبشن)\s*/,'ضيف اشتراك ');
  if(/^(?:ضيف|اضف|سجل) مصروف[؟? ]*$/.test(q))return {arabic,question:'add expense',needsCurrency:true};
- const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|انفقت|ضيف مصروف|سجل مصروف|قبضت|استلمت|ضيف دخل|سجل دخل|ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت|ضيف اشتراك|اضف اشتراك|سجل اشتراك)\s+(.+)$/);
+ const command=q.match(/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة|صرفت|دفعت|انفقت|اشتريت|ضيف مصروف|سجل مصروف|قبضت|استلمت|وصلني|ضيف دخل|سجل دخل|ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت|ضيف اشتراك|اضف اشتراك|سجل اشتراك)(?:\s+(.+))?$/);
  if(command){
-  const type=/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة)$/.test(command[1])?'task':/^(قبضت|استلمت|ضيف دخل|سجل دخل)$/.test(command[1])?'income':/^(ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)$/.test(command[1])?'savings':/اشتراك/.test(command[1])?'subscription':'expense';
-  let rest=command[2].replace(/بعد بكرا/g,'__AFTER_TOMORROW__');
+  const type=/^(ذكرني|ضيف مهمة|ضيف مهمه|اضف مهمة|سجل مهمة)$/.test(command[1])?'task':/^(قبضت|استلمت|وصلني|ضيف دخل|سجل دخل)$/.test(command[1])?'income':/^(ضيف توفير|ضيف مدخرات|اضف مدخرات|سجل توفير|وفرت)$/.test(command[1])?'savings':/اشتراك/.test(command[1])?'subscription':'expense';
+  let rest=(command[2]||'').replace(/بعد بكرا/g,'__AFTER_TOMORROW__');
   if(rest.includes('__AFTER_TOMORROW__'))return {arabic,answer:'لبعد بكرا، حدد التاريخ بصيغة YYYY-MM-DD كرمال ما اغلط بالموعد. ما انحفظ شي.'};
   rest=rest.replace(/\s+ب\s*(?=\d)/g,' ').replace(/\s+ب\s*(?=\$)/g,' ');
   if(type==='subscription')rest=rest.replace(/(?:ب|يوم|بتاريخ)?\s*(\d{1,2})\s+(?:الشهر|هالشهر)/g,(_,day)=>` __RENEWAL_DAY_${day}__ `);
@@ -35,9 +36,14 @@ export function normalizeLebanese(input){
   if(/الساعة|الساعه|عالساعة|عالساعه/.test(rest))return {arabic,answer:'حدد الساعة بالارقام ومع الصبح او المسا، مثلا «الساعة 9 المسا». ما انحفظ شي.'};
   if(type==='subscription')rest=rest.replace(/__RENEWAL_DAY_(\d+)__/g,(_,day)=>`on day ${day}`);
   // Unparsed money number words are left for the existing amount clarification.
-  return {arabic,question:`add ${type} ${rest}`,needsCurrency:type!=='task'&&!/\b(?:USD|LBP)\b|\$/i.test(rest)};
+  return {arabic,question:`add ${type} ${rest}`,needsCurrency:type!=='task'&&!/\b(?:USD|LBP)\b|\$/i.test(rest),requiresAmountMarker:command[1]==='اشتريت'};
  }
  const period=/هالاسبوع|هيدا الاسبوع|هذا الاسبوع/.test(q)?'this week':/هالشهر|هيدا الشهر|هذا الشهر/.test(q)?'this month':/مبارح/.test(q)?'yesterday':/بكرا|بكرة/.test(q)?'tomorrow':'today';
+ const spending=q.match(/^(?:قديش|كم|شقد) (?:صرفت|دفعت) (?:على|علي|ع) (.+?)(?:\s+(هالاسبوع|هالشهر|الاسبوع الماضي|الشهر الماضي|اليوم|مبارح))?[؟?.]*$/);
+ if(spending){
+  const periods={هالاسبوع:'this week',هالشهر:'this month','الاسبوع الماضي':'last week','الشهر الماضي':'last month',اليوم:'today',مبارح:'yesterday'};
+  return {arabic,question:`How much did I spend on ${spending[1]}${spending[2]?' '+periods[spending[2]]:''}?`};
+ }
  if(/^(?:راجع|شو|عرض).*اشتراك/.test(q))return {arabic,question:'review subscriptions'};
  if(/^(?:اهداف|شو).*ادخار|^اهداف التوفير/.test(q))return {arabic,question:'savings goals'};
  if(/^(?:وضع|شو|كيف).*ميزاني/.test(q))return {arabic,question:'budget status'};

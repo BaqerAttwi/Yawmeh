@@ -1,6 +1,6 @@
 import {CompanionExamples} from './CompanionExamples.jsx';
 import {parseCompanionChange,proposeCompanionChange} from '../../../../shared/companion-changes.js';
-import {companionStatusMessage} from '../../../../shared/companion-status.js';
+import {companionRequestTimeoutMs,companionStatusMessage} from '../../../../shared/companion-status.js';
 import {randomId} from '../../../../shared/id.js';
 import React,{useState,useRef,useEffect} from 'react';
 import {X,Settings2,Plus,CalendarDays,ArrowUp,ChevronRight,RotateCw,Check,FileText,History,MessageSquarePlus,Trash2} from 'lucide-react';
@@ -110,7 +110,7 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
     setAINotice('');
     let result=prepared,reply;
     if(mode==='live'&&useAI&&aiAvailable&&report&&!forceLocal){
-     const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),45000);
+     const controller=new AbortController();remote.current=controller;const timeout=setTimeout(()=>controller.abort(),companionRequestTimeoutMs);
      try{
       const response=await fetch('/api/companion/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({question,language:nextLanguage,avatar:avatar.id,start,end})});
       if(!response.ok){const failure=await response.json().catch(()=>({}));throw new Error(failure.code||(response.status===429?'rate_limited':'unavailable'));}

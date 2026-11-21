@@ -14,11 +14,19 @@ try{
  for(const width of [375,1440]){
   const avatar='sage';
   const page=await browser.newPage({viewport:{width,height:900}}),calls=[],writes=[];
+  let releaseReport,markReportReceived,reportAttempts=0;
+  const reportReceived=new Promise(resolve=>{markReportReceived=resolve;});
   await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:`http://127.0.0.1:${server.address().port}`,httpOnly:true,sameSite:'Strict'}]);
   const user={id:12345,name:'Test',role:'user',permissions:['tasks','money'],active:true};
   await page.addInitScript(()=>{
    localStorage.setItem('daywell-companion:live:12345','pip');
    localStorage.setItem('yawmeh-start-here:v1:live:12345','done');
+   const setTimeout=window.setTimeout;
+   window.requestDeadlines=[];
+   window.setTimeout=(callback,delay,...args)=>{
+    if(delay===20000||delay===45000)window.requestDeadlines.push(delay);
+    return setTimeout(callback,delay,...args);
+   };
   });
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
@@ -28,6 +36,13 @@ try{
    if(path==='/api/companion/ai')return route.fulfill({json:{available:true,reason:null,model:'gemini-3.8-flash'}});
    if(path==='/api/companion/chat'){
     calls.push(request.postDataJSON());
+    if(request.postDataJSON().reportArea){
+     if(++reportAttempts===1){
+      await new Promise(resolve=>{releaseReport=resolve;markReportReceived();});
+      return route.fulfill({status:503,json:{code:'timeout'}});
+     }
+     return route.fulfill({json:{summary:'The selected period has money activity.',recommendation:'Review a discretionary cost.'}});
+    }
     return calls.length===1?route.fulfill({status:503,json:{code:'provider_quota'}}):route.fulfill({json:{answer:'Recorded report for the selected dates.',recommendation:'Review one optional cost before planning next week.',language:'en',engine:'gemini'}});
 
    }
@@ -40,6 +55,15 @@ try{
   const ask=async text=>{await page.locator('#companion-question').fill(text);await panel.getByRole('button',{name:'Send message',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.companion-chat-log')?.getAttribute('aria-busy')==='false');};
   await ask('add Claude');await panel.getByText(/Do you mean a subscription for Claude/).waitFor();
   await ask('20 dollars');assert.match(await panel.locator('.companion-draft').innerText(),/\$20/);assert.equal(calls.length,0);
+  await ask('I spend');
+  await panel.getByText(/What should I call this expense/).waitFor();
+  await ask('Coffee $8');
+  await panel.locator('.companion-draft').getByText('Coffee',{exact:true}).waitFor();
+  assert.match(await panel.locator('.companion-draft').innerText(),/\$8/);
+  await ask('I bought an iPhone 16 for $400');
+  await panel.locator('.companion-draft').getByText('an iPhone 16',{exact:true}).waitFor();
+  assert.match(await panel.locator('.companion-draft').innerText(),/\$400/);
+  assert.equal(calls.length,0);
   await ask('How can I save more?');
   await panel.getByText(/AI provider has reached a usage or rate limit/).waitFor();
   assert.equal(calls.length,1);
@@ -51,6 +75,26 @@ try{
   assert.equal(calls.length,2);
   assert.deepEqual(Object.keys(calls[1]).sort(),['avatar','end','language','question','start']);
   await ask('Explain compound interest');assert.equal(calls.length,2);
+  await panel.getByRole('button',{name:'Examples',exact:true}).click();
+  await panel.getByRole('searchbox',{name:'Search examples'}).fill('taxi');
+  assert.equal(await panel.locator('.companion-example-list button').count(),1);
+  await panel.getByRole('button',{name:/Record a payment in lira/}).click();
+  assert.equal(await page.locator('#companion-question').inputValue(),'I paid 150,000 LBP for a taxi');
+  await panel.getByRole('button',{name:'Close companion chat',exact:true}).click();
+  if(await page.locator('.app-shell').evaluate(el=>el.classList.contains('sidebar-closed')))await page.locator('.sidebar-toggle').click();
+  await page.locator('.sidebar').getByRole('button',{name:'Reports',exact:true}).click();
+  await page.evaluate(()=>{window.requestDeadlines=[];});
+  await page.getByRole('button',{name:'Get AI summary'}).click();
+  await page.getByRole('heading',{name:'Quick summary'}).waitFor();
+  assert.ok((await page.evaluate(()=>window.requestDeadlines)).includes(45000));
+  await reportReceived;
+  assert.equal(reportAttempts,1);
+  releaseReport();
+  await page.getByRole('alert').filter({hasText:'The AI summary timed out'}).waitFor();
+  await page.getByRole('heading',{name:'Quick summary'}).waitFor();
+  await page.getByRole('button',{name:'Try AI again'}).click();
+  await page.getByRole('heading',{name:'AI summary'}).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Quick summary'}).count(),0);
   assert.deepEqual(writes,[]);await page.close();console.log(`${avatar} clarification, voice fallback and AI recovery passed at ${width}px`);
  }
  assert.deepEqual(errors,[]);

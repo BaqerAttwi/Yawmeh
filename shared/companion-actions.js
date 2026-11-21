@@ -6,7 +6,7 @@ import {currencyCatalog} from './currency.js';
 import {companionAmount} from './companion-followup.js';
 
 // Drafts only: existing forms validate and persist after the user presses Save.
-export function companionIntent(question,user,current,catalog=currencyCatalog()) {
+export function companionIntent(question,user,current,catalog=currencyCatalog(),{requiresAmountMarker=false}={}) {
  question=normalizeChatRequest(question).text;
  const text=question.trim().replace(/^(?:put|deposit)\s+(\$?[\d,.]+(?:\s*(?:USD|LBP|dollars?))?)\s+(?:in(?:to)?|to)\s+(?:my\s+)?savings?\b/i,'add savings $1').replace(/^((?:please\s+)?(?:add|create|record|log|schedule|make)\s+(?:to\s+)?(?:(?:my|the|a|an|new|quick)\s+)*)saving\b/i,'$1savings'),q=text.toLowerCase();
  if(/^(what are you|who are you|what can you do|help)[?.! ]*$/.test(q))return {answer:'I’m your yawmeh.me companion. I can prepare tasks, expenses, income, savings withdrawals, budgets, subscriptions and frequent items, or report on your records. Try “add a task called football at 9 pm tomorrow” or “add expense 15 for lunch”. I open a draft for you to review and save; I never change your records silently.'};
@@ -46,15 +46,21 @@ export function companionIntent(question,user,current,catalog=currencyCatalog())
   if(transaction)initial.date=date;
   if(type==='subscription')initial.renewal=date;
   if(type==='budget')initial.start=date;
-  const amount=companionAmount(rest,catalog);
-  if(amount){
+  const amount=companionAmount(rest,catalog,{preferExplicit:true});
+  if(amount&&(amount.explicit||!requiresAmountMarker)){
    if(!transaction&&(amount.unresolved||amount.currency&&amount.currency!=='USD'))return {answer:'This plan uses USD. Please give the price in USD; I have not converted it or saved anything.',handled:true};
    needsCurrency=amount.unresolved;
    initial.amount=amount.amount;
    if(transaction&&amount.currency&&!needsCurrency)initial.currency=amount.currency;
-   rest=rest.slice(0,amount.index)+' '+rest.slice(amount.index+amount.length);
+   const beforeAmount=rest.slice(0,amount.index);
+   rest=beforeAmount+' '+rest.slice(amount.index+amount.length);
+   const additional=companionAmount(rest,catalog,{preferExplicit:true});
+   if(additional?.explicit||additional&&(!amount.explicit&&/\b(?:and|plus)\s+\d/i.test(command[2])||/^\s*\d.*\b(?:and|plus)\b/i.test(beforeAmount)))return {answer:'I found more than one amount. Send one transaction at a time so each amount goes with the right entry.',handled:true};
   }
-  initial.title=rest.trim().replace(/^(?:called|named|for|from|of)\s+/i,'').trim();
+  initial.title=rest.replace(/^[\s,;:]+|[\s,;:]+$/g,'')
+   .replace(/^\s*[.!?]$|\s+[.!?]$/g,'')
+   .replace(/^(?:called|named|for|from|of|on|at|to)(?:\s+|$)|\s+(?:for|from|on|at|to)$/gi,'').trim()
+   .replace(/^(['"])(.*)\1$/,'$2');
   if(type==='opening'&&!initial.title&&initial.amount)initial.title='Existing savings';
  }
  return {action:{type,initial},...(needsCurrency?{needsCurrency}:{}),answer:`Draft ready. Review the ${type==='opening'?'existing savings':type} details below, then press Save. Nothing has been saved yet.`};

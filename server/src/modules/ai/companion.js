@@ -70,13 +70,14 @@ function reportSignals(report,data,user,current,selected){
  return signals;
 }
 
-function geminiCompanionRequest(input,report,signals,env){
+function geminiCompanionRequest(input,report,signals,model,env){
  const style={sage:'calm and concise',nova:'warm and encouraging',pip:'friendly and lightly playful'}[input.avatar];
  const topic={day_plan:'prioritizing tasks and planning a realistic day',saving_advice:'reducing optional spending and saving money',review:'choosing a practical next step after a money or tasks review'}[report.kind];
  const instructions=`Give one or two concrete, optional next steps about ${topic}. Use the supplied flags to choose advice. The app displays the factual report separately. Use the requested language, natural Lebanese Arabic for ar, and a ${style} tone. Give at most 500 characters. Do not invent names, amounts, dates, available time or account facts. Do not claim to schedule, read, or change records. Do not tell the user to make a payment or modify the app. Return only the supplied JSON.`;
  const summaryInstruction=report.area?` Summarize the ${report.area} report in plain language using only the supplied signals. If there is no activity, say so. The summary is at most 300 characters. Put next steps in recommendation.`:'';
  const body={systemInstruction:{parts:[{text:instructions+summaryInstruction}]},contents:[{role:'user',parts:[{text:JSON.stringify({language:input.language,signals})}]}],generationConfig:{maxOutputTokens:8192,responseMimeType:'application/json',responseJsonSchema:z.toJSONSchema(report.area?summarySchema:adviceSchema)}};
- return {url:`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(companionAIModel(env))}:generateContent`,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body};
+ if(report.area&&model==='gemini-3.8-flash')body.generationConfig.thinkingConfig={thinkingLevel:'LOW'};
+ return {url:`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body};
 }
 
 export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mysqlCompanionUsage(db),loadData=user=>snapshot(user,db)}={}){
@@ -115,7 +116,7 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    if(controller.signal.aborted)throw new Error('timeout');
    const selected={start:input.start,end:input.end};
    const reply=report.area?{language:input.language}:presentReply(localCompanion(data,reportUser,report.command,current,selected),input.language);
-   const request=geminiCompanionRequest(input,report,reportSignals(report,data,reportUser,current,selected),env);
+   const request=geminiCompanionRequest(input,report,reportSignals(report,data,reportUser,current,selected),model,env);
    phase='provider';
    const response=await fetchAI(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'});
    providerStatus=response.status;

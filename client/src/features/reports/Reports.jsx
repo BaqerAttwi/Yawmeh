@@ -3,6 +3,7 @@ import {ChevronLeft,ChevronRight,Download,FileChartColumn,Sparkles} from 'lucide
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
 import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
 import {daysUntil} from '../../../../shared/domain.js';
+import {companionRequestTimeoutMs} from '../../../../shared/companion-status.js';
 import './reports.css';
 
 const presets=[
@@ -121,7 +122,18 @@ function ReportDetails({data,user,current,reports,initialRange,initialPreset}){
  </div>;
 }
 
-function ReportHelp({api,area,start,end}){
+function quickReportHelp(area,overview){
+ if(area==='tasks')return {
+  summary:`Completed tasks: ${overview.completed}. Open tasks: ${overview.open}, including ${overview.overdue} overdue.`,
+  recommendation:overview.overdue?'Review one overdue task and decide whether to finish it or move it to a realistic date.':overview.open?'Pick one open task to tackle next and give it a realistic time estimate.':'Review what helped you finish your tasks and repeat it in your next plan.',
+ };
+ const {income,expenses,net}=overview;
+ const summary=!Number.isFinite(net)?'A saved exchange rate is missing for at least one transaction. Check the original amounts in Balances by currency.'
+  :net>0?'Recorded income was higher than spending.':net<0?'Recorded spending was higher than income.':'Recorded income and spending were equal.';
+ return {summary,recommendation:expenses>0?'Check Expenses by category and pick one optional cost to review.':!Number.isFinite(expenses)||!Number.isFinite(income)?'Review the original currency amounts before comparing totals.':'Keep recording expenses as they happen so your next report shows where your money went.'};
+}
+
+function ReportHelp({api,area,start,end,overview}){
  const [loading,setLoading]=useState(false);
  const [advice,setAdvice]=useState(null);
  const [error,setError]=useState('');
@@ -129,20 +141,23 @@ function ReportHelp({api,area,start,end}){
   setLoading(true);
   setError('');
   try{
-   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,language:'en',avatar:'sage',start,end});
+   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,language:'en',avatar:'sage',start,end},{timeoutMs:companionRequestTimeoutMs});
    if(!result.summary||!result.recommendation)throw new Error('Could not read the AI summary. Try again.');
    setAdvice(result);
-  }catch(error){setError(error.message);}
+  }catch(error){
+   setError(['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the quick summary below or try again.':error.message);
+  }
   finally{setLoading(false);}
  }
+ const shown=advice||(loading||error?quickReportHelp(area,overview):null);
  return <section className="card report-help" aria-labelledby="report-help-title">
   <h2 id="report-help-title">Want help with this report?</h2>
   <p>Get a short summary and practical next steps. Google receives basic patterns from this report.</p>
-  {!advice&&<button type="button" className="secondary" disabled={loading} onClick={getSummary}><Sparkles size={16} aria-hidden="true"/>{loading?'Summarizing…':'Get AI summary'}</button>}
+  {!advice&&<button type="button" className="secondary" disabled={loading} onClick={getSummary}><Sparkles size={16} aria-hidden="true"/>{loading?'Getting AI suggestions…':error?'Try AI again':'Get AI summary'}</button>}
   {error&&<p role="alert">{error}</p>}
-  <div role="status">{advice&&<div className="report-help-answer">
-   <h3>AI summary</h3><p>{advice.summary}</p>
-   <h3>What to try next</h3><p>{advice.recommendation}</p>
+  <div role="status">{shown&&<div className="report-help-answer">
+   <h3>{advice?'AI summary':'Quick summary'}</h3><p>{shown.summary}</p>
+   <h3>What to try next</h3><p>{shown.recommendation}</p>
   </div>}</div>
  </section>;
 }
@@ -189,7 +204,7 @@ export function Reports({data,user,current,mode,api}){
     {!overview.hasActivity&&<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>
-  {summaryAvailable&&<ReportHelp key={[area,start,end].join('|')} api={api} area={area} start={start} end={end}/>}
+  {summaryAvailable&&<ReportHelp key={[area,start,end].join('|')} api={api} area={area} start={start} end={end} overview={overview}/>}
   <details className="card report-details">
    <summary>View detailed reports and export</summary>
    <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}

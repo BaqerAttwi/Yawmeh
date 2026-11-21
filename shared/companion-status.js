@@ -1,3 +1,6 @@
+// Leave room for the server to return its own timeout after its 40-second cap.
+export const companionRequestTimeoutMs=45000;
+
 // Stable public reasons; provider response bodies and credentials stay server-side.
 export function companionStatusMessage(code,language='en') {
  const messages={

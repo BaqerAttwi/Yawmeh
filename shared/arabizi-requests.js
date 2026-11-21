@@ -25,9 +25,9 @@ export function arabiziRequest(input){
  text=text.replace(/^(?:(?:ana|ena|baddi|badde|bade|badi|bdi|bde|bdee|bdde|bedde|beddi|please|plz|pls|fini|fine|fik|fiki|fina|law sama7et|iza fik)[,\s]+)+/i,'');
  let match;
  if((match=text.match(/^(?:esrof|esref|esraf|eshtere|eshtre)\s+(.+)$/i)))return {question:'فيني اصرف '+arabiziRest(match[1]),fresh:true};
- if((match=text.match(/^(sarfet|saraft|sraft|sereft|sarraft|daf3et|dafa3et|dfa3et|dfa3t|defe3et|2ebedt|2ebedet|2abadet|2badet|2abadt|2abedet|estalamet|istalamet|zakerne|zakerni|zakkerni|zakkerne|zakkirne|waffaret|wafaret)\s+(.+)$/i))){
+ if((match=text.match(/^(sarfet|saraft|sraft|sereft|sarraft|daf3et|dafa3et|dfa3et|dfa3t|defe3et|2ebedt|2ebedet|2abadet|2badet|2abadt|2abedet|estalamet|istalamet|zakerne|zakerni|zakkerni|zakkerne|zakkirne|waffaret|wafaret)(?:\s+(.+))?$/i))){
   const verb=match[1].toLowerCase(),command=/^s|^d/.test(verb)?'صرفت':/^z/.test(verb)?'ذكرني':/^w/.test(verb)?'وفرت':'قبضت';
-  return {question:command+' '+arabiziRest(match[2]),fresh:true};
+  return {question:command+' '+arabiziRest(match[2]||''),fresh:true};
  }
  if((match=text.match(/^(?:zid|zed|zide|zedi|zidi|zeed|zidli|zidile|dif|difi|diif|add)\s+(?:(?:3al?|3ala|to|the|el|al)\s*)?(subscription|subscriptions|subskription|subskripshen|sobskription|eshtirak|ishtirak|task|tasks|mohimme|mohimma|mahame|expense|masrouf|masroof|income|dakhel|savings?|tawfir|tawfeer)\s*(.*)$/i))){
   if(/^add\b/i.test(text)&&languageProfile(input).language!=='ar')return null;

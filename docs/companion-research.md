@@ -4,6 +4,25 @@ Research checked 5 November 2026. This is a design brief for Yawmeh, not an anal
 
 This brief describes the original Companion design. The current [AI settings](../README.md) limit Gemini to recommendations for supported reports.
 
+## Everyday wording checks
+
+Conversational expense trackers expose short capture, statements, and questions about a specific merchant or category in the same chat. The CFPB toolkit distinguishes income, spending, bills, savings, and debt. Todoist documents natural-language task dates. These sources describe product workflows, and the examples below are test phrases for Yawmeh. They do not measure how often Yawmeh users ask for each action. [ExpenseTracker](https://expensetracker.io/about), [Dora](https://www.doraai.money/), [CFPB toolkit](https://www.consumerfinance.gov/consumer-tools/educator-tool/your-money-your-goals/toolkit/), [Todoist dates](https://www.todoist.com/help/todoist/features/introduction-to-recurring-dates-YUYVJJAV)
+
+| What the user means | Example | Expected response |
+| --- | --- | --- |
+| Start recording an expense | “I spend”, “I spent”, “صرفت”, “sarfet” | Start a draft and ask what it was for. Accept a combined reply such as “Lunch $15”. |
+| Describe a purchase | “I spend 15$ on lunch”, “I paid $20 for gas yesterday”, “I bought an iPhone 16 for $400” | Draft one expense. Preserve the recorded date, title, and amount. An explicit currency amount takes precedence over model numbers in names. |
+| Enter a quick expense | “Coffee $8”, “$8 coffee”, “دفعت ٨$ على القهوة” | Draft the expense in the stated currency. |
+| Speak a dollar amount | “I spent twenty dollars on groceries” or reply “twenty dollars” to an amount prompt | Accept common English dollar amounts through nine hundred ninety-nine. Cents can be entered as decimals. |
+| Log mixed-language spending | “ana sraft 150,000 LBP 3al taxi” | Draft the expense with the stated native currency. Mixed-script input is expected in Arabizi. [Arabizi code-switching research](https://aclanthology.org/2022.wanlp-1.18/) |
+| Record income | “I got paid $250 from Freelance” | Draft income under the stated source. |
+| Ask about spending | “How much did I spend on coffee this week?” | Total recorded expenses whose name or category matches the search, grouped by original currency. |
+| Plan a task | “Set a reminder to call Mom tomorrow at 7 pm” | Draft the task with its due date and scheduled time. |
+| Clarify recurring or ambiguous money | “I spend $20 every week”, “I received a $20 refund”, “I spent $12 on lunch and $4 on coffee” | Explain the ambiguity and request a specific supported action before producing a draft. |
+| Review or correct | “Change the amount to 25”, “Cancel”, “Monthly report” | Use the open draft or report context as appropriate. |
+
+The next research priorities are split purchases, refunds linked to original transactions, expense batches, and distinctive wording captured during consented usability sessions. Recurring task language should be tested alongside the existing recurrence controls before expanding reminders in chat.
+
 ## What the research supports
 
 - [Identifying Code-switching in Arabizi, WANLP 2022](https://aclanthology.org/2022.wanlp-1.18/) treats language identification at word level because Latin-script Arabic can occur alongside English, French and Arabic script in one message. Design implication: combine lexical evidence and conversation context; do not equate Latin letters with English.

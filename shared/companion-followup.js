@@ -1,5 +1,6 @@
 import {arabiziRequest,arabiziRest} from './arabizi-requests.js';
 import {commonRequestAlias} from './companion-requests.js';
+import {naturalCapture} from './companion-capture.js';
 export function normalizeFollowupText(text,{punctuation=true}={}){
  const normalized=text.trim().replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/٫/g,'.').replace(/٬/g,'');
  return punctuation?normalized.replace(/[؟?!]+$/,'').trim():normalized;
@@ -31,15 +32,16 @@ export function draftCorrection(text){
 export function isLocalCompanionFollowup(text,context){
  const q=normalizeFollowupText(text);
  if(commonRequestAlias(text))return false;
+ if(naturalCapture(text))return false;
  if(arabiziRequest(q)?.fresh)return false;
  if(/^(?:help me|write|rewrite|draft|translate|summarize|break down)\b/i.test(q)||/^(?:baddi|badde|bade|bdi|bde|bdee|bdde|bedde|beddi|sa3edne|se3edne|kteb|ektob|fasser|eshra7)\s+\S+\s+/i.test(q))return false;
  // A fresh request must escape an unfinished form instead of becoming its title.
- if(/^(?:(?:please|can you|could you)\s+)?(?:add|create|record|log|schedule|what|why|how|tell me|explain|i (?:spent|paid|earned|received))\b/i.test(q)||/^(?:انا\s+)?(?:صرفت|دفعت|قبضت|استلمت|استلفت|وفرت|ضيف|اضف|سجل|شو|ليش|كيف)\s/.test(q))return false;
+ if(/^(?:(?:please|can you|could you)\s+)?(?:add|create|record|log|schedule|what|why|how|tell me|explain)\b/i.test(q)||/^(?:انا\s+)?(?:صرفت|دفعت|اشتريت|انفقت|قبضت|استلمت|وصلني|استلفت|وفرت|ضيف|اضف|سجل|شو|ليش|كيف)(?:\s|$)/.test(q))return false;
  return !!context?.field||!!draftCorrection(text)||/^(?:cancel|never mind|nevermind|الغي|الغيها|خلص بلاش|بلاها|لغّي|الغاء)[.!؟?\s]*$/i.test(q);
 }
 
 const builtInAliases={
- USD:['USD','$','dollar','dollars','dolar','دولار','دولارات'],
+ USD:['USD','$','dollar','dollars','dolar','buck','bucks','دولار','دولارات'],
  LBP:['LBP','ليرة','ليره','ل.ل','ليرة لبنانية','ليره لبنانيه','لبناني','ليرة لبناني','lebanese pound','lebanese pounds','lira','liret'],
 };
 const currencyKey=value=>normalizeFollowupText(value,{punctuation:false}).toLowerCase();
@@ -55,14 +57,15 @@ export function followupCurrency(value,catalog){
 }
 
 // Match currency markers next to the amount, leaving the entry title intact.
-export function companionAmount(text,catalog,{whole=false}={}){
+export function companionAmount(text,catalog,{whole=false,preferExplicit=false}={}){
  const aliases=catalog.flatMap(aliasesFor);
  const escapedAliases=[...new Set([...aliases,...aliases.map(currencyKey)])].sort((a,b)=>b.length-a.length)
   .map(alias=>alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
  const marker='(?:'+[...escapedAliases,'\\p{Sc}+'].join('|')+')';
  const number=String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?`;
- const pattern=new RegExp(String.raw`(?:^|\s)(?:(${marker})\s*)?(${number})(?:\s*(${marker}))?(?=\s|$)(?![.,]\d)`,'iu');
- const match=text.match(pattern);
+ const pattern=new RegExp(String.raw`(?:^|\s)(?:(${marker})\s*)?(${number})(?:\s*(${marker}))?(?=[,;.!?](?:\s|$)|\s|$)(?![.,]\d)`,preferExplicit?'giu':'iu');
+ const matches=preferExplicit?[...text.matchAll(pattern)]:null;
+ const match=matches?(matches.find(([,prefix,,suffix])=>prefix||suffix)||matches[0]):text.match(pattern);
  if(!match)return null;
  const [,prefix,digits,suffix]=match;
  const amount=Number(digits.replaceAll(',',''));
@@ -75,7 +78,7 @@ export function companionAmount(text,catalog,{whole=false}={}){
  const unknownCode=code=>isoCurrencies.has(code)&&!followupCurrency(code,catalog);
  const index=unknownCode(leadingCode)?before.length-leadingCode.length:start;
  const stop=unknownCode(followingCode)?end+text.slice(end).match(/^\s+/)[0].length+followingCode.length:end;
- if(whole&&text.slice(index,stop).trim()!==text.trim())return null;
+ if(whole&&(text.slice(0,index).trim()||!/^[.!?؟]?$/.test(text.slice(stop).trim())))return null;
  const unknown=index!==start||stop!==end,explicit=!!(prefix||suffix||unknown);
  return {amount,currency,explicit,unresolved:explicit&&(unknown||!currency||!!(prefix&&suffix&&followupCurrency(suffix,catalog)!==currency)),index,length:stop-index};
 }

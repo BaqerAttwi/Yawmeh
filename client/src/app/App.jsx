@@ -88,7 +88,7 @@ export default function App({session}){
  },[toast,busy]);
  const b=useMemo(()=>balances(data.entries),[data.entries]),summary=useMemo(()=>periodSummary(data,start,end),[data.entries,data.tasks,start,end]),activeBudget=data.budgets.find(x=>x.start<=start&&x.end>=end),budgetSpent=activeBudget?periodSummary(data,activeBudget.start,activeBudget.end).spent:0;
  const upcoming=data.subscriptions.filter(s=>s.active).sort((a,b)=>a.renewal.localeCompare(b.renewal));
- async function api(path,method='GET',body){try{return await request(path,method,body);}catch(e){if(e.code==='ACCOUNT_INACTIVE')session.onInactive?.();else if(e.status===401)onExpired();throw e;}}
+ async function api(path,method='GET',body,options){try{return await request(path,method,body,options);}catch(e){if(e.code==='ACCOUNT_INACTIVE')session.onInactive?.();else if(e.status===401)onExpired();throw e;}}
 
  function notify(message,undoId){setToast({message,undoId});}
  async function refreshRecords(){if(mutationBusy.current)return;mutationBusy.current=true;setBusy(true);try{setData(await api('/data'));refreshLock.current=false;setNeedsRefresh(false);setError('');notify('Records refreshed. Review the latest changes before retrying.');}catch(e){setError(e.message);}finally{mutationBusy.current=false;setBusy(false);}}

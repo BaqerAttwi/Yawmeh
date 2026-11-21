@@ -1,5 +1,5 @@
 import {formatMoney,nativeEntries,currencyCatalog,currencyOf} from './currency.js';
-import {balances,periodSummary} from './domain.js';
+import {balances,cents,periodSummary} from './domain.js';
 import {weekStart,addDays} from './planner.js';
 import {daySchema} from './daily.js';
 import {hasAccess} from './access.js';
@@ -19,7 +19,27 @@ export function chatReportRange(question,current,selected) {
  if(!daySchema.safeParse(start).success||!daySchema.safeParse(end).success||start>end)return {error:'Choose a valid start and end date, with the start first.'};
  return {start,end};
 }
+export function spendingReport(data,user,question,current,selected){
+ const spending=question.trim().match(/^(?:how much (?:did i spend|do i spend|have i spent|did i pay)|what did i spend)\s+on\s+(.+?)(?:\s+(today|yesterday|(?:this|last) (?:week|month)))?[?.!]*$/i);
+ if(!spending)return null;
+ if(!hasAccess(user,'money'))return 'Your account does not have Money access.';
+ const [,name,period]=spending;
+ const {start,end,error}=chatReportRange(period||'',current,selected);
+ if(error)return error;
+ const key=name.normalize('NFKC').toLowerCase();
+ const totals=new Map();
+ for(const entry of data.entries||[]){
+  if(entry.type!=='expense'||entry.voided_on||entry.date<start||entry.date>end||entry.date>current)continue;
+  if(![entry.title,entry.category].some(value=>value?.normalize('NFKC').toLowerCase().includes(key)))continue;
+  const code=currencyOf(entry);
+  totals.set(code,(totals.get(code)||0)+cents(entry.amount));
+ }
+ const catalog=currencyCatalog(data.settings);
+ return `Spending matching “${name}” from ${start} through ${end}: ${[...totals].map(([code,total])=>formatMoney(total,code,catalog)).join(' · ')||'no recorded expenses'}. Matches transaction names and categories.`;
+}
 export function chatReport(data,user,question,current,selected) {
+ const spending=spendingReport(data,user,question,current,selected);
+ if(spending)return spending;
  const q=question.toLowerCase();
  const {start,end,error}=chatReportRange(question,current,selected);
  if(error)return error;
