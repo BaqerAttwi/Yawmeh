@@ -1,0 +1,8 @@
+.saved-item-category{border-top:1px solid #e5ebe6}
+.saved-item-category-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 22px}
+.saved-item-category-heading h3{font-size:15px;color:#254533;overflow-wrap:anywhere}
+.saved-item-category-heading button{min-height:38px;padding:7px 10px}
+@media(max-width:560px){
+ .saved-item-category-heading{padding-inline:16px}
+ .saved-item-category-heading button{min-height:44px}
+}

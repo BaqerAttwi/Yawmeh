@@ -64,6 +64,8 @@
 .report-table tbody tr:nth-child(even){background:#fafcf9}
 .report-table small{display:block;margin-top:4px;font-size:10px}
 .report-table .report-number{text-align:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+.report-category-action{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.report-category-action button{min-height:36px;padding:6px 9px;white-space:nowrap}
 .report-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;color:#4b5e51;font-size:12px}
 .report-pagination>div{display:flex;gap:6px}
 .report-pagination button{min-width:42px;min-height:42px;padding:8px}

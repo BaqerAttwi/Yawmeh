@@ -1,5 +1,5 @@
 import React,{useMemo,useState} from 'react';
-import {ChevronLeft,ChevronRight,Download,FileChartColumn,Sparkles} from 'lucide-react';
+import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus,Sparkles} from 'lucide-react';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
 import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
 import {daysUntil} from '../../../../shared/domain.js';
@@ -24,7 +24,7 @@ function exportReport(report,name,start,end){
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-function ReportTable({report,title,catalog}){
+function ReportTable({report,title,catalog,onAddItem,busy}){
  const [page,setPage]=useState(0);
  const count=report.rows.length,lastPage=Math.max(0,Math.ceil(count/pageSize)-1);
  const currentPage=Math.min(page,lastPage),offset=currentPage*pageSize;
@@ -38,7 +38,9 @@ function ReportTable({report,title,catalog}){
     <tbody>{report.rows.slice(offset,offset+pageSize).map((row,index)=><tr key={offset+index}>{row.map((value,i)=>{
      const column=report.columns[i],code=column.currency||(column.native?row[column.native===true?0:column.native]:null);
      const displayed=value==null?'—':code?formatMoney(value,code,catalog):value;
-     return i===0?<th key={column.label} scope="row">{displayed}</th>:<td key={column.label} className={code?'report-number':undefined}>{displayed}</td>;
+     return i===0?<th key={column.label} scope="row">{onAddItem?<div className="report-category-action"><span>{displayed}</span>
+      <button type="button" className="secondary" disabled={busy} aria-label={`Add item to ${value}`} onClick={()=>onAddItem(value)}><Plus size={14} aria-hidden="true"/>Add item</button>
+     </div>:displayed}</th>:<td key={column.label} className={code?'report-number':undefined}>{displayed}</td>;
     })}</tr>)}</tbody>
    </table>
   </div>
@@ -67,7 +69,7 @@ function CashFlowChart({report,currency,catalog}){
  </figure>;
 }
 
-function ReportDetails({data,user,current,reports,initialRange,initialPreset}){
+function ReportDetails({data,user,current,reports,initialRange,initialPreset,onAddItem,busy}){
  const [selected,setSelected]=useState(reports[0]?.id);
  const [preset,setPreset]=useState(initialPreset);
  const [range,setRange]=useState(initialRange);
@@ -116,7 +118,8 @@ function ReportDetails({data,user,current,reports,initialRange,initialPreset}){
     {!report?<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>:<>
      {report.note&&<p className="report-note">{report.note}</p>}
      {definition.id==='cash-flow'&&<CashFlowChart report={report} currency={currency} catalog={catalog}/>}
-     <ReportTable key={[definition.id,start,end,currency].join('|')} report={report} title={definition.title} catalog={catalog}/>
+     <ReportTable key={[definition.id,start,end,currency].join('|')} report={report} title={definition.title} catalog={catalog}
+      onAddItem={definition.id==='expenses'?onAddItem:undefined} busy={busy}/>
     </>}
    </section>
  </div>;
@@ -148,13 +151,20 @@ function ReportReviewChart({area,overview,formatMoneyValue}){
  </figure>;
 }
 
-function reportReviewSteps(area){
+function reportReviewSteps(area,overview,formatMoneyValue){
+ const {income,expenses,net,completed,open,overdue}=overview;
  return area==='money'?[
-  {title:'Compare income and spending',explanation:'Read the two bars for the dates you selected. The report above shows the difference.'},
-  {title:'Find what drove spending',explanation:'Open Expenses by category under detailed reports and check which costs were essential or optional.'},
+  {title:'Compare income and spending',explanation:Number.isFinite(net)?
+   `You recorded ${formatMoneyValue(income)} in income and ${formatMoneyValue(expenses)} in spending for this period.`:
+   'Check Balances by currency to see the original amounts for transactions with missing conversion rates.'},
+  {title:'Decide what to adjust',explanation:expenses>0?
+   'Open Expenses by category under detailed reports. Start with a category you can change and pick one purchase to reduce or skip next period.':
+   'Check whether all expenses are recorded before setting a spending target for the next period.'},
  ]:[
-  {title:'Read the task counts',explanation:'Completed counts tasks finished during the period. The other bars count open tasks due during the period.'},
-  {title:'Check what needs attention',explanation:'Use the overdue count to decide what to finish first and what to reschedule.'},
+  {title:'Read the task counts',explanation:`You completed ${completed} tasks in this period. ${open} tasks due in the period are still open.`},
+  {title:'Check what needs attention',explanation:overdue?
+   `${overdue} of the open tasks are overdue. Pick one to finish next, then give any remaining overdue tasks realistic dates.`:
+   open?'Choose the next task by due date and set aside enough time to finish it.':'Review what helped you complete your work and carry it into your next plan.'},
  ];
 }
 
@@ -173,7 +183,8 @@ function ReportHelp({api,area,start,end,overview,formatMoneyValue}){
    if(!result.summary||!result.recommendation||(selected==='detailed'&&!Array.isArray(result.steps)))throw new Error('Could not read the AI summary. Try again.');
    setResponses(previous=>({...previous,[selected]:result}));
   }catch(error){
-   setError(['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the report guidance below or try again.':error.message);
+   setError(error.code==='provider_busy'?'Gemini is temporarily busy. The guidance below is based on your report.':
+    ['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the report guidance below or try again.':error.message);
   }
   finally{setLoading(false);}
  }
@@ -193,7 +204,7 @@ function ReportHelp({api,area,start,end,overview,formatMoneyValue}){
   {detailed&&<ReportReviewChart area={area} overview={overview} formatMoneyValue={formatMoneyValue}/>}
   <div role="status">{shown&&<div className="report-help-answer">
    <h3>{advice?(detailed?'AI walkthrough':'AI summary'):(detailed?'Report walkthrough':'Quick summary')}</h3><p>{shown.summary}</p>
-   {detailed&&<ol className="report-review-steps">{(advice?.steps||reportReviewSteps(area)).map((step,index)=><li key={index}>
+   {detailed&&<ol className="report-review-steps">{(advice?.steps||reportReviewSteps(area,overview,formatMoneyValue)).map((step,index)=><li key={index}>
     <strong>{step.title}</strong><p>{step.explanation}</p>
    </li>)}</ol>}
    <h3>{detailed?'How to improve':'What to try next'}</h3><p>{shown.recommendation}</p>
@@ -201,7 +212,7 @@ function ReportHelp({api,area,start,end,overview,formatMoneyValue}){
  </section>;
 }
 
-export function Reports({data,user,current,mode,api}){
+export function Reports({data,user,current,mode,api,onAddItem,busy}){
  const reports=reportsFor(user);
  const choices=areas.filter(([id])=>reports.some(report=>report.area===id));
  const [selected,setSelected]=useState(choices[0]?.[0]);
@@ -247,7 +258,8 @@ export function Reports({data,user,current,mode,api}){
   <details className="card report-details">
    <summary>View detailed reports and export</summary>
    <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}
-    reports={reports.filter(report=>report.area===area)} initialRange={overview?range:reportPreset('month',current)} initialPreset={overview?preset:'month'}/>
+    reports={reports.filter(report=>report.area===area)} initialRange={overview?range:reportPreset('month',current)} initialPreset={overview?preset:'month'}
+    onAddItem={onAddItem} busy={busy}/>
   </details>
  </div>;
 }

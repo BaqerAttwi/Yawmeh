@@ -217,3 +217,28 @@ test('detailed report reviews return ordered explanations and reject provider-su
   assert.equal((await rejected.json()).code,'invalid_response');
  }
 });
+
+test('detailed summaries retry a temporary upstream overload once within the same allowance',async t=>{
+ const advice={summary:'Review your report.',recommendation:'Pick a next task.',steps:[
+  {title:'Check due dates',explanation:'Open the tasks due in this period.'},
+  {title:'Decide what to start',explanation:'Choose the task that needs attention first.'},
+ ]};
+ const body={...input,question:'report',reportArea:'tasks',reportFormat:'detailed'};
+ let attempt=0;
+ const f=await fixture(t,{fetchOverride:()=>{
+  if(++attempt===1)return new Response('Temporary overload',{status:503});
+  return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(advice)}]}}]});
+ }});
+ const response=await f.call(body);
+ assert.equal(response.status,200);
+ assert.equal((await response.json()).summary,advice.summary);
+ assert.equal(f.requests.length,2);
+ assert.equal(f.requests[0].signal,f.requests[1].signal);
+ assert.equal(f.reservations.length,1);
+ const unavailable=await fixture(t,{providerStatus:503});
+ const failed=await unavailable.call(body);
+ assert.equal(failed.status,503);
+ assert.equal((await failed.json()).code,'provider_busy');
+ assert.equal(unavailable.requests.length,2);
+ assert.equal(unavailable.reservations.length,1);
+});

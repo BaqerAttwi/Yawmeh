@@ -41,6 +41,7 @@ try{
       await new Promise(resolve=>{releaseReport=resolve;markReportReceived();});
       return route.fulfill({status:503,json:{code:'timeout'}});
      }
+     if(reportAttempts===3)return route.fulfill({status:503,json:{code:'provider_busy'}});
      if(request.postDataJSON().reportFormat==='detailed')return route.fulfill({json:{
       summary:'Compare the numbers for this period.',recommendation:'Review one regular cost.',
       steps:[{title:'Review spending',explanation:'Use the bars to compare the totals.'},{title:'Choose a next action',explanation:'Check which costs were optional.'}],
@@ -105,6 +106,11 @@ try{
   await chart.waitFor();
   const metrics=await page.locator('.report-metrics dd').allTextContents();
   assert.deepEqual(await chart.locator('dd').allTextContents(),metrics.slice(0,2));
+  await page.getByRole('alert').filter({hasText:'Gemini is temporarily busy'}).waitFor();
+  await page.getByRole('heading',{name:'Report walkthrough'}).waitFor();
+  assert.match(await page.locator('.report-review-steps').innerText(),/You recorded/);
+  await page.getByRole('heading',{name:'How to improve'}).waitFor();
+  await page.getByRole('button',{name:'Try AI again'}).click();
   await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
   assert.equal(await page.locator('.report-review-steps li').count(),2);
   await page.getByRole('heading',{name:'How to improve'}).waitFor();
@@ -112,7 +118,16 @@ try{
   assert.equal(calls.at(-1).reportFormat,'detailed');
   await page.getByRole('button',{name:'Short summary',exact:true}).click();
   assert.equal(await chart.count(),0);
-  assert.equal(reportAttempts,3,'switching to a completed review reuses its result');
+  assert.equal(reportAttempts,4,'switching to a completed review reuses its result');
+  await page.getByText('View detailed reports and export',{exact:true}).click();
+  await page.getByRole('combobox',{name:'Detailed report'}).selectOption('expenses');
+  const categoryAction=page.getByRole('region',{name:'Expenses by category table'}).getByRole('button',{name:/Add item to/}).first();
+  const category=(await categoryAction.getAttribute('aria-label')).replace('Add item to ','');
+  await categoryAction.click();
+  const dialog=page.locator('dialog[open]');
+  assert.equal(await dialog.locator('[name=category]').inputValue(),category);
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({state:'detached'});
   await page.getByRole('group',{name:'Report area'}).getByRole('button',{name:'Tasks',exact:true}).click();
   await page.getByRole('button',{name:'Step-by-step review'}).click();
   const taskChart=page.getByRole('figure',{name:'Task status chart'});
@@ -121,6 +136,14 @@ try{
   assert.deepEqual((await taskChart.locator('dd').allTextContents()).map(Number),[completed,open-overdue,overdue]);
   await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
   assert.equal(calls.at(-1).reportArea,'tasks');
+  if(await page.locator('.app-shell').evaluate(el=>el.classList.contains('sidebar-closed')))await page.locator('.sidebar-toggle').click();
+  await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();
+  await page.locator('.filterbar').getByRole('button',{name:'Items',exact:true}).click();
+  assert.equal(await page.locator('.saved-item-category').count(),12);
+  await page.getByRole('region',{name:'Groceries',exact:true}).getByRole('button',{name:'Add item to Groceries'}).click();
+  assert.equal(await dialog.locator('[name=category]').inputValue(),'Groceries');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({state:'detached'});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
   assert.deepEqual(writes,[]);await page.close();console.log(`${avatar} clarification, voice fallback and AI recovery passed at ${width}px`);
  }

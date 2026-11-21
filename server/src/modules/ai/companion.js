@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {setTimeout as pause} from 'node:timers/promises';
 import rateLimit from 'express-rate-limit';
 import {companionInputSchema} from '../../../../shared/companion-ai.js';
 import {companionReportRequest} from '../../../../shared/companion-report-ai.js';
@@ -125,7 +126,14 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    const reply=report.area?{language:input.language}:presentReply(localCompanion(data,reportUser,report.command,current,selected),input.language);
    const request=geminiCompanionRequest(input,report,reportSignals(report,data,reportUser,current,selected),model,env);
    phase='provider';
-   const response=await fetchAI(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'});
+   const options={method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'};
+   let response=await fetchAI(request.url,options);
+   if(report.format==='detailed'&&response.status===503&&!response.headers.has('retry-after')&&Date.now()-started+1000<timeoutMs){
+    // Retry temporary overload once within the original deadline and allowance.
+    void response.body?.cancel().catch(()=>{});
+    await pause(750,undefined,{signal:controller.signal});
+    response=await fetchAI(request.url,options);
+   }
    providerStatus=response.status;
    if(!response.ok)throw new Error(response.status===429?'provider_quota':[401,403].includes(response.status)?'provider_auth':response.status===404?'model_unavailable':response.status===400?'provider_request':response.status>=500?'provider_busy':'unavailable');
    phase='response';
