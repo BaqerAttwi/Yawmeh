@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildWorkspaceReport,reportPreset,reportsFor,workspaceReportCsv} from '../../shared/workspace-reports.js';
+import {buildWorkspaceReport,reportPreset,reportsFor,workspaceReportCsv,workspaceOverview} from '../../shared/workspace-reports.js';
 
 const admin={role:'admin'};
 const money={role:'user',permissions:['money']};
@@ -27,6 +27,13 @@ const data={
  cancelled_tasks:[{id:3,title:'Cancelled',due:'2026-11-04',priority:'low',cancelled:true}],
 };
 const build=(id,user=admin,filters={})=>buildWorkspaceReport(id,data,user,{...range,...filters});
+
+test('basic overviews use saved activity and respect separate Money and Tasks access',()=>{
+ assert.deepEqual(workspaceOverview('money',data,money,range),{income:25000,expenses:1000,net:24000,hasActivity:true});
+ assert.deepEqual(workspaceOverview('tasks',data,tasks,range),{completed:1,open:1,overdue:1,hasActivity:true});
+ assert.equal(workspaceOverview('money',data,tasks,range),null);
+ assert.equal(workspaceOverview('tasks',data,money,range),null);
+});
 
 test('money reports use saved rates, keep native balances and separate savings transfers',()=>{
  assert.deepEqual(build('cash-flow').rows,[['2026-11',25000,1000,24000,3000,1000,2500,22000]]);

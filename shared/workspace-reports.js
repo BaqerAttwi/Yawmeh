@@ -66,6 +66,21 @@ function cashFlow(entries,currency){
  return {income,expenses,net:income-expenses,saved,withdrawn,opening,spendingChange:income-expenses-saved+withdrawn};
 }
 
+export function workspaceOverview(area,data,user,{start,end,current,currency='USD'}){
+ if(!['money','tasks'].includes(area)||!hasAccess(user,area)||!validReportRange(start,end))return null;
+ const asOf=end<current?end:current;
+ if(area==='money'){
+  const entries=(data.entries||[]).filter(entry=>!entry.voided_on&&inRange(entry.date,start,asOf));
+  const {income,expenses,net}=cashFlow(entries,currency);
+  return {income,expenses,net,hasActivity:entries.some(entry=>entry.type==='income'||entry.type==='expense')};
+ }
+ const tasks=(data.tasks||[]).filter(task=>!task.cancelled);
+ const completed=tasks.filter(task=>task.completed&&inRange(task.completed_on,start,asOf)).length;
+ const open=tasks.filter(task=>!task.completed&&inRange(task.due,start,end));
+ const overdue=open.filter(task=>task.due<current).length;
+ return {completed,open:open.length,overdue,hasActivity:completed+open.length>0};
+}
+
 export function buildWorkspaceReport(id,data,user,{start,end,current,currency='USD'}){
  const report=reportsFor(user).find(row=>row.id===id);
  if(!report||!validReportRange(start,end))return null;

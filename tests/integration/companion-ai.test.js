@@ -179,3 +179,18 @@ test('provider output cannot introduce drafts, changes, or unbounded recommendat
   assert.equal((await response.json()).code,'invalid_response');
  }
 });
+
+test('Reports requests get scoped summaries without sending records or widening access',async t=>{
+ const advice={summary:'No money activity was recorded.',recommendation:'Add expenses as they happen.'};
+ const f=await fixture(t,{intent:advice});
+ const body={...input,question:'report',reportArea:'money'};
+ assert.equal((await f.call(body)).status,403);
+ assert.equal((await f.call({...body,question:'How can I save more?'},{token:'b'})).status,400);
+ assert.equal(f.requests.length,0);
+ const response=await f.call(body,{token:'b'});
+ assert.equal(response.status,200);
+ assert.deepEqual(await response.json(),{language:'en',...advice,engine:'gemini'});
+ const sent=JSON.parse(f.requests[0].body.contents[0].parts[0].text);
+ assert.deepEqual(sent,{language:'en',signals:{hasRecentExpenses:false,hasRarelyUsedSubscriptions:false,hasActiveBudget:false,hasActivity:false}});
+ assert.doesNotMatch(JSON.stringify(f.requests[0].body),/Private task|private-email|2026-11-01/);
+});

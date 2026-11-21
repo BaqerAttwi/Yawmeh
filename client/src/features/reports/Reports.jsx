@@ -1,14 +1,15 @@
 import React,{useMemo,useState} from 'react';
-import {ChevronLeft,ChevronRight,Download,FileChartColumn,Wallet,CheckSquare} from 'lucide-react';
+import {ChevronLeft,ChevronRight,Download,FileChartColumn,Sparkles} from 'lucide-react';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
-import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv} from '../../../../shared/workspace-reports.js';
+import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
+import {daysUntil} from '../../../../shared/domain.js';
 import './reports.css';
 
 const presets=[
  ['today','Today'],['week','Week to date'],['month','Month to date'],['last-month','Last month'],
  ['quarter','Quarter to date'],['year','Year to date'],['next-30','Next 30 days'],['custom','Custom dates'],
 ];
-const areas=[{id:'money',label:'Money',icon:Wallet},{id:'tasks',label:'Tasks',icon:CheckSquare}];
+const areas=[['money','Money'],['tasks','Tasks']];
 const convertedReports=['comparison','cash-flow','income','expenses','transactions'];
 const pageSize=25;
 
@@ -65,11 +66,10 @@ function CashFlowChart({report,currency,catalog}){
  </figure>;
 }
 
-export function Reports({data,user,current}){
- const reports=reportsFor(user);
+function ReportDetails({data,user,current,reports,initialRange,initialPreset}){
  const [selected,setSelected]=useState(reports[0]?.id);
- const [preset,setPreset]=useState('month');
- const [range,setRange]=useState(()=>reportPreset('month',current));
+ const [preset,setPreset]=useState(initialPreset);
+ const [range,setRange]=useState(initialRange);
  const [preferredCurrency,setCurrency]=useState(data.settings?.home_currency||'USD');
  const definition=reports.find(report=>report.id===selected)||reports[0];
  const allDates=definition?.id==='subscriptions'||definition?.id==='items';
@@ -92,24 +92,9 @@ export function Reports({data,user,current}){
   setSelected(id);
   if(id==='renewals'&&range.end<=current)changePreset('next-30');
  }
- return <div className="reports-workspace">
-  <nav className="report-index card" aria-label="Report catalog">
-   {areas.map(({id,label,icon:Icon})=>{
-    const list=reports.filter(item=>item.area===id);
-    return list.length>0&&<section key={id}>
-     <h2><Icon size={16} aria-hidden="true"/>{label}</h2>
-     {list.map(item=><button type="button" key={item.id} aria-current={item.id===definition.id?'page':undefined} onClick={()=>chooseReport(item.id)}>
-      <span>{item.title}</span><ChevronRight size={15} aria-hidden="true"/>
-     </button>)}
-    </section>;
-   })}
-  </nav>
-  <div className="report-content">
-   <label className="report-mobile-picker field"><span>Report</span><select value={definition.id} onChange={event=>chooseReport(event.target.value)}>
-    {areas.map(({id,label})=>{
-     const list=reports.filter(item=>item.area===id);
-     return list.length>0&&<optgroup key={id} label={label}>{list.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</optgroup>;
-    })}
+ return <div className="report-detail-body">
+   <label className="field"><span>Detailed report</span><select aria-label="Detailed report" value={definition.id} onChange={event=>chooseReport(event.target.value)}>
+    {reports.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}
    </select></label>
    <section className="card report-card" aria-labelledby="report-title">
     <header className="report-heading">
@@ -133,6 +118,82 @@ export function Reports({data,user,current}){
      <ReportTable key={[definition.id,start,end,currency].join('|')} report={report} title={definition.title} catalog={catalog}/>
     </>}
    </section>
-  </div>
+ </div>;
+}
+
+function ReportHelp({api,area,start,end}){
+ const [loading,setLoading]=useState(false);
+ const [advice,setAdvice]=useState(null);
+ const [error,setError]=useState('');
+ async function getSummary(){
+  setLoading(true);
+  setError('');
+  try{
+   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,language:'en',avatar:'sage',start,end});
+   if(!result.summary||!result.recommendation)throw new Error('Could not read the AI summary. Try again.');
+   setAdvice(result);
+  }catch(error){setError(error.message);}
+  finally{setLoading(false);}
+ }
+ return <section className="card report-help" aria-labelledby="report-help-title">
+  <h2 id="report-help-title">Want help with this report?</h2>
+  <p>Get a short summary and practical next steps. Google receives basic patterns from this report.</p>
+  {!advice&&<button type="button" className="secondary" disabled={loading} onClick={getSummary}><Sparkles size={16} aria-hidden="true"/>{loading?'Summarizing…':'Get AI summary'}</button>}
+  {error&&<p role="alert">{error}</p>}
+  <div role="status">{advice&&<div className="report-help-answer">
+   <h3>AI summary</h3><p>{advice.summary}</p>
+   <h3>What to try next</h3><p>{advice.recommendation}</p>
+  </div>}</div>
+ </section>;
+}
+
+export function Reports({data,user,current,mode,api}){
+ const reports=reportsFor(user);
+ const choices=areas.filter(([id])=>reports.some(report=>report.area===id));
+ const [selected,setSelected]=useState(choices[0]?.[0]);
+ const [preset,setPreset]=useState('month');
+ const [range,setRange]=useState(()=>reportPreset('month',current));
+ const area=choices.some(([id])=>id===selected)?selected:choices[0]?.[0];
+ if(!area)return null;
+ const {start,end}=range;
+ const catalog=currencyCatalog(data.settings);
+ const currency=data.settings?.home_currency||'USD';
+ const overview=workspaceOverview(area,data,user,{start,end,current,currency});
+ const display=value=>formatMoney(value,currency,catalog);
+ const metrics=overview&&(area==='money'
+  ?[['Income',display(overview.income)],['Spent',display(overview.expenses)],['Income minus spending',display(overview.net)]]
+  :[['Completed',overview.completed],['Still open',overview.open],['Overdue',overview.overdue]]);
+ const summaryAvailable=mode==='live'&&overview?.hasActivity&&daysUntil(end,start)<=365;
+ return <div className="reports-workspace">
+  <section className="card report-overview" aria-labelledby="report-overview-title">
+   <div className="report-overview-header">
+    <div><h2 id="report-overview-title">{area==='money'?'Money at a glance':'Tasks at a glance'}</h2>
+     {overview&&<p>{start===end?start:`${start} to ${end}`}</p>}
+    </div>
+    <label className="field"><span>Period</span><select aria-label="Overview period" value={preset} onChange={event=>{
+     const period=event.target.value;
+     setPreset(period);
+     if(period!=='custom')setRange(reportPreset(period,current));
+    }}>
+     {[['week','This week'],['month','This month'],['last-month','Last month'],['custom','Custom dates']].map(([id,label])=><option key={id} value={id}>{label}</option>)}
+    </select></label>
+   </div>
+   {choices.length>1&&<div className="segmented report-area" role="group" aria-label="Report area">
+    {choices.map(([id,label])=><button type="button" key={id} aria-pressed={area===id} className={area===id?'selected':''} onClick={()=>setSelected(id)}>{label}</button>)}
+   </div>}
+   {preset==='custom'&&<div className="report-filters">
+    <label className="field"><span>Start date</span><input type="date" value={start} max={end} onChange={event=>setRange({...range,start:event.target.value})}/></label>
+    <label className="field"><span>End date</span><input type="date" value={end} min={start} onChange={event=>setRange({...range,end:event.target.value})}/></label>
+   </div>}
+   {overview?<><dl className="report-metrics">{metrics.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    {!overview.hasActivity&&<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
+   </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
+  </section>
+  {summaryAvailable&&<ReportHelp key={[area,start,end].join('|')} api={api} area={area} start={start} end={end}/>}
+  <details className="card report-details">
+   <summary>View detailed reports and export</summary>
+   <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}
+    reports={reports.filter(report=>report.area===area)} initialRange={overview?range:reportPreset('month',current)} initialPreset={overview?preset:'month'}/>
+  </details>
  </div>;
 }

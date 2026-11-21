@@ -1,12 +1,24 @@
-.reports-workspace{display:grid;grid-template-columns:minmax(190px,235px) minmax(0,1fr);gap:20px;align-items:start}
-.report-index{padding:14px}
-.report-index section+section{border-top:1px solid #e4ebe5;margin-top:10px;padding-top:10px}
-.report-index h2{display:flex;align-items:center;gap:8px;font-size:13px;color:#3a624d;padding:9px 8px}
-.report-index button{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:start;width:100%;padding:8px;min-height:36px;font-size:13px;color:#3e4d43}
-.report-index button svg{flex-shrink:0;color:#567763}
-.report-index button:hover,.report-index button[aria-current]{background:#eaf3eb;color:#204d37}
-.report-index button[aria-current]{font-weight:650}
-.report-mobile-picker.field{display:none}
+.reports-workspace{display:grid;gap:16px;max-width:1060px}
+.report-overview,.report-help,.report-details{min-width:0}
+.report-overview-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 22px 12px}
+.report-overview h2,.report-help h2{font-size:20px;color:#254533}
+.report-overview-header p,.report-help p{color:#4b5e51;font-size:13px;line-height:1.55;margin-top:5px}
+.report-overview-header .field{margin:0;min-width:0}
+.report-overview-header select{min-height:42px;max-width:100%}
+.report-area{margin:0 22px 14px;width:fit-content}
+.report-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:10px 22px 20px}
+.report-metrics>div{background:#f3f8f3;border-radius:10px;padding:14px;min-width:0}
+.report-metrics dt{font-size:13px;color:#4b5e51}
+.report-metrics dd{margin:5px 0 0;font-size:clamp(17px,2vw,25px);font-weight:650;color:#254533;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.report-help{padding:16px 22px}
+.report-help button{margin-top:10px}
+.report-help-answer{margin-top:13px;padding:12px 14px;background:#edf5ed;border-radius:10px}
+.report-help-answer h3{font-size:13px;color:#254533}
+.report-help-answer p+h3{margin-top:12px}
+.report-details>summary{cursor:pointer;min-height:44px;padding:14px 22px;font-weight:650;color:#365541}
+.report-detail-body{padding:0 14px 14px;min-width:0}
+.report-detail-body>.field{max-width:300px}
+.report-detail-body>.field select{min-height:42px}
 .report-card{min-width:0;overflow:hidden}
 .report-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:22px}
 .report-heading h2{font-size:23px;color:#254533}
@@ -14,8 +26,8 @@
 .report-heading p{margin-top:5px}
 .report-heading button{flex-shrink:0}
 .report-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr));gap:10px;padding:15px 22px;border-block:1px solid #e5ebe6;background:#f7faf7}
-.report-filters .field,.report-mobile-picker.field{margin:0;min-width:0}
-.report-filters input,.report-filters select,.report-mobile-picker select{width:100%;min-width:0;min-height:42px}
+.report-filters .field{margin:0;min-width:0}
+.report-filters input,.report-filters select{width:100%;min-width:0;min-height:42px}
 .report-note{padding:12px 22px}
 .report-chart{margin:0 22px 16px;padding:14px;background:#f7faf7;border:1px solid #e5ebe6;border-radius:10px;font-size:12px;color:#365541}
 .report-chart figcaption{font-weight:650}
@@ -43,11 +55,6 @@
 .report-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;color:#4b5e51;font-size:12px}
 .report-pagination>div{display:flex;gap:6px}
 .report-pagination button{min-width:42px;min-height:42px;padding:8px}
-@media(max-width:1050px){
- .reports-workspace{display:block}
- .report-index{display:none}
- .report-mobile-picker.field{display:grid;margin-bottom:14px}
-}
 @media(max-width:560px){
  .report-heading{flex-wrap:wrap;padding:16px}
  .report-heading h2{font-size:20px}
@@ -56,4 +63,12 @@
  .report-filters input,.report-filters select{padding-inline:8px;font-size:13px}
  .report-chart{margin-inline:16px}
  .report-table th,.report-table td{padding:9px 12px}
+}
+
+@media(max-width:560px){
+ .report-overview-header{flex-wrap:wrap;padding-inline:14px}
+ .report-area{margin-inline:14px}
+ .report-metrics{grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr));gap:8px;padding:8px 14px 14px}
+ .report-metrics>div{padding:10px}
+ .report-help,.report-details>summary{padding-inline:14px}
 }

@@ -11,6 +11,7 @@ import {addDays} from '../../../../shared/planner.js';
 import {snapshot} from '../../database/connection.js';
 import {mysqlCompanionUsage} from './companion-usage.js';
 import {companionStatusMessage} from '../../../../shared/companion-status.js';
+import {workspaceOverview} from '../../../../shared/workspace-reports.js';
 
 export function companionAIReason(env){
  if(env.COMPANION_AI_ENABLED!=='true')return 'disabled';
@@ -40,6 +41,7 @@ export function companionAITimeout(env){
 }
 const limits=companionAILimits;
 const adviceSchema=z.object({recommendation:z.string().trim().min(1).max(500)}).strict();
+const summarySchema=adviceSchema.extend({summary:z.string().trim().min(1).max(300)});
 
 function reportSignals(report,data,user,current,selected){
  const day=report.tomorrow?addDays(current,1):current;
@@ -57,6 +59,14 @@ function reportSignals(report,data,user,current,selected){
   signals.hasRarelyUsedSubscriptions=(data.subscriptions||[]).some(subscription=>subscription.active&&subscription.rarely_used);
   signals.hasActiveBudget=(data.budgets||[]).some(budget=>budget.start<=range.end&&budget.end>=range.start);
  }
+ if(report.area){
+  const overview=workspaceOverview(report.area,data,user,{...range,current,currency:data.settings?.home_currency||'USD'});
+  signals.hasActivity=overview.hasActivity;
+  if(report.area==='money'&&overview.hasActivity&&Number.isFinite(overview.net)){
+   signals.incomeComparedWithExpenses=overview.net>0?'higher':overview.net<0?'lower':'equal';
+  }
+  if(report.area==='tasks')signals.hasCompletions=overview.completed>0;
+ }
  return signals;
 }
 
@@ -64,7 +74,8 @@ function geminiCompanionRequest(input,report,signals,env){
  const style={sage:'calm and concise',nova:'warm and encouraging',pip:'friendly and lightly playful'}[input.avatar];
  const topic={day_plan:'prioritizing tasks and planning a realistic day',saving_advice:'reducing optional spending and saving money',review:'choosing a practical next step after a money or tasks review'}[report.kind];
  const instructions=`Give one or two concrete, optional next steps about ${topic}. Use the supplied flags to choose advice. The app displays the factual report separately. Use the requested language, natural Lebanese Arabic for ar, and a ${style} tone. Give at most 500 characters. Do not invent names, amounts, dates, available time or account facts. Do not claim to schedule, read, or change records. Do not tell the user to make a payment or modify the app. Return only the supplied JSON.`;
- const body={systemInstruction:{parts:[{text:instructions}]},contents:[{role:'user',parts:[{text:JSON.stringify({language:input.language,signals})}]}],generationConfig:{maxOutputTokens:8192,responseMimeType:'application/json',responseJsonSchema:z.toJSONSchema(adviceSchema)}};
+ const summaryInstruction=report.area?` Summarize the ${report.area} report in plain language using only the supplied signals. If there is no activity, say so. The summary is at most 300 characters. Put next steps in recommendation.`:'';
+ const body={systemInstruction:{parts:[{text:instructions+summaryInstruction}]},contents:[{role:'user',parts:[{text:JSON.stringify({language:input.language,signals})}]}],generationConfig:{maxOutputTokens:8192,responseMimeType:'application/json',responseJsonSchema:z.toJSONSchema(report.area?summarySchema:adviceSchema)}};
  return {url:`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(companionAIModel(env))}:generateContent`,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body};
 }
 
@@ -77,11 +88,15 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
   if(input.start>input.end||daysUntil(input.end,input.start)>365)return res.status(400).json({error:'Choose an ordered range of at most 366 days.'});
   const report=companionReportRequest(input.question,req.user);
   if(!report)return res.status(400).json({code:'report_only',error:'AI is available for reports and recommendations.'});
-  res.locals.companionReport={input,report};
+  const area=input.reportArea;
+  if(area&&!hasAccess(req.user,area))return res.status(403).json({error:'Access to this report is required.'});
+  if(area&&report.command!=='report')return res.status(400).json({code:'report_only',error:'Use the selected report period for a summary.'});
+  const reportUser=area?{...req.user,role:'user',permissions:[area]}:req.user;
+  res.locals.companionReport={input,report:{...report,area},reportUser};
   next();
  }
  app.post('/api/companion/chat',permitted,requireReport,limiter,async(req,res)=>{
-  const {input,report}=res.locals.companionReport;
+  const {input,report,reportUser}=res.locals.companionReport;
   if(!companionAIAvailable(env)){const code=companionAIReason(env);return res.status(503).json({code,error:companionStatusMessage(code,input.language)});}
   const current=today(env.TIMEZONE||'Asia/Beirut');
   const started=Date.now(),timeoutMs=companionAITimeout(env);
@@ -95,12 +110,12 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    if(res.destroyed)return;
    if(controller.signal.aborted)throw new Error('timeout');
    phase='records';
-   const data=await loadData(req.user);
+   const data=await loadData(reportUser);
    if(res.destroyed)return;
    if(controller.signal.aborted)throw new Error('timeout');
    const selected={start:input.start,end:input.end};
-   const reply=presentReply(localCompanion(data,req.user,report.command,current,selected),input.language);
-   const request=geminiCompanionRequest(input,report,reportSignals(report,data,req.user,current,selected),env);
+   const reply=report.area?{language:input.language}:presentReply(localCompanion(data,reportUser,report.command,current,selected),input.language);
+   const request=geminiCompanionRequest(input,report,reportSignals(report,data,reportUser,current,selected),env);
    phase='provider';
    const response=await fetchAI(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:controller.signal,redirect:'error'});
    providerStatus=response.status;
@@ -110,9 +125,9 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    for await(const chunk of response.body){bytes+=chunk.length;if(bytes>32768){controller.abort();throw new Error('size');}chunks.push(Buffer.from(chunk));}
    const result=JSON.parse(Buffer.concat(chunks).toString('utf8')),candidate=result.candidates?.[0];
    if(candidate?.finishReason!=='STOP')throw new Error('incomplete');
-   const {recommendation}=adviceSchema.parse(JSON.parse(candidate.content.parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('')));
+   const advice=(report.area?summarySchema:adviceSchema).parse(JSON.parse(candidate.content.parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('')));
    if(controller.signal.aborted)throw new Error('timeout');
-   if(!res.destroyed)res.json({...reply,recommendation,engine:'gemini'});
+   if(!res.destroyed)res.json({...reply,...advice,engine:'gemini'});
   }catch(error){const code=controller.signal.aborted?(error.message==='size'?'invalid_response':'timeout'):phase==='allowance'?'usage_unavailable':phase==='records'?'records_unavailable':['provider_quota','provider_auth','model_unavailable','provider_request','provider_busy','unavailable'].includes(error.message)?error.message:error instanceof SyntaxError||error instanceof z.ZodError||['incomplete','size'].includes(error.message)?'invalid_response':'unavailable';console.warn('[companion-ai]',JSON.stringify({code,phase,providerStatus,model,elapsedMs:Date.now()-started,timeoutMs}));if(!res.destroyed)res.status(503).json({code,error:companionStatusMessage(code,input.language)});}
   finally{clearTimeout(timer);req.off('aborted',cancel);res.off('close',cancel);}
  });
