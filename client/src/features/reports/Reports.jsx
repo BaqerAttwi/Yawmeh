@@ -133,31 +133,70 @@ function quickReportHelp(area,overview){
  return {summary,recommendation:expenses>0?'Check Expenses by category and pick one optional cost to review.':!Number.isFinite(expenses)||!Number.isFinite(income)?'Review the original currency amounts before comparing totals.':'Keep recording expenses as they happen so your next report shows where your money went.'};
 }
 
-function ReportHelp({api,area,start,end,overview}){
+function ReportReviewChart({area,overview,formatMoneyValue}){
+ const money=area==='money';
+ const series=money
+  ?[['Income',overview.income,'green'],['Spending',overview.expenses,'orange']]
+  :[['Completed',overview.completed,'green'],['Open and on schedule',overview.open-overview.overdue,'blue'],['Overdue',overview.overdue,'orange']];
+ const max=Math.max(1,...series.filter(([,value])=>Number.isFinite(value)).map(([,value])=>value));
+ return <figure className="report-chart report-review-chart" aria-label={money?'Income and spending chart':'Task status chart'}>
+  <figcaption>{money?'Income and spending':'Task status'}</figcaption>
+  <dl>{series.map(([label,value,tone])=><div key={label}>
+   <div className="report-review-value"><dt>{label}</dt><dd>{money?formatMoneyValue(value):value}</dd></div>
+   {Number.isFinite(value)&&<div className="report-review-track" aria-hidden="true"><span data-tone={tone} style={{width:(value/max*100)+'%'}}/></div>}
+  </div>)}</dl>
+ </figure>;
+}
+
+function reportReviewSteps(area){
+ return area==='money'?[
+  {title:'Compare income and spending',explanation:'Read the two bars for the dates you selected. The report above shows the difference.'},
+  {title:'Find what drove spending',explanation:'Open Expenses by category under detailed reports and check which costs were essential or optional.'},
+ ]:[
+  {title:'Read the task counts',explanation:'Completed counts tasks finished during the period. The other bars count open tasks due during the period.'},
+  {title:'Check what needs attention',explanation:'Use the overdue count to decide what to finish first and what to reschedule.'},
+ ];
+}
+
+function ReportHelp({api,area,start,end,overview,formatMoneyValue}){
  const [loading,setLoading]=useState(false);
- const [advice,setAdvice]=useState(null);
+ const [format,setFormat]=useState(null);
+ const [responses,setResponses]=useState({});
  const [error,setError]=useState('');
- async function getSummary(){
-  setLoading(true);
+ async function getSummary(selected){
+  setFormat(selected);
   setError('');
+  if(responses[selected])return;
+  setLoading(true);
   try{
-   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,language:'en',avatar:'sage',start,end},{timeoutMs:companionRequestTimeoutMs});
-   if(!result.summary||!result.recommendation)throw new Error('Could not read the AI summary. Try again.');
-   setAdvice(result);
+   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,reportFormat:selected,language:'en',avatar:'sage',start,end},{timeoutMs:companionRequestTimeoutMs});
+   if(!result.summary||!result.recommendation||(selected==='detailed'&&!Array.isArray(result.steps)))throw new Error('Could not read the AI summary. Try again.');
+   setResponses(previous=>({...previous,[selected]:result}));
   }catch(error){
-   setError(['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the quick summary below or try again.':error.message);
+   setError(['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the report guidance below or try again.':error.message);
   }
   finally{setLoading(false);}
  }
- const shown=advice||(loading||error?quickReportHelp(area,overview):null);
+ const advice=responses[format];
+ const shown=advice||(format?quickReportHelp(area,overview):null);
+ const detailed=format==='detailed';
  return <section className="card report-help" aria-labelledby="report-help-title">
-  <h2 id="report-help-title">Want help with this report?</h2>
-  <p>Get a short summary and practical next steps. Google receives basic patterns from this report.</p>
-  {!advice&&<button type="button" className="secondary" disabled={loading} onClick={getSummary}><Sparkles size={16} aria-hidden="true"/>{loading?'Getting AI suggestions…':error?'Try AI again':'Get AI summary'}</button>}
+  <h2 id="report-help-title">AI report help</h2>
+  <p>Choose a short summary or a walkthrough with a chart and steps to improve. Google receives basic patterns from this report.</p>
+  <div className="report-help-choices" role="group" aria-label="Summary format">
+   <button type="button" className="secondary" aria-pressed={format==='short'} disabled={loading} onClick={()=>getSummary('short')}><Sparkles size={16} aria-hidden="true"/>Short summary</button>
+   <button type="button" className="secondary" aria-pressed={detailed} disabled={loading} onClick={()=>getSummary('detailed')}><FileChartColumn size={16} aria-hidden="true"/>Step-by-step review</button>
+  </div>
+  {loading&&<p role="status">Getting AI suggestions…</p>}
   {error&&<p role="alert">{error}</p>}
+  {error&&<button type="button" className="secondary" onClick={()=>getSummary(format)}>Try AI again</button>}
+  {detailed&&<ReportReviewChart area={area} overview={overview} formatMoneyValue={formatMoneyValue}/>}
   <div role="status">{shown&&<div className="report-help-answer">
-   <h3>{advice?'AI summary':'Quick summary'}</h3><p>{shown.summary}</p>
-   <h3>What to try next</h3><p>{shown.recommendation}</p>
+   <h3>{advice?(detailed?'AI walkthrough':'AI summary'):(detailed?'Report walkthrough':'Quick summary')}</h3><p>{shown.summary}</p>
+   {detailed&&<ol className="report-review-steps">{(advice?.steps||reportReviewSteps(area)).map((step,index)=><li key={index}>
+    <strong>{step.title}</strong><p>{step.explanation}</p>
+   </li>)}</ol>}
+   <h3>{detailed?'How to improve':'What to try next'}</h3><p>{shown.recommendation}</p>
   </div>}</div>
  </section>;
 }
@@ -204,7 +243,7 @@ export function Reports({data,user,current,mode,api}){
     {!overview.hasActivity&&<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>
-  {summaryAvailable&&<ReportHelp key={[area,start,end].join('|')} api={api} area={area} start={start} end={end} overview={overview}/>}
+  {summaryAvailable&&<ReportHelp key={[area,start,end].join('|')} api={api} area={area} start={start} end={end} overview={overview} formatMoneyValue={display}/>}
   <details className="card report-details">
    <summary>View detailed reports and export</summary>
    <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}

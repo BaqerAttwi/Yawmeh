@@ -42,6 +42,10 @@ export function companionAITimeout(env){
 const limits=companionAILimits;
 const adviceSchema=z.object({recommendation:z.string().trim().min(1).max(500)}).strict();
 const summarySchema=adviceSchema.extend({summary:z.string().trim().min(1).max(300)});
+const detailedSummarySchema=summarySchema.extend({
+ steps:z.array(z.object({title:z.string().trim().min(1).max(70),explanation:z.string().trim().min(1).max(280)}).strict()).min(2).max(4),
+});
+const reportResponseSchema=report=>report.format==='detailed'?detailedSummarySchema:report.area?summarySchema:adviceSchema;
 
 function reportSignals(report,data,user,current,selected){
  const day=report.tomorrow?addDays(current,1):current;
@@ -75,7 +79,10 @@ function geminiCompanionRequest(input,report,signals,model,env){
  const topic={day_plan:'prioritizing tasks and planning a realistic day',saving_advice:'reducing optional spending and saving money',review:'choosing a practical next step after a money or tasks review'}[report.kind];
  const instructions=`Give one or two concrete, optional next steps about ${topic}. Use the supplied flags to choose advice. The app displays the factual report separately. Use the requested language, natural Lebanese Arabic for ar, and a ${style} tone. Give at most 500 characters. Do not invent names, amounts, dates, available time or account facts. Do not claim to schedule, read, or change records. Do not tell the user to make a payment or modify the app. Return only the supplied JSON.`;
  const summaryInstruction=report.area?` Summarize the ${report.area} report in plain language using only the supplied signals. If there is no activity, say so. The summary is at most 300 characters. Put next steps in recommendation.`:'';
- const body={systemInstruction:{parts:[{text:instructions+summaryInstruction}]},contents:[{role:'user',parts:[{text:JSON.stringify({language:input.language,signals})}]}],generationConfig:{maxOutputTokens:8192,responseMimeType:'application/json',responseJsonSchema:z.toJSONSchema(report.area?summarySchema:adviceSchema)}};
+ const detailInstruction=report.format==='detailed'
+  ?' Use 2 to 4 ordered steps to explain what to look at, what the signals mean, and how to decide what needs attention. Give each step a short title and one or two sentences. Use recommendation for a specific improvement to try next. The app renders the chart from its own records. Do not supply chart values.'
+  :report.area?' Keep the summary and recommendation to one short sentence each.':'';
+ const body={systemInstruction:{parts:[{text:instructions+summaryInstruction+detailInstruction}]},contents:[{role:'user',parts:[{text:JSON.stringify({language:input.language,signals})}]}],generationConfig:{maxOutputTokens:8192,responseMimeType:'application/json',responseJsonSchema:z.toJSONSchema(reportResponseSchema(report))}};
  if(report.area&&model==='gemini-3.8-flash')body.generationConfig.thinkingConfig={thinkingLevel:'LOW'};
  return {url:`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},body};
 }
@@ -91,9 +98,9 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
   if(!report)return res.status(400).json({code:'report_only',error:'AI is available for reports and recommendations.'});
   const area=input.reportArea;
   if(area&&!hasAccess(req.user,area))return res.status(403).json({error:'Access to this report is required.'});
-  if(area&&report.command!=='report')return res.status(400).json({code:'report_only',error:'Use the selected report period for a summary.'});
+  if((area&&report.command!=='report')||(input.reportFormat&&!area))return res.status(400).json({code:'report_only',error:'Use the selected report period for a summary.'});
   const reportUser=area?{...req.user,role:'user',permissions:[area]}:req.user;
-  res.locals.companionReport={input,report:{...report,area},reportUser};
+  res.locals.companionReport={input,report:{...report,area,format:input.reportFormat},reportUser};
   next();
  }
  app.post('/api/companion/chat',permitted,requireReport,limiter,async(req,res)=>{
@@ -126,7 +133,7 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
    for await(const chunk of response.body){bytes+=chunk.length;if(bytes>32768){controller.abort();throw new Error('size');}chunks.push(Buffer.from(chunk));}
    const result=JSON.parse(Buffer.concat(chunks).toString('utf8')),candidate=result.candidates?.[0];
    if(candidate?.finishReason!=='STOP')throw new Error('incomplete');
-   const advice=(report.area?summarySchema:adviceSchema).parse(JSON.parse(candidate.content.parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('')));
+   const advice=reportResponseSchema(report).parse(JSON.parse(candidate.content.parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('')));
    if(controller.signal.aborted)throw new Error('timeout');
    if(!res.destroyed)res.json({...reply,...advice,engine:'gemini'});
   }catch(error){const code=controller.signal.aborted?(error.message==='size'?'invalid_response':'timeout'):phase==='allowance'?'usage_unavailable':phase==='records'?'records_unavailable':['provider_quota','provider_auth','model_unavailable','provider_request','provider_busy','unavailable'].includes(error.message)?error.message:error instanceof SyntaxError||error instanceof z.ZodError||['incomplete','size'].includes(error.message)?'invalid_response':'unavailable';console.warn('[companion-ai]',JSON.stringify({code,phase,providerStatus,model,elapsedMs:Date.now()-started,timeoutMs}));if(!res.destroyed)res.status(503).json({code,error:companionStatusMessage(code,input.language)});}

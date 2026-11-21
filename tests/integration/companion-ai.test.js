@@ -195,3 +195,25 @@ test('Reports requests get scoped summaries without sending records or widening 
  assert.deepEqual(sent,{language:'en',signals:{hasRecentExpenses:false,hasRarelyUsedSubscriptions:false,hasActiveBudget:false,hasActivity:false}});
  assert.doesNotMatch(JSON.stringify(f.requests[0].body),/Private task|private-email|2026-11-01/);
 });
+
+test('detailed report reviews return ordered explanations and reject provider-supplied chart numbers',async t=>{
+ const advice={summary:'Review the selected period.',recommendation:'Start with one open task.',steps:[
+  {title:'Check what is due',explanation:'Review tasks due in the selected dates.'},
+  {title:'Make a short plan',explanation:'Decide which open task to tackle first.'},
+ ]};
+ const f=await fixture(t,{intent:advice});
+ const body={...input,question:'report',reportArea:'tasks',reportFormat:'detailed'};
+ assert.equal((await f.call({...body,reportArea:undefined})).status,400);
+ assert.equal((await f.call(body,{token:'b'})).status,403);
+ assert.equal(f.requests.length,0);
+ const response=await f.call(body);
+ assert.equal(response.status,200);
+ assert.deepEqual(await response.json(),{language:'en',...advice,engine:'gemini'});
+ assert.doesNotMatch(JSON.stringify(f.requests[0].body),/Private task|private-email/);
+ for(const intent of [{...advice,chart:[100,40]},{...advice,steps:[]}]){
+  const invalid=await fixture(t,{intent});
+  const rejected=await invalid.call(body);
+  assert.equal(rejected.status,503);
+  assert.equal((await rejected.json()).code,'invalid_response');
+ }
+});
