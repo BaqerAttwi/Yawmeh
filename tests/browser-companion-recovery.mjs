@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {createApp} from '../server/src/app.js';
 import {demoData} from '../client/src/features/demo/data.js';
 import {visibleData} from '../shared/access.js';
+import {today} from '../shared/domain.js';
 const module=process.env.PLAYWRIGHT_MODULE||'playwright';
 const {chromium}=await import(isAbsolute(module)?pathToFileURL(module).href:module);
 const server=createApp({db:{},authStore:{},recoveryOptions:null}).listen(0,'127.0.0.1');await once(server,'listening');
@@ -16,8 +17,13 @@ try{
   const page=await browser.newPage({viewport:{width,height:900}}),calls=[],writes=[];
   let releaseReport,markReportReceived,reportAttempts=0;
   const reportReceived=new Promise(resolve=>{markReportReceived=resolve;});
+  let releaseTaskShort,markTaskShortReceived;
+  const taskShortReceived=new Promise(resolve=>{markTaskShortReceived=resolve;});
   await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:`http://127.0.0.1:${server.address().port}`,httpOnly:true,sameSite:'Strict'}]);
   const user={id:12345,name:'Test',role:'user',permissions:['tasks','money'],active:true};
+  const current=today(),yearStart=current.slice(0,4)+'-01-01',priorDate=(Number(current.slice(0,4))-1)+'-12-31';
+  const data=demoData();
+  data.entries.push({id:12345,type:'expense',title:'Prior year taxi',category:'Transport',date:priorDate,amount:20});
   await page.addInitScript(()=>{
    localStorage.setItem('daywell-companion:live:12345','pip');
    localStorage.setItem('yawmeh-start-here:v1:live:12345','done');
@@ -31,12 +37,16 @@ try{
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
    const request=route.request(),path=new URL(request.url()).pathname;
-   if(path==='/api/data')return route.fulfill({json:{...visibleData(demoData(),user),user}});
+   if(path==='/api/data')return route.fulfill({json:{...visibleData(data,user),user}});
    if(path==='/api/auth/me')return route.fulfill({json:{user}});
    if(path==='/api/companion/ai')return route.fulfill({json:{available:true,reason:null,model:'gemini-3.8-flash'}});
    if(path==='/api/companion/chat'){
     calls.push(request.postDataJSON());
     if(request.postDataJSON().reportArea){
+     if(request.postDataJSON().reportArea==='tasks'&&request.postDataJSON().reportFormat==='short'){
+      await new Promise(resolve=>{releaseTaskShort=resolve;markTaskShortReceived();});
+      return route.fulfill({status:503,json:{code:'timeout'}});
+     }
      if(++reportAttempts===1){
       await new Promise(resolve=>{releaseReport=resolve;markReportReceived();});
       return route.fulfill({status:503,json:{code:'timeout'}});
@@ -91,6 +101,10 @@ try{
   await page.evaluate(()=>{window.requestDeadlines=[];});
   await page.getByRole('button',{name:'Short summary',exact:true}).click();
   await page.getByRole('heading',{name:'Quick summary'}).waitFor();
+  const moneyFacts=page.locator('.report-summary-facts');
+  const chart=page.getByRole('figure',{name:'Income and spending chart'});
+  await chart.waitFor();
+  assert.match(await moneyFacts.innerText(),/Income: \$2,150\.00\. Spending: \$215\.00\. Income was \$1,935\.00 higher/);
   assert.ok((await page.evaluate(()=>window.requestDeadlines)).includes(45000));
   await reportReceived;
   assert.equal(reportAttempts,1);
@@ -98,12 +112,16 @@ try{
   await page.getByRole('alert').filter({hasText:'The AI summary timed out'}).waitFor();
   await page.getByRole('heading',{name:'Quick summary'}).waitFor();
   await page.getByRole('button',{name:'Try AI again'}).click();
-  await page.getByRole('heading',{name:'AI summary'}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Quick summary'}).count(),0);
-  assert.equal(await page.getByRole('figure',{name:'Income and spending chart'}).count(),0);
-  await page.getByRole('button',{name:'Step-by-step review'}).click();
-  const chart=page.getByRole('figure',{name:'Income and spending chart'});
+  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
+  assert.match(await moneyFacts.innerText(),/\$1,935\.00 higher/);
   await chart.waitFor();
+  await page.getByRole('button',{name:'Step-by-step review'}).click();
+  await chart.waitFor();
+  const categories=page.getByRole('figure',{name:'Largest spending categories chart'});
+  await categories.waitFor();
+  assert.equal(await categories.locator('dt').first().innerText(),'Shopping');
+  assert.equal(await categories.locator('dd').first().innerText(),'$89.00 · 41.4%');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
   const metrics=await page.locator('.report-metrics dd').allTextContents();
   assert.deepEqual(await chart.locator('dd').allTextContents(),metrics.slice(0,2));
   await page.getByRole('alert').filter({hasText:'Gemini is temporarily busy'}).waitFor();
@@ -112,12 +130,14 @@ try{
   await page.getByRole('heading',{name:'How to improve'}).waitFor();
   await page.getByRole('button',{name:'Try AI again'}).click();
   await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
+  assert.match(await moneyFacts.innerText(),/\$1,935\.00 higher/);
   assert.equal(await page.locator('.report-review-steps li').count(),2);
   await page.getByRole('heading',{name:'How to improve'}).waitFor();
   await page.getByText('Review one regular cost.',{exact:true}).waitFor();
   assert.equal(calls.at(-1).reportFormat,'detailed');
   await page.getByRole('button',{name:'Short summary',exact:true}).click();
-  assert.equal(await chart.count(),0);
+  await chart.waitFor();
+  assert.equal(await categories.count(),0);
   assert.equal(reportAttempts,4,'switching to a completed review reuses its result');
   await page.getByText('View detailed reports and export',{exact:true}).click();
   await page.getByRole('combobox',{name:'Detailed report'}).selectOption('expenses');
@@ -129,13 +149,50 @@ try{
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
   await page.getByRole('group',{name:'Report area'}).getByRole('button',{name:'Tasks',exact:true}).click();
+  await page.getByRole('button',{name:'Short summary',exact:true}).click();
+  await taskShortReceived;
   await page.getByRole('button',{name:'Step-by-step review'}).click();
   const taskChart=page.getByRole('figure',{name:'Task status chart'});
   await taskChart.waitFor();
+  await page.waitForFunction(()=>{
+   const output=document.querySelector('.report-help-output');
+   const top=output?.getBoundingClientRect().top;
+   return document.activeElement===output&&top>=0&&top<innerHeight;
+  });
   const [completed,open,overdue]=(await page.locator('.report-metrics dd').allTextContents()).map(Number);
   assert.deepEqual((await taskChart.locator('dd').allTextContents()).map(Number),[completed,open-overdue,overdue]);
   await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
   assert.equal(calls.at(-1).reportArea,'tasks');
+  await page.getByRole('button',{name:'Short summary',exact:true}).click();
+  await page.getByRole('status').filter({hasText:'Getting AI suggestions'}).waitFor();
+  releaseTaskShort();
+  await page.getByRole('alert').filter({hasText:'The AI summary timed out'}).waitFor();
+  await page.getByRole('button',{name:'Step-by-step review'}).click();
+  await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
+  await page.getByRole('group',{name:'Report area'}).getByRole('button',{name:'Money',exact:true}).click();
+  const period=page.getByRole('combobox',{name:'Overview period'});
+  const periodLabel=page.locator('.report-help-period');
+  const shortSummary=page.getByRole('button',{name:'Short summary',exact:true});
+  await period.selectOption({label:'This year'});
+  await shortSummary.click();
+  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
+  assert.equal(calls.at(-1).start,yearStart);
+  assert.equal(calls.at(-1).end,current);
+  assert.match(await periodLabel.innerText(),/Jan 1/);
+  await period.selectOption({label:'Specific date'});
+  await page.getByLabel('Report date',{exact:true}).fill(priorDate);
+  await shortSummary.click();
+  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
+  assert.equal(calls.at(-1).start,priorDate);
+  assert.equal(calls.at(-1).end,priorDate);
+  assert.match(await periodLabel.innerText(),/Dec 31/);
+  assert.match(await moneyFacts.innerText(),/Spending: \$20\.00\. Spending was \$20\.00 higher/);
+  await period.selectOption({label:'Custom dates'});
+  await page.locator('.report-overview').getByLabel('End date',{exact:true}).fill(yearStart);
+  await shortSummary.click();
+  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
+  assert.equal(calls.at(-1).start,priorDate);
+  assert.equal(calls.at(-1).end,yearStart);
   if(await page.locator('.app-shell').evaluate(el=>el.classList.contains('sidebar-closed')))await page.locator('.sidebar-toggle').click();
   await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();
   await page.locator('.filterbar').getByRole('button',{name:'Items',exact:true}).click();

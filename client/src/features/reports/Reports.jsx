@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus,Sparkles} from 'lucide-react';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
 import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
@@ -10,9 +10,13 @@ const presets=[
  ['today','Today'],['week','Week to date'],['month','Month to date'],['last-month','Last month'],
  ['quarter','Quarter to date'],['year','Year to date'],['next-30','Next 30 days'],['custom','Custom dates'],
 ];
+const overviewPresets=[['today','Today'],['week','This week'],['month','This month'],['last-month','Last month'],['year','This year'],['date','Specific date'],['custom','Custom dates']];
 const areas=[['money','Money'],['tasks','Tasks']];
 const convertedReports=['comparison','cash-flow','income','expenses','transactions'];
 const pageSize=25;
+const reportDates=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
+const reportCounts=new Intl.NumberFormat('en-US');
+const reportPercent=new Intl.NumberFormat('en-US',{style:'percent',maximumFractionDigits:1});
 
 function exportReport(report,name,start,end){
  const blob=new Blob(['\uFEFF',workspaceReportCsv(report)],{type:'text/csv;charset=utf-8'});
@@ -125,27 +129,25 @@ function ReportDetails({data,user,current,reports,initialRange,initialPreset,onA
  </div>;
 }
 
-function quickReportHelp(area,overview){
+function quickReportHelp(area,overview,display,topCategory){
  if(area==='tasks')return {
-  summary:`Completed tasks: ${overview.completed}. Open tasks: ${overview.open}, including ${overview.overdue} overdue.`,
+  summary:`Completed in this period: ${reportCounts.format(overview.completed)}. Still open and due in this period: ${reportCounts.format(overview.open)}, including ${reportCounts.format(overview.overdue)} overdue.`,
   recommendation:overview.overdue?'Review one overdue task and decide whether to finish it or move it to a realistic date.':overview.open?'Pick one open task to tackle next and give it a realistic time estimate.':'Review what helped you finish your tasks and repeat it in your next plan.',
  };
  const {income,expenses,net}=overview;
- const summary=!Number.isFinite(net)?'A saved exchange rate is missing for at least one transaction. Check the original amounts in Balances by currency.'
-  :net>0?'Recorded income was higher than spending.':net<0?'Recorded spending was higher than income.':'Recorded income and spending were equal.';
- return {summary,recommendation:expenses>0?'Check Expenses by category and pick one optional cost to review.':!Number.isFinite(expenses)||!Number.isFinite(income)?'Review the original currency amounts before comparing totals.':'Keep recording expenses as they happen so your next report shows where your money went.'};
+ const totals=`Income: ${display(income)}. Spending: ${display(expenses)}.`;
+ const difference=!Number.isFinite(net)?'A missing saved exchange rate keeps the app from calculating the difference.':net>0?`Income was ${display(net)} higher than spending.`:net<0?`Spending was ${display(-net)} higher than income.`:'Income and spending were equal.';
+ const largest=topCategory?` ${topCategory[0]} was your largest spending category at ${display(topCategory[2])} (${reportPercent.format(topCategory[2]/expenses)} of spending).`:'';
+ return {summary:`${totals} ${difference}${largest}`,recommendation:topCategory?`Review your ${topCategory[0]} purchases and pick one optional cost to reduce next period.`:
+  !Number.isFinite(net)?'Check the original amounts in Balances by currency before setting a spending target.':'Keep recording expenses as they happen so your next report shows where your money went.'};
 }
 
-function ReportReviewChart({area,overview,formatMoneyValue}){
- const money=area==='money';
- const series=money
-  ?[['Income',overview.income,'green'],['Spending',overview.expenses,'orange']]
-  :[['Completed',overview.completed,'green'],['Open and on schedule',overview.open-overview.overdue,'blue'],['Overdue',overview.overdue,'orange']];
- const max=Math.max(1,...series.filter(([,value])=>Number.isFinite(value)).map(([,value])=>value));
- return <figure className="report-chart report-review-chart" aria-label={money?'Income and spending chart':'Task status chart'}>
-  <figcaption>{money?'Income and spending':'Task status'}</figcaption>
+function ReportReviewChart({title,series,display,scale}){
+ const max=scale||Math.max(1,...series.filter(([,value])=>Number.isFinite(value)).map(([,value])=>value));
+ return <figure className="report-chart report-review-chart" aria-label={`${title} chart`}>
+  <figcaption>{title}</figcaption>
   <dl>{series.map(([label,value,tone])=><div key={label}>
-   <div className="report-review-value"><dt>{label}</dt><dd>{money?formatMoneyValue(value):value}</dd></div>
+   <div className="report-review-value"><dt>{label}</dt><dd>{display(value)}</dd></div>
    {Number.isFinite(value)&&<div className="report-review-track" aria-hidden="true"><span data-tone={tone} style={{width:(value/max*100)+'%'}}/></div>}
   </div>)}</dl>
  </figure>;
@@ -168,47 +170,68 @@ function reportReviewSteps(area,overview,formatMoneyValue){
  ];
 }
 
-function ReportHelp({api,area,start,end,overview,formatMoneyValue}){
- const [loading,setLoading]=useState(false);
+function ReportHelp({api,aiAvailable,area,start,end,period,overview,formatMoneyValue,expenseCategories}){
  const [format,setFormat]=useState(null);
  const [responses,setResponses]=useState({});
- const [error,setError]=useState('');
+ const output=useRef(null);
+ useEffect(()=>{
+  if(!format)return;
+  output.current?.focus({preventScroll:true});
+  output.current?.scrollIntoView({block:'start',behavior:'instant'});
+ },[format]);
  async function getSummary(selected){
   setFormat(selected);
-  setError('');
-  if(responses[selected])return;
-  setLoading(true);
+  if(!aiAvailable||responses[selected]?.loading||responses[selected]?.advice)return;
+  setResponses(previous=>({...previous,[selected]:{loading:true}}));
   try{
    const result=await api('/companion/chat','POST',{question:'report',reportArea:area,reportFormat:selected,language:'en',avatar:'sage',start,end},{timeoutMs:companionRequestTimeoutMs});
    if(!result.summary||!result.recommendation||(selected==='detailed'&&!Array.isArray(result.steps)))throw new Error('Could not read the AI summary. Try again.');
-   setResponses(previous=>({...previous,[selected]:result}));
+   setResponses(previous=>({...previous,[selected]:{advice:result}}));
   }catch(error){
-   setError(error.code==='provider_busy'?'Gemini is temporarily busy. The guidance below is based on your report.':
-    ['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the report guidance below or try again.':error.message);
+   const message=error.code==='provider_busy'?'Gemini is temporarily busy. The guidance below is based on your report.':
+    ['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the report guidance below or try again.':error.message;
+   setResponses(previous=>({...previous,[selected]:{error:message}}));
   }
-  finally{setLoading(false);}
  }
- const advice=responses[format];
- const shown=advice||(format?quickReportHelp(area,overview):null);
+ const {advice,loading,error}=responses[format]||{};
+ const facts=format?quickReportHelp(area,overview,formatMoneyValue,expenseCategories[0]):null;
  const detailed=format==='detailed';
+ const money=area==='money';
+ const series=money
+  ?[['Income',overview.income,'green'],['Spending',overview.expenses,'orange']]
+  :[['Completed',overview.completed,'green'],['Open and on schedule',overview.open-overview.overdue,'blue'],['Overdue',overview.overdue,'orange']];
  return <section className="card report-help" aria-labelledby="report-help-title">
-  <h2 id="report-help-title">AI report help</h2>
-  <p>Choose a short summary or a walkthrough with a chart and steps to improve. Google receives basic patterns from this report.</p>
+  <h2 id="report-help-title">Report summary</h2>
+  {aiAvailable&&<p>Google receives general patterns from this report to suggest next steps.</p>}
   <div className="report-help-choices" role="group" aria-label="Summary format">
-   <button type="button" className="secondary" aria-pressed={format==='short'} disabled={loading} onClick={()=>getSummary('short')}><Sparkles size={16} aria-hidden="true"/>Short summary</button>
-   <button type="button" className="secondary" aria-pressed={detailed} disabled={loading} onClick={()=>getSummary('detailed')}><FileChartColumn size={16} aria-hidden="true"/>Step-by-step review</button>
+   <button type="button" className="secondary" aria-pressed={format==='short'} onClick={()=>getSummary('short')}><Sparkles size={16} aria-hidden="true"/>Short summary</button>
+   <button type="button" className="secondary" aria-pressed={detailed} onClick={()=>getSummary('detailed')}><FileChartColumn size={16} aria-hidden="true"/>Step-by-step review</button>
   </div>
-  {loading&&<p role="status">Getting AI suggestions…</p>}
-  {error&&<p role="alert">{error}</p>}
-  {error&&<button type="button" className="secondary" onClick={()=>getSummary(format)}>Try AI again</button>}
-  {detailed&&<ReportReviewChart area={area} overview={overview} formatMoneyValue={formatMoneyValue}/>}
-  <div role="status">{shown&&<div className="report-help-answer">
-   <h3>{advice?(detailed?'AI walkthrough':'AI summary'):(detailed?'Report walkthrough':'Quick summary')}</h3><p>{shown.summary}</p>
-   {detailed&&<ol className="report-review-steps">{(advice?.steps||reportReviewSteps(area,overview,formatMoneyValue)).map((step,index)=><li key={index}>
-    <strong>{step.title}</strong><p>{step.explanation}</p>
-   </li>)}</ol>}
-   <h3>{detailed?'How to improve':'What to try next'}</h3><p>{shown.recommendation}</p>
-  </div>}</div>
+  {facts&&<div ref={output} className="report-help-output" role="region" aria-label="Report results" tabIndex={-1}>
+   <div className="report-help-facts">
+    <h3>{detailed?'Report walkthrough':'Quick summary'}</h3>
+    <p className="report-help-period">{period}</p>
+    <p className="report-summary-facts">{facts.summary}</p>
+   </div>
+   <div className="report-review-charts">
+    <ReportReviewChart title={money?'Income and spending':'Task status'} series={series} display={money?formatMoneyValue:reportCounts.format}/>
+    {detailed&&expenseCategories.length>0&&<ReportReviewChart title="Largest spending categories" scale={overview.expenses}
+     series={expenseCategories.map(([name,,total])=>[name,total,'orange'])}
+     display={total=>`${formatMoneyValue(total)} · ${reportPercent.format(total/overview.expenses)}`}/>}
+   </div>
+   {loading&&<p role="status">Getting AI suggestions…</p>}
+   {error&&<p role="alert">{error}</p>}
+   {error&&<button type="button" className="secondary" onClick={()=>getSummary(format)}>Try AI again</button>}
+   <div className="report-help-answer" aria-live="polite">
+    {detailed&&<>
+     <h3>{advice?'AI walkthrough':'Steps to review'}</h3>
+     <ol className="report-review-steps">{(advice?.steps||reportReviewSteps(area,overview,formatMoneyValue)).map((step,index)=><li key={index}>
+      <strong>{step.title}</strong><p>{step.explanation}</p>
+     </li>)}</ol>
+    </>}
+    <h3>{detailed?'How to improve':advice?'AI suggestion':'What to try next'}</h3><p>{advice?.recommendation||facts.recommendation}</p>
+   </div>
+  </div>}
  </section>;
 }
 
@@ -220,31 +243,39 @@ export function Reports({data,user,current,mode,api,onAddItem,busy}){
  const [range,setRange]=useState(()=>reportPreset('month',current));
  const area=choices.some(([id])=>id===selected)?selected:choices[0]?.[0];
  if(!area)return null;
- const {start,end}=range;
+ const selectedRange=preset==='custom'||preset==='date'?range:reportPreset(preset,current);
+ const {start,end}=selectedRange;
  const catalog=currencyCatalog(data.settings);
  const currency=data.settings?.home_currency||'USD';
  const overview=workspaceOverview(area,data,user,{start,end,current,currency});
+ const period=overview?reportDates.formatRange(new Date(start),new Date(end)):'';
+ const expenseCategories=area==='money'&&Number.isFinite(overview?.expenses)&&overview.expenses>0
+  ?buildWorkspaceReport('expenses',data,user,{start,end,current,currency}).rows.filter(([, ,total])=>total>0).slice(0,5):[];
  const display=value=>formatMoney(value,currency,catalog);
  const metrics=overview&&(area==='money'
   ?[['Income',display(overview.income)],['Spent',display(overview.expenses)],['Income minus spending',display(overview.net)]]
-  :[['Completed',overview.completed],['Still open',overview.open],['Overdue',overview.overdue]]);
- const summaryAvailable=mode==='live'&&overview?.hasActivity&&daysUntil(end,start)<=365;
+  :[['Completed',reportCounts.format(overview.completed)],['Still open',reportCounts.format(overview.open)],['Overdue',reportCounts.format(overview.overdue)]]);
+ const aiAvailable=mode==='live'&&daysUntil(end,start)<=365;
  return <div className="reports-workspace">
   <section className="card report-overview" aria-labelledby="report-overview-title">
    <div className="report-overview-header">
     <div><h2 id="report-overview-title">{area==='money'?'Money at a glance':'Tasks at a glance'}</h2>
-     {overview&&<p>{start===end?start:`${start} to ${end}`}</p>}
+     {overview&&<p>{period}</p>}
     </div>
     <label className="field"><span>Period</span><select aria-label="Overview period" value={preset} onChange={event=>{
-     const period=event.target.value;
-     setPreset(period);
-     if(period!=='custom')setRange(reportPreset(period,current));
+     const next=event.target.value;
+     setPreset(next);
+     if(next==='date')setRange(reportPreset('today',current));
+     if(next==='custom'&&overview)setRange(selectedRange);
     }}>
-     {[['week','This week'],['month','This month'],['last-month','Last month'],['custom','Custom dates']].map(([id,label])=><option key={id} value={id}>{label}</option>)}
+     {overviewPresets.map(([id,label])=><option key={id} value={id}>{label}</option>)}
     </select></label>
    </div>
    {choices.length>1&&<div className="segmented report-area" role="group" aria-label="Report area">
     {choices.map(([id,label])=><button type="button" key={id} aria-pressed={area===id} className={area===id?'selected':''} onClick={()=>setSelected(id)}>{label}</button>)}
+   </div>}
+   {preset==='date'&&<div className="report-filters">
+    <label className="field"><span>Report date</span><input type="date" value={start} onChange={event=>setRange({start:event.target.value,end:event.target.value})}/></label>
    </div>}
    {preset==='custom'&&<div className="report-filters">
     <label className="field"><span>Start date</span><input type="date" value={start} max={end} onChange={event=>setRange({...range,start:event.target.value})}/></label>
@@ -254,11 +285,13 @@ export function Reports({data,user,current,mode,api,onAddItem,busy}){
     {!overview.hasActivity&&<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>
-  {summaryAvailable&&<ReportHelp key={[area,start,end].join('|')} api={api} area={area} start={start} end={end} overview={overview} formatMoneyValue={display}/>}
+  {overview?.hasActivity&&<ReportHelp key={[area,start,end].join('|')} api={api} aiAvailable={aiAvailable} area={area} start={start} end={end}
+   period={period} overview={overview} formatMoneyValue={display} expenseCategories={expenseCategories}/>}
   <details className="card report-details">
    <summary>View detailed reports and export</summary>
    <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}
-    reports={reports.filter(report=>report.area===area)} initialRange={overview?range:reportPreset('month',current)} initialPreset={overview?preset:'month'}
+    reports={reports.filter(report=>report.area===area)} initialRange={overview?selectedRange:reportPreset('month',current)}
+    initialPreset={overview?(preset==='date'?'custom':preset):'month'}
     onAddItem={onAddItem} busy={busy}/>
   </details>
  </div>;
