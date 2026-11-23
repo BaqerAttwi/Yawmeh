@@ -184,6 +184,7 @@ export function Reports({data,user,current,onAddItem,busy}){
  const [selected,setSelected]=useState(choices[0]?.[0]);
  const [preset,setPreset]=useState('month');
  const [range,setRange]=useState(()=>reportPreset('month',current));
+ const [detailsOpened,setDetailsOpened]=useState(false);
  const area=choices.some(([id])=>id===selected)?selected:choices[0]?.[0];
  if(!area)return null;
  const selectedRange=preset==='custom'||preset==='date'?range:reportPreset(preset,current);
@@ -228,12 +229,12 @@ export function Reports({data,user,current,onAddItem,busy}){
      :<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>
-  <details className="card report-details">
+  <details className="card report-details" onToggle={event=>{if(event.currentTarget.open)setDetailsOpened(true);}}>
    <summary>View detailed reports and export</summary>
-   <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}
+   {detailsOpened&&<ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}
     reports={reports.filter(report=>report.area===area)} initialRange={overview?selectedRange:reportPreset('month',current)}
     initialPreset={overview?(preset==='date'?'custom':preset):'month'}
-    onAddItem={onAddItem} busy={busy}/>
+    onAddItem={onAddItem} busy={busy}/>}
   </details>
  </div>;
 }

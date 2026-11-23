@@ -129,7 +129,7 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
      res.set('Cache-Control',hasCookie?'private, no-store':'no-cache');
      res.vary('Cookie');
      res.vary('Sec-Fetch-Site');
-     res.type('html').send(index.replace('id="root"',`id="root" data-check-session="${checkSession}" data-google-signin="${auth.publicOptions().google}"`));
+     res.type('html').send(index.replace('id="root"',`id="root" data-check-session="${checkSession}" data-has-session-cookie="${hasCookie}" data-google-signin="${auth.publicOptions().google}"`));
    }
    app.get('/index.html',serveIndex);
    app.use(express.static(fileURLToPath(new URL('../../dist/',import.meta.url)),{

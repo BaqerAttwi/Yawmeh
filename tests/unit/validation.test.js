@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {entrySchema,schemas} from '../../server/src/validation/index.js';
-import {pendingReminders} from '../../server/src/modules/reminders/reminders.js';
+import {dueReminderRecords,pendingReminders} from '../../server/src/modules/reminders/reminders.js';
 test('money and dates are validated on the server',()=>{
  const entry={type:'income',title:'Salary',amount:700,date:'2026-10-01'};
  assert.equal(entrySchema.parse(entry).amount,700);
@@ -25,4 +25,24 @@ test('subscription reminder tiers and task reminders are deterministic and dedup
  const initial=pendingReminders(data,'2026-10-01');assert.equal(initial.length,2);assert.equal(initial[0].key,'subscription:1:2026-10-04:notice');assert.equal(initial[1].key,'task:1:2026-10-01');
  const urgent=pendingReminders(data,'2026-10-03');assert.equal(urgent[0].key,'subscription:1:2026-10-04:urgent');assert.match(urgent[0].subject,/Urgent/);
  assert.equal(pendingReminders({...data,tasks:[]},'2026-10-05').length,0);
+});
+
+test('reminders batch due records by app access across 100 accounts',async()=>{
+ const users=Array.from({length:100},(_,index)=>({id:index+1,role:'user',permissions:[index%2?'tasks':'money']}));
+ const moneyIds=users.filter(user=>user.id%2).map(user=>user.id);
+ const taskIds=users.filter(user=>user.id%2===0).map(user=>user.id);
+ const subscription={id:3,user_id:1,active:1,renewal:'2026-10-02'};
+ const task={id:4,user_id:2,completed:0,reminder:'2026-10-01'};
+ const queries=[];
+ const db={async query(sql,params){queries.push({sql,params});return [sql.includes('FROM subscriptions')?[subscription]:[task]];}};
+ const records=await dueReminderRecords(db,users,'2026-10-01');
+ assert.equal(queries.length,2);
+ assert.match(queries[0].sql,/active=1 AND renewal BETWEEN/);
+ assert.match(queries[1].sql,/completed=0 AND cancelled=0 AND reminder<=/);
+ assert.deepEqual(queries.map(query=>query.params),[[moneyIds,'2026-10-01','2026-10-04'],[taskIds,'2026-10-01']]);
+ assert.deepEqual(records.get(1),{subscriptions:[subscription],tasks:[]});
+ assert.deepEqual(records.get(2),{subscriptions:[],tasks:[task]});
+ assert.deepEqual(records.get(100),{subscriptions:[],tasks:[]});
+ await dueReminderRecords(db,[],'2026-10-01');
+ assert.equal(queries.length,2);
 });

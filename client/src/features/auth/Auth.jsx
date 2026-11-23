@@ -23,8 +23,8 @@ export async function request(path, method='GET', body, {timeoutMs=20000}={}) {
   }finally{clearTimeout(timeout);}
 }
 
-export function AuthGate({children}) {
-  const {checkSession,googleSignin}=document.getElementById('root').dataset;
+export function AuthGate({children,prepareWorkspace}) {
+  const {checkSession,hasSessionCookie,googleSignin}=document.getElementById('root').dataset;
   const [authResult]=useState(()=>{const value=new URLSearchParams(window.location.hash.slice(1)).get('auth');if(value)window.history.replaceState(null,'',window.location.pathname+window.location.search);return value;});
   const [signup,setSignup]=useState(false),[inactive,setInactive]=useState(['inactive','verified','verification_failed'].includes(authResult)),[created,setCreated]=useState(false),[pendingEmail,setPendingEmail]=useState(''),[google,setGoogle]=useState(googleSignin==='true');
   const [resetToken]=useState(()=>{const token=new URLSearchParams(window.location.hash.slice(1)).get('reset');if(token)window.history.replaceState(null,'',window.location.pathname+window.location.search);return token;});
@@ -34,11 +34,13 @@ export function AuthGate({children}) {
   useEffect(()=>{
     if(!restoreSession)return;
     let active=true;
-    request('/data').then(data=>{if(active)setSession({user:data.user,mode:'live',data});})
+    const dataRequest=request('/data');
+    if(hasSessionCookie==='true')prepareWorkspace();
+    dataRequest.then(data=>{if(active)setSession({user:data.user,mode:'live',data});})
       .catch(error=>{if(active&&error.code==='ACCOUNT_INACTIVE')setInactive(true);else if(active&&error.status!==401)setError(error.message);})
       .finally(()=>{if(active)setLoading(false);});
     return()=>{active=false;};
-  },[restoreSession]);
+  },[restoreSession,hasSessionCookie,prepareWorkspace]);
   useEffect(()=>{
     if(googleSignin!==undefined||loading||session||inactive||recovery)return;
     let active=true;
@@ -59,7 +61,9 @@ export function AuthGate({children}) {
       credentials.remember=credentials.remember==='on';
       await request('/auth/login','POST',credentials);
       setLoading(true);
-      const data=await request('/data');
+      const dataRequest=request('/data');
+      prepareWorkspace();
+      const data=await dataRequest;
       setSession({user:data.user,data,mode:'live'});
     }catch(e){if(e.code==='ACCOUNT_INACTIVE')setInactive(true);else setError(e.message);}
     finally{setLoading(false);setBusy(false);}

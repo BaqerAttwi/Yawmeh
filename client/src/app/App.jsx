@@ -16,7 +16,6 @@ import {Sessions} from '../features/settings/Sessions.jsx';
 import {InstallApp} from '../features/settings/InstallApp.jsx';
 import {PasswordForm} from '../features/auth/PasswordForm.jsx';
 import {CompanionChat} from '../features/assistant/CompanionChat.jsx';
-import {Reports} from '../features/reports/Reports.jsx';
 import {SavedItems} from '../features/money/SavedItems.jsx';
 import {CompanionChangeReview} from '../features/assistant/CompanionChangeReview.jsx';
 import {canReviewChange,changeCandidates,changeTable,companionChangeSchema} from '../../../shared/companion-changes.js';
@@ -33,14 +32,13 @@ import '../styles/daily.css';
 import {BudgetAlerts,DayCheckIn,Forecasts,SubscriptionReview,History} from '../features/insights/Insights.jsx';
 import {checkVoid} from '../../../shared/insights.js';
 import '../styles/insights.css';
-import React,{useState,useEffect,useRef,useMemo} from 'react';
+import React,{lazy,Suspense,useState,useEffect,useRef,useMemo} from 'react';
 
 import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronDown,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,TrendingUp,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Send,Sun,Grid3X3,Leaf,ExternalLink,Users,Play,Compass,Menu,FileChartColumn} from 'lucide-react';
 import {balances,cents,today,periodSummary,checkEntry,nextRenewal,daysUntil,DEFAULT_TASK_CATEGORIES,taskCategory} from '../../../shared/domain.js';
 import {demoData} from '../features/demo/data.js';
 import {entrySchema,expenseItem,schemas,taskCategorySchema} from '../../../shared/validation.js';
 import {request,demoAdmin} from '../features/auth/Auth.jsx';
-import {UserManager} from '../features/users/UserManager.jsx';
 import {DemoTrailer} from '../features/demo/DemoTrailer.jsx';
 import {hasAccess,visibleData,APP_LABELS} from '../../../shared/access.js';
 import '../styles/styles.css';
@@ -51,6 +49,9 @@ import {PlanningTaskRow,SavingsGoals,WeeklyReview,PlanningCalendar} from '../fea
 import {completeDemoTask,checkGoalMove,checkUnassignedWithdrawal,PlannerError} from '../../../shared/planner.js';
 import {subtaskSchema} from '../../../shared/validation.js';
 import '../styles/planning.css';
+const Reports=lazy(()=>import('../features/reports/Reports.jsx').then(module=>({default:module.Reports})));
+const UserManager=lazy(()=>import('../features/users/UserManager.jsx').then(module=>({default:module.UserManager})));
+const pageLoading=<p className="muted" role="status">Loading…</p>;
 const money=formatMoney;
 const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const categories=['Food & drinks','Groceries','Transport','Shopping','Health','Learning','Entertainment','Bills','Work','Freelance','Savings','Other'];
@@ -76,9 +77,17 @@ export default function App({session}){
  const [page,setPage]=useState('overview'),[data,setData]=useState(()=>{if(mode==='live')return visibleData(session.data,user);let saved;try{saved=JSON.parse(localStorage.getItem(demoKey));}catch{}return visibleData(saved||{...demoData(),settings:{name:user.name,email:''}},user);}),[launcher,setLauncher]=useState(false),[modal,setModal]=useState(null),[lastSaved,setLastSaved]=useState(null),[toast,setToast]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[filter,setFilter]=useState(can('money')?(can('tasks')?'all':'money'):'tasks'),[tab,setTab]=useState('transactions'),[query,setQuery]=useState(''),[taskFilter,setTaskFilter]=useState('all'),[categoryFilter,setCategoryFilter]=useState('');
  const mutationBusy=useRef(false),refreshLock=useRef(false);const [needsRefresh,setNeedsRefresh]=useState(false),[,tickClock]=useState(0);
  useEffect(()=>{const tick=()=>tickClock(n=>n+1);const id=setInterval(tick,30000);window.addEventListener('focus',tick);return()=>{clearInterval(id);window.removeEventListener('focus',tick);};},[]);
- const taskCategories=[...new Set([...DEFAULT_TASK_CATEGORIES,...data.tasks.map(taskCategory)])];
- const filteredTasks=data.tasks.filter(t=>(categoryFilter===''||taskCategory(t)===categoryFilter)&&(taskFilter==='all'||(taskFilter==='today'?t.due===today():taskFilter==='completed'?!!t.completed:!t.completed))&&(t.title+' '+taskCategory(t)).toLowerCase().includes(query.toLowerCase())).sort((a,b)=>a.completed-b.completed||a.due.localeCompare(b.due));
  const current=today();const [start,setStart]=useState(current.slice(0,7)+'-01'),[end,setEnd]=useState(new Date(Number(current.slice(0,4)),Number(current.slice(5,7)),0,12).toLocaleDateString('en-CA'));
+ const taskCategories=useMemo(()=>[...new Set([...DEFAULT_TASK_CATEGORIES,...data.tasks.map(taskCategory)])],[data.tasks]);
+ const filteredTasks=useMemo(()=>{
+  if(page!=='tasks')return [];
+  const search=query.toLowerCase();
+  return data.tasks.filter(task=>{
+   const category=taskCategory(task);
+   return (!categoryFilter||category===categoryFilter)&&(taskFilter==='all'||(taskFilter==='today'?task.due===current:taskFilter==='completed'?!!task.completed:!task.completed))
+    &&(task.title+' '+category).toLowerCase().includes(search);
+  }).sort((a,b)=>a.completed-b.completed||a.due.localeCompare(b.due));
+ },[page,data.tasks,categoryFilter,taskFilter,current,query]);
  useEffect(()=>{if(mode==='demo'){try{localStorage.setItem(demoKey,JSON.stringify(data));}catch{setError('This browser could not save the demo records. Export your data before closing the page.');}}},[data,mode]);
  useEffect(()=>{window.scrollTo(0,0);},[page]);
  useEffect(()=>{if(categoryFilter&&!taskCategories.includes(categoryFilter))setCategoryFilter('');},[data.tasks,categoryFilter]);
@@ -322,7 +331,7 @@ export default function App({session}){
  {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
  {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
  {page==='overview'&&overviewTab==='review'&&<WeeklyReview data={data} user={user}/>}
- {page==='reports'&&allowed('reports')&&<Reports data={data} user={user} current={current} busy={busy} onAddItem={category=>open('item',{category})}/>}
+ {page==='reports'&&allowed('reports')&&<Suspense fallback={pageLoading}><Reports data={data} user={user} current={current} busy={busy} onAddItem={category=>open('item',{category})}/></Suspense>}
  {page==='overview'&&overviewTab==='calendar'&&<PlanningCalendar data={data} user={user} onOpen={event=>{if(event.kind==='task'){go('tasks');setTaskFilter('all');setCategoryFilter('');setQuery(data.tasks.find(t=>t.id===event.sourceId)?.title||event.title);}else{go('money');setTab('subscriptions');}}}/>}
  {((page==='overview'&&overviewTab==='dashboard')||page==='money')&&<div className="filterbar"><div className="segmented">{(page==='overview'?['all','money','tasks'].filter(f=>f==='all'?(can('money')&&can('tasks')):can(f)):['transactions','savings','goals','items','budgets','subscriptions']).map(t=><button key={t} className={(page==='overview'?filter:tab)===t?'selected':''} onClick={()=>page==='overview'?setFilter(t):setTab(t)}>{t==='all'?'All overview':t[0].toUpperCase()+t.slice(1)}</button>)}</div><div className="date-range"><CalendarDays size={15}/><input aria-label="Start date" type="date" value={start} max={end} onChange={e=>setStart(e.target.value)}/><span>–</span><input aria-label="End date" type="date" min={start} value={end} onChange={e=>setEnd(e.target.value)}/></div></div>}
  {page==='overview'&&overviewTab==='dashboard'&&<>{can('money')&&filter!=='tasks'&&<CurrencyReport data={data} start={start} end={end}/>}<p className="form-hint">Budget comparisons below use approximate USD totals at saved rates.</p>
@@ -352,7 +361,7 @@ export default function App({session}){
  
  {page==='settings'&&<>{can('money')&&<Currencies settings={data.settings} change={change} busy={busy}/>}<InstallApp/><Sessions api={api} mode={mode}/>{user.role==='admin'&&<SetupStatus mode={mode} api={api}/>}<div className="settings-grid"><section data-tour="profile-settings" className="card"><CardTitle title="Your personal space" subtitle="Your name and where reminders should arrive."/><form className="settings-form" key={mode} onSubmit={e=>{e.preventDefault();const parsed=schemas.settings.safeParse(Object.fromEntries(new FormData(e.target)));if(!parsed.success){setError(parsed.error.issues[0].message);return;}const value=parsed.data;change({path:'/settings',method:'PUT',value,demo:d=>{d.settings={...d.settings,...value};}});}}><Field label="Your name" name="name" defaultValue={data.settings.name} required maxLength={100}/><Field label="Reminder email" name="email" type="email" defaultValue={data.settings.email} placeholder="you@example.com"/><div className="field-pair"><Field label="Quiet hours start (optional)" name="quiet_start" type="time" defaultValue={data.settings.quiet_start||''}/><Field label="Quiet hours end (optional)" name="quiet_end" type="time" defaultValue={data.settings.quiet_end||''}/></div><p className="form-hint">Email reminders wait until quiet hours end, in the server timezone (default Asia/Beirut). Clear both times to disable. Overnight ranges are supported.</p><div className="info-note"><Mail size={17}/>Reminders for your allowed apps use this address. The server must stay running.</div><button className="primary" disabled={busy}>Save preferences</button></form></section><section className="card"><CardTitle title="Your account & access" subtitle={mode==='demo'?'You’re using sample data in a demo workspace.':'Your records are private to your account.'}/><div className="settings-form"><div className="connection-line"><span>Signed in as</span><strong>{user.email}</strong></div><div className="connection-line"><span>Role</span><span className="badge low">{user.role==='admin'?'Owner':'Family member'}</span></div><div className="access-chips">{user.permissions.filter(p=>p!=='assistant').map(p=><span key={p}><Check size={11}/>{APP_LABELS[p]}</span>)}</div><p className="muted">{user.role==='admin'?'Manage user accounts and app permissions in Users & access.':'To change your access or reset a password, contact your administrator.'}</p><button className="secondary" onClick={signOut}><LogOut size={15}/>Sign out</button><hr/><PasswordForm kind="change" request={api} disabled={mode!=='live'} onDone={signOut}/><hr/><button className="secondary" onClick={exportData}><Download size={15}/>Export my data (JSON)</button><p className="muted">Only your records from apps you can access are included.</p></div></section></div></>}
 
- {mode==='demo'&&(page==='overview'||page==='tasks'||page==='money')&&<DemoGuides can={app=>app===page||page==='overview'&&can(app)}/>}{page==='users'&&user.role==='admin'&&<UserManager mode={mode} api={api} onPreview={onPreview}/>}
+ {mode==='demo'&&(page==='overview'||page==='tasks'||page==='money')&&<DemoGuides can={app=>app===page||page==='overview'&&can(app)}/>}{page==='users'&&user.role==='admin'&&<Suspense fallback={pageLoading}><UserManager mode={mode} api={api} onPreview={onPreview}/></Suspense>}
  <footer className="page-footer"><span><Leaf size={13}/> A little more intentional, every day.</span><span>Made for your everyday.</span></footer>
  </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal data={data} modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
 }
