@@ -1,9 +1,7 @@
-import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus,Sparkles} from 'lucide-react';
+import React,{useMemo,useState} from 'react';
+import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus} from 'lucide-react';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
 import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
-import {daysUntil} from '../../../../shared/domain.js';
-import {companionRequestTimeoutMs} from '../../../../shared/companion-status.js';
 import './reports.css';
 
 const presets=[
@@ -129,16 +127,15 @@ function ReportDetails({data,user,current,reports,initialRange,initialPreset,onA
  </div>;
 }
 
-function quickReportHelp(area,overview,display,topCategory){
+function summarizeReport(area,overview,display,topCategory){
  if(area==='tasks')return {
   summary:`Completed in this period: ${reportCounts.format(overview.completed)}. Still open and due in this period: ${reportCounts.format(overview.open)}, including ${reportCounts.format(overview.overdue)} overdue.`,
   recommendation:overview.overdue?'Review one overdue task and decide whether to finish it or move it to a realistic date.':overview.open?'Pick one open task to tackle next and give it a realistic time estimate.':'Review what helped you finish your tasks and repeat it in your next plan.',
  };
- const {income,expenses,net}=overview;
- const totals=`Income: ${display(income)}. Spending: ${display(expenses)}.`;
+ const {expenses,net}=overview;
  const difference=!Number.isFinite(net)?'A missing saved exchange rate keeps the app from calculating the difference.':net>0?`Income was ${display(net)} higher than spending.`:net<0?`Spending was ${display(-net)} higher than income.`:'Income and spending were equal.';
  const largest=topCategory?` ${topCategory[0]} was your largest spending category at ${display(topCategory[2])} (${reportPercent.format(topCategory[2]/expenses)} of spending).`:'';
- return {summary:`${totals} ${difference}${largest}`,recommendation:topCategory?`Review your ${topCategory[0]} purchases and pick one optional cost to reduce next period.`:
+ return {summary:difference+largest,recommendation:topCategory?`Review your ${topCategory[0]} purchases and pick one optional cost to reduce next period.`:
   !Number.isFinite(net)?'Check the original amounts in Balances by currency before setting a spending target.':'Keep recording expenses as they happen so your next report shows where your money went.'};
 }
 
@@ -153,89 +150,35 @@ function ReportReviewChart({title,series,display,scale}){
  </figure>;
 }
 
-function reportReviewSteps(area,overview,formatMoneyValue){
- const {income,expenses,net,completed,open,overdue}=overview;
- return area==='money'?[
-  {title:'Compare income and spending',explanation:Number.isFinite(net)?
-   `You recorded ${formatMoneyValue(income)} in income and ${formatMoneyValue(expenses)} in spending for this period.`:
-   'Check Balances by currency to see the original amounts for transactions with missing conversion rates.'},
-  {title:'Decide what to adjust',explanation:expenses>0?
-   'Open Expenses by category under detailed reports. Start with a category you can change and pick one purchase to reduce or skip next period.':
-   'Check whether all expenses are recorded before setting a spending target for the next period.'},
- ]:[
-  {title:'Read the task counts',explanation:`You completed ${completed} tasks in this period. ${open} tasks due in the period are still open.`},
-  {title:'Check what needs attention',explanation:overdue?
-   `${overdue} of the open tasks are overdue. Pick one to finish next, then give any remaining overdue tasks realistic dates.`:
-   open?'Choose the next task by due date and set aside enough time to finish it.':'Review what helped you complete your work and carry it into your next plan.'},
- ];
-}
-
-function ReportHelp({api,aiAvailable,area,start,end,period,overview,formatMoneyValue,expenseCategories}){
- const [format,setFormat]=useState(null);
- const [responses,setResponses]=useState({});
- const output=useRef(null);
- useEffect(()=>{
-  if(!format)return;
-  output.current?.focus({preventScroll:true});
-  output.current?.scrollIntoView({block:'start',behavior:'instant'});
- },[format]);
- async function getSummary(selected){
-  setFormat(selected);
-  if(!aiAvailable||responses[selected]?.loading||responses[selected]?.advice)return;
-  setResponses(previous=>({...previous,[selected]:{loading:true}}));
-  try{
-   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,reportFormat:selected,language:'en',avatar:'sage',start,end},{timeoutMs:companionRequestTimeoutMs});
-   if(!result.summary||!result.recommendation||(selected==='detailed'&&!Array.isArray(result.steps)))throw new Error('Could not read the AI summary. Try again.');
-   setResponses(previous=>({...previous,[selected]:{advice:result}}));
-  }catch(error){
-   const message=error.code==='provider_busy'?'Gemini is temporarily busy. The guidance below is based on your report.':
-    ['timeout','request_timeout'].includes(error.code)?'The AI summary timed out. You can use the report guidance below or try again.':error.message;
-   setResponses(previous=>({...previous,[selected]:{error:message}}));
-  }
- }
- const {advice,loading,error}=responses[format]||{};
- const facts=format?quickReportHelp(area,overview,formatMoneyValue,expenseCategories[0]):null;
- const detailed=format==='detailed';
+function ReportSummary({area,overview,display,expenseCategories}){
+ const {summary,recommendation}=summarizeReport(area,overview,display,expenseCategories[0]);
  const money=area==='money';
  const series=money
   ?[['Income',overview.income,'green'],['Spending',overview.expenses,'orange']]
   :[['Completed',overview.completed,'green'],['Open and on schedule',overview.open-overview.overdue,'blue'],['Overdue',overview.overdue,'orange']];
- return <section className="card report-help" aria-labelledby="report-help-title">
-  <h2 id="report-help-title">Report summary</h2>
-  {aiAvailable&&<p>Google receives general patterns from this report to suggest next steps.</p>}
-  <div className="report-help-choices" role="group" aria-label="Summary format">
-   <button type="button" className="secondary" aria-pressed={format==='short'} onClick={()=>getSummary('short')}><Sparkles size={16} aria-hidden="true"/>Short summary</button>
-   <button type="button" className="secondary" aria-pressed={detailed} onClick={()=>getSummary('detailed')}><FileChartColumn size={16} aria-hidden="true"/>Step-by-step review</button>
-  </div>
-  {facts&&<div ref={output} className="report-help-output" role="region" aria-label="Report results" tabIndex={-1}>
-   <div className="report-help-facts">
-    <h3>{detailed?'Report walkthrough':'Quick summary'}</h3>
-    <p className="report-help-period">{period}</p>
-    <p className="report-summary-facts">{facts.summary}</p>
-   </div>
-   <div className="report-review-charts">
-    <ReportReviewChart title={money?'Income and spending':'Task status'} series={series} display={money?formatMoneyValue:reportCounts.format}/>
-    {detailed&&expenseCategories.length>0&&<ReportReviewChart title="Largest spending categories" scale={overview.expenses}
+ return <div className="report-summary">
+  <p className="report-summary-facts">{summary}</p>
+  <ReportReviewChart title={money?'Income and spending':'Task status'} series={series} display={money?display:reportCounts.format}/>
+  <details className="report-breakdown">
+   <summary>Step-by-step review</summary>
+   <div className="report-breakdown-body">
+    <ol className="report-review-steps">{money?<>
+     <li><strong>Add recorded income and expenses separately.</strong> The totals use transactions in the selected dates through today. Currency conversions use the rates saved with each transaction.</li>
+     <li><strong>Subtract spending from income.</strong> This shows the difference for the period. Savings transfers are excluded.</li>
+    </>:<>
+     <li><strong>Count completions by finish date.</strong> A task counts if you finished it during the selected period.</li>
+     <li><strong>Count open tasks by due date.</strong> A task counts as overdue if it is still open and its due date has passed.</li>
+    </>}</ol>
+    {expenseCategories.length>0&&<ReportReviewChart title="Largest spending categories" scale={overview.expenses}
      series={expenseCategories.map(([name,,total])=>[name,total,'orange'])}
-     display={total=>`${formatMoneyValue(total)} · ${reportPercent.format(total/overview.expenses)}`}/>}
+     display={total=>`${display(total)} · ${reportPercent.format(total/overview.expenses)}`}/>}
+    <div className="report-next-step"><h3>How to improve</h3><p>{recommendation}</p></div>
    </div>
-   {loading&&<p role="status">Getting AI suggestions…</p>}
-   {error&&<p role="alert">{error}</p>}
-   {error&&<button type="button" className="secondary" onClick={()=>getSummary(format)}>Try AI again</button>}
-   <div className="report-help-answer" aria-live="polite">
-    {detailed&&<>
-     <h3>{advice?'AI walkthrough':'Steps to review'}</h3>
-     <ol className="report-review-steps">{(advice?.steps||reportReviewSteps(area,overview,formatMoneyValue)).map((step,index)=><li key={index}>
-      <strong>{step.title}</strong><p>{step.explanation}</p>
-     </li>)}</ol>
-    </>}
-    <h3>{detailed?'How to improve':advice?'AI suggestion':'What to try next'}</h3><p>{advice?.recommendation||facts.recommendation}</p>
-   </div>
-  </div>}
- </section>;
+  </details>
+ </div>;
 }
 
-export function Reports({data,user,current,mode,api,onAddItem,busy}){
+export function Reports({data,user,current,onAddItem,busy}){
  const reports=reportsFor(user);
  const choices=areas.filter(([id])=>reports.some(report=>report.area===id));
  const [selected,setSelected]=useState(choices[0]?.[0]);
@@ -255,7 +198,6 @@ export function Reports({data,user,current,mode,api,onAddItem,busy}){
  const metrics=overview&&(area==='money'
   ?[['Income',display(overview.income)],['Spent',display(overview.expenses)],['Income minus spending',display(overview.net)]]
   :[['Completed',reportCounts.format(overview.completed)],['Still open',reportCounts.format(overview.open)],['Overdue',reportCounts.format(overview.overdue)]]);
- const aiAvailable=mode==='live'&&daysUntil(end,start)<=365;
  return <div className="reports-workspace">
   <section className="card report-overview" aria-labelledby="report-overview-title">
    <div className="report-overview-header">
@@ -282,11 +224,10 @@ export function Reports({data,user,current,mode,api,onAddItem,busy}){
     <label className="field"><span>End date</span><input type="date" value={end} min={start} onChange={event=>setRange({...range,end:event.target.value})}/></label>
    </div>}
    {overview?<><dl className="report-metrics">{metrics.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-    {!overview.hasActivity&&<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
+    {overview.hasActivity?<ReportSummary key={area} area={area} overview={overview} display={display} expenseCategories={expenseCategories}/>
+     :<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>
-  {overview?.hasActivity&&<ReportHelp key={[area,start,end].join('|')} api={api} aiAvailable={aiAvailable} area={area} start={start} end={end}
-   period={period} overview={overview} formatMoneyValue={display} expenseCategories={expenseCategories}/>}
   <details className="card report-details">
    <summary>View detailed reports and export</summary>
    <ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}

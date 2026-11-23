@@ -1,8 +1,8 @@
 .reports-workspace{display:grid;gap:16px;max-width:1060px}
-.report-overview,.report-help,.report-details{min-width:0}
+.report-overview,.report-details{min-width:0}
 .report-overview-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 22px 12px}
-.report-overview h2,.report-help h2{font-size:20px;color:#254533}
-.report-overview-header p,.report-help p{color:#4b5e51;font-size:13px;line-height:1.55;margin-top:5px}
+.report-overview h2{font-size:20px;color:#254533}
+.report-overview-header p{color:#4b5e51;font-size:13px;line-height:1.55;margin-top:5px}
 .report-overview-header .field{margin:0;min-width:0}
 .report-overview-header select{min-height:42px;max-width:100%}
 .report-area{margin:0 22px 14px;width:fit-content}
@@ -10,20 +10,14 @@
 .report-metrics>div{background:#f3f8f3;border-radius:10px;padding:14px;min-width:0}
 .report-metrics dt{font-size:13px;color:#4b5e51}
 .report-metrics dd{margin:5px 0 0;font-size:clamp(17px,2vw,25px);font-weight:650;color:#254533;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.report-help{padding:16px 22px}
-.report-help button{margin-top:10px}
-.report-help-choices{display:flex;flex-wrap:wrap;gap:8px}
-.report-help-choices button{min-height:44px}
-.report-help-choices button[aria-pressed=true]{background:#e1efe3;border-color:#91af98;color:#254533}
-.report-help-output{margin-top:16px;border-top:1px solid #e5ebe6;padding-top:14px;scroll-margin-top:88px}
-.report-help-output:focus-visible{outline:2px solid #91af98;outline-offset:4px}
-.report-help-facts h3{font-size:17px;color:#254533}
-.report-help-facts .report-help-period{margin-top:2px;font-size:12px;font-variant-numeric:tabular-nums}
-.report-help-facts .report-summary-facts{margin-top:9px;font-size:14px;overflow-wrap:anywhere}
-.report-help-answer{margin-top:13px;padding:12px 14px;background:#edf5ed;border-radius:10px}
-.report-help-answer h3{font-size:13px;color:#254533}
-.report-help-answer p+h3{margin-top:12px}
-.report-details>summary{cursor:pointer;min-height:44px;padding:14px 22px;font-weight:650;color:#365541}
+.report-summary{display:grid;gap:12px;padding:0 22px 16px}
+.report-summary-facts,.report-next-step p{font-size:14px;line-height:1.55;color:#4b5e51;overflow-wrap:anywhere}
+.report-breakdown{border-top:1px solid #e5ebe6}
+.report-breakdown>summary,.report-details>summary{cursor:pointer;min-height:44px;padding-block:14px;font-weight:650;color:#365541}
+.report-details>summary{padding-inline:22px}
+.report-breakdown-body{display:grid;gap:12px}
+.report-next-step{padding:12px 14px;background:#edf5ed;border-radius:10px}
+.report-next-step h3{margin-bottom:4px;font-size:13px;color:#254533}
 .report-detail-body{padding:0 14px 14px;min-width:0}
 .report-detail-body>.field{max-width:300px}
 .report-detail-body>.field select{min-height:42px}
@@ -49,7 +43,6 @@
 .report-chart-row [role=img]{height:7px;background:#e8eee9;border-radius:4px;overflow:hidden}
 .report-chart-row [role=img] span{display:block;height:100%;background:#48775f}
 .report-chart-row [role=img]+[role=img] span{background:#a35e49}
-.report-review-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));align-items:start;gap:10px;margin:12px 0}
 .report-review-chart.report-chart{margin:0;min-width:0}
 .report-review-chart dl{display:grid;gap:11px;margin:10px 0 0}
 .report-review-value{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;overflow-wrap:anywhere}
@@ -58,7 +51,7 @@
 .report-review-track span{display:block;height:100%;background:#48775f}
 .report-review-track span[data-tone=blue]{background:#4a719e}
 .report-review-track span[data-tone=orange]{background:#a35e49}
-.report-review-steps{display:grid;gap:9px;padding-inline-start:21px;margin:12px 0;color:#365541;font-size:13px}
+.report-review-steps{display:grid;gap:9px;padding-inline-start:21px;margin:0;color:#365541;font-size:13px;line-height:1.55}
 .report-empty{padding:28px 16px;text-align:center;color:#4b5e51;font-size:13px}
 .report-empty svg{margin-bottom:8px;color:#567763}
 .report-table-wrap{overflow-x:auto;max-width:100%}
@@ -90,5 +83,5 @@
  .report-area{margin-inline:14px}
  .report-metrics{grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr));gap:8px;padding:8px 14px 14px}
  .report-metrics>div{padding:10px}
- .report-help,.report-details>summary{padding-inline:14px}
+ .report-summary,.report-details>summary{padding-inline:14px}
 }

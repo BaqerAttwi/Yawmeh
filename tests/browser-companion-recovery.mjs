@@ -15,24 +15,14 @@ try{
  for(const width of [375,1440]){
   const avatar='sage';
   const page=await browser.newPage({viewport:{width,height:900}}),calls=[],writes=[];
-  let releaseReport,markReportReceived,reportAttempts=0;
-  const reportReceived=new Promise(resolve=>{markReportReceived=resolve;});
-  let releaseTaskShort,markTaskShortReceived;
-  const taskShortReceived=new Promise(resolve=>{markTaskShortReceived=resolve;});
   await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:`http://127.0.0.1:${server.address().port}`,httpOnly:true,sameSite:'Strict'}]);
   const user={id:12345,name:'Test',role:'user',permissions:['tasks','money'],active:true};
-  const current=today(),yearStart=current.slice(0,4)+'-01-01',priorDate=(Number(current.slice(0,4))-1)+'-12-31';
+  const current=today(),priorDate=(Number(current.slice(0,4))-1)+'-12-31';
   const data=demoData();
   data.entries.push({id:12345,type:'expense',title:'Prior year taxi',category:'Transport',date:priorDate,amount:20});
   await page.addInitScript(()=>{
    localStorage.setItem('daywell-companion:live:12345','pip');
    localStorage.setItem('yawmeh-start-here:v1:live:12345','done');
-   const setTimeout=window.setTimeout;
-   window.requestDeadlines=[];
-   window.setTimeout=(callback,delay,...args)=>{
-    if(delay===20000||delay===45000)window.requestDeadlines.push(delay);
-    return setTimeout(callback,delay,...args);
-   };
   });
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',async route=>{
@@ -42,22 +32,6 @@ try{
    if(path==='/api/companion/ai')return route.fulfill({json:{available:true,reason:null,model:'gemini-3.8-flash'}});
    if(path==='/api/companion/chat'){
     calls.push(request.postDataJSON());
-    if(request.postDataJSON().reportArea){
-     if(request.postDataJSON().reportArea==='tasks'&&request.postDataJSON().reportFormat==='short'){
-      await new Promise(resolve=>{releaseTaskShort=resolve;markTaskShortReceived();});
-      return route.fulfill({status:503,json:{code:'timeout'}});
-     }
-     if(++reportAttempts===1){
-      await new Promise(resolve=>{releaseReport=resolve;markReportReceived();});
-      return route.fulfill({status:503,json:{code:'timeout'}});
-     }
-     if(reportAttempts===3)return route.fulfill({status:503,json:{code:'provider_busy'}});
-     if(request.postDataJSON().reportFormat==='detailed')return route.fulfill({json:{
-      summary:'Compare the numbers for this period.',recommendation:'Review one regular cost.',
-      steps:[{title:'Review spending',explanation:'Use the bars to compare the totals.'},{title:'Choose a next action',explanation:'Check which costs were optional.'}],
-     }});
-     return route.fulfill({json:{summary:'The selected period has money activity.',recommendation:'Review a discretionary cost.'}});
-    }
     return calls.length===1?route.fulfill({status:503,json:{code:'provider_quota'}}):route.fulfill({json:{answer:'Recorded report for the selected dates.',recommendation:'Review one optional cost before planning next week.',language:'en',engine:'gemini'}});
 
    }
@@ -98,47 +72,25 @@ try{
   await panel.getByRole('button',{name:'Close companion chat',exact:true}).click();
   if(await page.locator('.app-shell').evaluate(el=>el.classList.contains('sidebar-closed')))await page.locator('.sidebar-toggle').click();
   await page.locator('.sidebar').getByRole('button',{name:'Reports',exact:true}).click();
-  await page.evaluate(()=>{window.requestDeadlines=[];});
-  await page.getByRole('button',{name:'Short summary',exact:true}).click();
-  await page.getByRole('heading',{name:'Quick summary'}).waitFor();
   const moneyFacts=page.locator('.report-summary-facts');
   const chart=page.getByRole('figure',{name:'Income and spending chart'});
   await chart.waitFor();
-  assert.match(await moneyFacts.innerText(),/Income: \$2,150\.00\. Spending: \$215\.00\. Income was \$1,935\.00 higher/);
-  assert.ok((await page.evaluate(()=>window.requestDeadlines)).includes(45000));
-  await reportReceived;
-  assert.equal(reportAttempts,1);
-  releaseReport();
-  await page.getByRole('alert').filter({hasText:'The AI summary timed out'}).waitFor();
-  await page.getByRole('heading',{name:'Quick summary'}).waitFor();
-  await page.getByRole('button',{name:'Try AI again'}).click();
-  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
   assert.match(await moneyFacts.innerText(),/\$1,935\.00 higher/);
-  await chart.waitFor();
-  await page.getByRole('button',{name:'Step-by-step review'}).click();
-  await chart.waitFor();
+  assert.deepEqual(await chart.locator('dd').allTextContents(),['$2,150.00','$215.00']);
   const categories=page.getByRole('figure',{name:'Largest spending categories chart'});
+  const review=page.getByText('Step-by-step review',{exact:true});
+  assert.equal(await categories.isVisible(),false);
+  await review.focus();
+  await page.keyboard.press('Enter');
   await categories.waitFor();
   assert.equal(await categories.locator('dt').first().innerText(),'Shopping');
   assert.equal(await categories.locator('dd').first().innerText(),'$89.00 · 41.4%');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
   const metrics=await page.locator('.report-metrics dd').allTextContents();
   assert.deepEqual(await chart.locator('dd').allTextContents(),metrics.slice(0,2));
-  await page.getByRole('alert').filter({hasText:'Gemini is temporarily busy'}).waitFor();
-  await page.getByRole('heading',{name:'Report walkthrough'}).waitFor();
-  assert.match(await page.locator('.report-review-steps').innerText(),/You recorded/);
-  await page.getByRole('heading',{name:'How to improve'}).waitFor();
-  await page.getByRole('button',{name:'Try AI again'}).click();
-  await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
-  assert.match(await moneyFacts.innerText(),/\$1,935\.00 higher/);
   assert.equal(await page.locator('.report-review-steps li').count(),2);
   await page.getByRole('heading',{name:'How to improve'}).waitFor();
-  await page.getByText('Review one regular cost.',{exact:true}).waitFor();
-  assert.equal(calls.at(-1).reportFormat,'detailed');
-  await page.getByRole('button',{name:'Short summary',exact:true}).click();
-  await chart.waitFor();
-  assert.equal(await categories.count(),0);
-  assert.equal(reportAttempts,4,'switching to a completed review reuses its result');
+  await page.getByText(/Review your Shopping purchases/).waitFor();
   await page.getByText('View detailed reports and export',{exact:true}).click();
   await page.getByRole('combobox',{name:'Detailed report'}).selectOption('expenses');
   const categoryAction=page.getByRole('region',{name:'Expenses by category table'}).getByRole('button',{name:/Add item to/}).first();
@@ -149,50 +101,28 @@ try{
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
   await page.getByRole('group',{name:'Report area'}).getByRole('button',{name:'Tasks',exact:true}).click();
-  await page.getByRole('button',{name:'Short summary',exact:true}).click();
-  await taskShortReceived;
-  await page.getByRole('button',{name:'Step-by-step review'}).click();
   const taskChart=page.getByRole('figure',{name:'Task status chart'});
   await taskChart.waitFor();
-  await page.waitForFunction(()=>{
-   const output=document.querySelector('.report-help-output');
-   const top=output?.getBoundingClientRect().top;
-   return document.activeElement===output&&top>=0&&top<innerHeight;
-  });
   const [completed,open,overdue]=(await page.locator('.report-metrics dd').allTextContents()).map(Number);
   assert.deepEqual((await taskChart.locator('dd').allTextContents()).map(Number),[completed,open-overdue,overdue]);
-  await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
-  assert.equal(calls.at(-1).reportArea,'tasks');
-  await page.getByRole('button',{name:'Short summary',exact:true}).click();
-  await page.getByRole('status').filter({hasText:'Getting AI suggestions'}).waitFor();
-  releaseTaskShort();
-  await page.getByRole('alert').filter({hasText:'The AI summary timed out'}).waitFor();
-  await page.getByRole('button',{name:'Step-by-step review'}).click();
-  await page.getByRole('heading',{name:'AI walkthrough'}).waitFor();
+  await review.click();
+  await page.getByText('Count open tasks by due date.').waitFor();
   await page.getByRole('group',{name:'Report area'}).getByRole('button',{name:'Money',exact:true}).click();
   const period=page.getByRole('combobox',{name:'Overview period'});
-  const periodLabel=page.locator('.report-help-period');
-  const shortSummary=page.getByRole('button',{name:'Short summary',exact:true});
+  const periodLabel=page.locator('.report-overview-header p');
   await period.selectOption({label:'This year'});
-  await shortSummary.click();
-  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
-  assert.equal(calls.at(-1).start,yearStart);
-  assert.equal(calls.at(-1).end,current);
   assert.match(await periodLabel.innerText(),/Jan 1/);
+  assert.deepEqual(await chart.locator('dd').allTextContents(),['$2,150.00','$215.00']);
   await period.selectOption({label:'Specific date'});
   await page.getByLabel('Report date',{exact:true}).fill(priorDate);
-  await shortSummary.click();
-  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
-  assert.equal(calls.at(-1).start,priorDate);
-  assert.equal(calls.at(-1).end,priorDate);
   assert.match(await periodLabel.innerText(),/Dec 31/);
-  assert.match(await moneyFacts.innerText(),/Spending: \$20\.00\. Spending was \$20\.00 higher/);
+  assert.deepEqual(await chart.locator('dd').allTextContents(),['$0.00','$20.00']);
+  assert.match(await moneyFacts.innerText(),/Spending was \$20\.00 higher/);
   await period.selectOption({label:'Custom dates'});
-  await page.locator('.report-overview').getByLabel('End date',{exact:true}).fill(yearStart);
-  await shortSummary.click();
-  await page.getByRole('heading',{name:'AI suggestion'}).waitFor();
-  assert.equal(calls.at(-1).start,priorDate);
-  assert.equal(calls.at(-1).end,yearStart);
+  await page.locator('.report-overview').getByLabel('End date',{exact:true}).fill(current);
+  assert.deepEqual(await chart.locator('dd').allTextContents(),['$2,150.00','$235.00']);
+  await page.getByLabel('Report date',{exact:true}).waitFor({state:'detached'});
+  assert.equal(calls.length,2,'Reports never calls the AI endpoint');
   if(await page.locator('.app-shell').evaluate(el=>el.classList.contains('sidebar-closed')))await page.locator('.sidebar-toggle').click();
   await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();
   await page.locator('.filterbar').getByRole('button',{name:'Items',exact:true}).click();
@@ -202,7 +132,7 @@ try{
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
-  assert.deepEqual(writes,[]);await page.close();console.log(`${avatar} clarification, voice fallback and AI recovery passed at ${width}px`);
+  assert.deepEqual(writes,[]);await page.close();console.log(`Companion recovery and local reports passed at ${width}px`);
  }
  assert.deepEqual(errors,[]);
 }finally{await browser.close();server.closeAllConnections();server.close();}
