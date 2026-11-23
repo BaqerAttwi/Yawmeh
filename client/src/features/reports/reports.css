@@ -18,6 +18,12 @@
 .report-breakdown-body{display:grid;gap:12px}
 .report-next-step{padding:12px 14px;background:#edf5ed;border-radius:10px}
 .report-next-step h3{margin-bottom:4px;font-size:13px;color:#254533}
+.report-ai{display:grid;justify-items:start;gap:8px;min-width:0;border-top:1px solid #e5ebe6;padding-top:12px}
+.report-ai>p,.report-ai-answer>p{color:#4b5e51;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+.report-ai button{min-height:44px}
+.report-ai-answer{display:grid;gap:8px;align-self:stretch;width:100%;padding:12px 14px;border:1px solid #e5ebe6;border-radius:10px;overflow-wrap:anywhere}
+.report-ai-answer>h3{color:#254533;font-size:16px}
+.report-ai-answer li>p{margin-top:4px}
 .report-detail-body{padding:0 14px 14px;min-width:0}
 .report-detail-body>.field{max-width:300px}
 .report-detail-body>.field select{min-height:42px}

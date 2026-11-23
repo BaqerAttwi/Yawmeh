@@ -9,10 +9,10 @@ import {companionAILimits,companionAIAvailable} from '../../server/src/modules/a
 
 const input={question:'Please help me organize what I should do',language:'en',avatar:'sage',start:'2026-11-01',end:'2026-11-01',history:[]};
 const data={settings:{current_rate:90000},entries:[],tasks:[{id:1,title:'Private task stays on server',due:'2026-01-01',priority:'high',completed:0}],subscriptions:[],budgets:[],goals:[],goal_moves:[],day_plans:[],inbox:[],subtasks:[]};
-async function fixture(t,{intent={recommendation:'Start with one overdue task and leave time for a break.'},enabled=true,quota=true,providerStatus=200,raw,finishReason='STOP',env={},fetchOverride,usageError=false,loadError=false}={}){
+async function fixture(t,{intent={recommendation:'Start with one overdue task and leave time for a break.'},enabled=true,quota=true,providerStatus=200,raw,finishReason='STOP',env={},fetchOverride,usageError=false,loadError=false,records=data}={}){
  const requests=[],reservations=[],loads=[];
  const users=new Map(['a','b','c'].map((letter,index)=>[tokenHash(letter.repeat(64)),{id:index+1,name:'Member',email:'private-email@example.local',role:'user',active:true,permissions:index===0?['tasks']:index===1?['money']:[]}]));
- const options={env:{COMPANION_AI_ENABLED:enabled?'true':'false',GEMINI_API_KEY:'server-only-test-key',TIMEZONE:'Asia/Beirut',...env},usage:{async reserve(id,day,limits){if(usageError)throw new Error('PRIVATE DATABASE FAILURE');reservations.push({id,day,limits});return quota;}},loadData:async user=>{if(loadError)throw new Error('PRIVATE RECORDS FAILURE');loads.push(user.id);return structuredClone(data);},fetchAI:async(url,options)=>{requests.push({url,...options,body:JSON.parse(options.body)});if(fetchOverride)return fetchOverride(url,options);return new Response(raw??JSON.stringify({candidates:[{finishReason,content:{parts:[{text:JSON.stringify(intent)}]}}]}),{status:providerStatus,headers:{'Content-Type':'application/json'}});}};
+ const options={env:{COMPANION_AI_ENABLED:enabled?'true':'false',GEMINI_API_KEY:'server-only-test-key',TIMEZONE:'Asia/Beirut',...env},usage:{async reserve(id,day,limits){if(usageError)throw new Error('PRIVATE DATABASE FAILURE');reservations.push({id,day,limits});return quota;}},loadData:async user=>{if(loadError)throw new Error('PRIVATE RECORDS FAILURE');loads.push(user.id);return structuredClone(records);},fetchAI:async(url,options)=>{requests.push({url,...options,body:JSON.parse(options.body)});if(fetchOverride)return fetchOverride(url,options);return new Response(raw??JSON.stringify({candidates:[{finishReason,content:{parts:[{text:JSON.stringify(intent)}]}}]}),{status:providerStatus,headers:{'Content-Type':'application/json'}});}};
  const server=createApp({db:{},authStore:{session:async hash=>users.get(hash)},recoveryOptions:null,companionOptions:options}).listen(0,'127.0.0.1');await once(server,'listening');
  t.after(()=>{server.closeAllConnections();server.close();});
  const call=(body=input,{token='a',path='chat',origin}={})=>fetch(`http://127.0.0.1:${server.address().port}/api/companion/${path}`,{method:path==='ai'?'GET':'POST',headers:{'Content-Type':'application/json',...(token?{Cookie:'daywell_session='+token.repeat(64)}:{}),...(origin?{Origin:origin}:{})},...(path==='ai'?{}:{body:JSON.stringify(body)})});
@@ -216,6 +216,49 @@ test('detailed report reviews return ordered explanations and reject provider-su
   assert.equal(rejected.status,503);
   assert.equal((await rejected.json()).code,'invalid_response');
  }
+});
+
+test('opt-in report analysis attaches exact prices and dates from the authorized period',async t=>{
+ const coffee={title:'Coffee',category:'Food & drinks',type:'expense',currency:'USD',note:'Private purchase note'};
+ const records={...data,entries:[
+  {...coffee,date:'2026-10-02',amount:0.5},
+  {...coffee,date:'2026-10-03',amount:50},
+  {...coffee,date:'2026-10-03',amount:90000,currency:'LBP',exchange_rate:90000},
+  {...coffee,date:'2026-10-04',amount:0.01,title:'After selected dates'},
+  {...coffee,date:'2026-10-03',amount:500,title:'Reversed purchase',voided_on:'2026-10-03'},
+ ]};
+ const body={...input,question:'report',reportArea:'money',reportFormat:'analysis',start:'2026-10-02',end:'2026-10-03'};
+ const step={evidenceId:'price-1',title:'Compare similar purchases',explanation:'Check what each purchase included before choosing the lower-cost option.'};
+ const intent={steps:[step],recommendation:'If you enjoyed the cheaper option, try it again next time.'};
+ const f=await fixture(t,{intent,records});
+ assert.equal((await f.call(body)).status,403);
+ const response=await f.call(body,{token:'b'});
+ assert.equal(response.status,200);
+ const reply=await response.json();
+ assert.match(reply.steps[0].evidence,/Coffee.*2 purchases totaling \$50\.50.*\$0\.50 on 2026-10-02.*\$50\.00 on 2026-10-03/);
+ assert.equal(reply.recommendation,intent.recommendation);
+ const request=JSON.parse(f.requests[0].body.contents[0].parts[0].text);
+ assert.deepEqual(request.period,{start:body.start,end:body.end});
+ assert.match(request.evidence.find(row=>row.id==='totals').detail,/spending \$51\.50/);
+ assert.doesNotMatch(JSON.stringify(request),/Reversed purchase|After selected dates|Private purchase note|Private task|private-email/);
+ for(const badStep of [{...step,evidenceId:'missing'},{...step,explanation:'You can buy this for $0.10.'}]){
+  const invalid=await fixture(t,{intent:{...intent,steps:[badStep]},records});
+  const rejected=await invalid.call(body,{token:'b'});
+  assert.equal(rejected.status,503);
+  assert.equal((await rejected.json()).code,'invalid_response');
+ }
+});
+
+test('task analysis grounds suggestions in dates and estimates without sending task titles',async t=>{
+ const records={...data,tasks:[{title:'Private project',due:'2026-10-02',category:'Work',estimate_minutes:40},{title:'Private appointment',due:'2026-10-02',category:'Personal'},{title:'Excluded task',due:'2026-10-03'}]};
+ const intent={steps:[{evidenceId:'due-date',title:'Spread out the workload',explanation:'Check which tasks can move to a lighter day.'}],recommendation:'Estimate the open tasks before moving them.'};
+ const f=await fixture(t,{intent,records});
+ const response=await f.call({...input,question:'report',reportArea:'tasks',reportFormat:'analysis',start:'2026-10-02',end:'2026-10-02'});
+ assert.equal(response.status,200);
+ assert.match((await response.json()).steps[0].evidence,/2026-10-02 has 2 tasks/);
+ const payload=f.requests[0].body.contents[0].parts[0].text;
+ assert.match(payload,/estimates total 40 minutes/);
+ assert.doesNotMatch(payload,/Private project|Private appointment|Excluded task|2026-10-03/);
 });
 
 test('report summaries try Flash-Lite once during default model overload',async t=>{

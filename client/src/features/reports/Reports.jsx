@@ -1,7 +1,9 @@
-import React,{useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus} from 'lucide-react';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
 import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
+import {daysUntil} from '../../../../shared/domain.js';
+import {companionRequestTimeoutMs} from '../../../../shared/companion-status.js';
 import './reports.css';
 
 const presets=[
@@ -150,7 +152,49 @@ function ReportReviewChart({title,series,display,scale}){
  </figure>;
 }
 
-function ReportSummary({area,overview,display,expenseCategories}){
+function ReportExplanation({api,area,start,end,period}){
+ const [answer,setAnswer]=useState(null),[pending,setPending]=useState(false),[error,setError]=useState('');
+ const active=useRef(null);
+ useEffect(()=>()=>active.current?.abort(),[]);
+
+ async function explain(){
+  if(active.current)return;
+  const controller=new AbortController();
+  active.current=controller;
+  setPending(true);
+  setError('');
+  try{
+   const result=await api('/companion/chat','POST',{question:'report',reportArea:area,reportFormat:'analysis',language:'en',avatar:'sage',start,end},
+    {timeoutMs:companionRequestTimeoutMs,signal:controller.signal});
+   if(!result.steps?.length||!result.recommendation)throw new Error('AI returned an incomplete explanation. You can try again.');
+   if(!controller.signal.aborted)setAnswer(result);
+  }catch(error){
+   if(!controller.signal.aborted)setError(error.code==='provider_busy'?'Gemini is temporarily busy. You can try again shortly.':
+    ['timeout','request_timeout'].includes(error.code)?'AI took too long to reply. You can try again.':error.message);
+  }finally{
+   if(!controller.signal.aborted){active.current=null;setPending(false);}
+  }
+ }
+
+ return <section className="report-ai" aria-label="AI report explanation">
+  <p id="report-ai-data">{area==='money'?'Gemini reviews selected dates, totals, purchase names, categories, and prices.':'Gemini reviews selected dates, task counts, categories, and time estimates.'}</p>
+  <button type="button" className="secondary" aria-describedby="report-ai-data" disabled={pending} onClick={explain}>
+   {answer?'Explain again':'Explain with AI'}
+  </button>
+  {pending&&<p role="status">Reviewing your records…</p>}
+  {error&&<p role="alert">{error}</p>}
+  {answer&&<div className="report-ai-answer" aria-live="polite">
+   <h3>AI step-by-step explanation</h3>
+   <p>{period}</p>
+   <ol className="report-review-steps">{answer.steps.map(step=><li key={step.evidenceId}>
+    <strong>{step.title}</strong><p>{step.evidence}</p><p>{step.explanation}</p>
+   </li>)}</ol>
+   <div className="report-next-step"><h3>What to try next</h3><p>{answer.recommendation}</p></div>
+  </div>}
+ </section>;
+}
+
+function ReportSummary({area,overview,display,expenseCategories,children}){
  const {summary,recommendation}=summarizeReport(area,overview,display,expenseCategories[0]);
  const money=area==='money';
  const series=money
@@ -175,10 +219,11 @@ function ReportSummary({area,overview,display,expenseCategories}){
     <div className="report-next-step"><h3>How to improve</h3><p>{recommendation}</p></div>
    </div>
   </details>
+  {children}
  </div>;
 }
 
-export function Reports({data,user,current,onAddItem,busy}){
+export function Reports({data,user,current,reportAPI,onAddItem,busy}){
  const reports=reportsFor(user);
  const choices=areas.filter(([id])=>reports.some(report=>report.area===id));
  const [selected,setSelected]=useState(choices[0]?.[0]);
@@ -225,7 +270,9 @@ export function Reports({data,user,current,onAddItem,busy}){
     <label className="field"><span>End date</span><input type="date" value={end} min={start} onChange={event=>setRange({...range,end:event.target.value})}/></label>
    </div>}
    {overview?<><dl className="report-metrics">{metrics.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-    {overview.hasActivity?<ReportSummary key={area} area={area} overview={overview} display={display} expenseCategories={expenseCategories}/>
+    {overview.hasActivity?<ReportSummary key={area} area={area} overview={overview} display={display} expenseCategories={expenseCategories}>
+      {reportAPI&&daysUntil(end,start)<=365&&<ReportExplanation key={[start,end].join('|')} api={reportAPI} area={area} start={start} end={end} period={period}/>}
+     </ReportSummary>
      :<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>

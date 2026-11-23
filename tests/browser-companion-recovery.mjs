@@ -32,6 +32,12 @@ try{
    if(path==='/api/companion/ai')return route.fulfill({json:{available:true,reason:null,model:'gemini-3.8-flash'}});
    if(path==='/api/companion/chat'){
     calls.push(request.postDataJSON());
+    if(calls.at(-1).reportFormat==='analysis'){
+     if(calls.length===3)return route.fulfill({status:503,json:{code:'provider_busy'}});
+     return route.fulfill({json:{steps:[{
+      evidenceId:'largest',title:'Review your transport cost',evidence:`Taxi: $20.00 on ${priorDate}.`,explanation:'Check whether this ride is part of a regular route.',
+     }],recommendation:'Compare options next time you take the same route.'}});
+    }
     return calls.length===1?route.fulfill({status:503,json:{code:'provider_quota'}}):route.fulfill({json:{answer:'Recorded report for the selected dates.',recommendation:'Review one optional cost before planning next week.',language:'en',engine:'gemini'}});
 
    }
@@ -122,7 +128,21 @@ try{
   await page.locator('.report-overview').getByLabel('End date',{exact:true}).fill(current);
   assert.deepEqual(await chart.locator('dd').allTextContents(),['$2,150.00','$235.00']);
   await page.getByLabel('Report date',{exact:true}).waitFor({state:'detached'});
-  assert.equal(calls.length,2,'Reports never calls the AI endpoint');
+  assert.equal(calls.length,2,'Reports only calls AI after the user asks');
+  await period.selectOption({label:'Specific date'});
+  await page.getByLabel('Report date',{exact:true}).fill(priorDate);
+  const explain=page.getByRole('button',{name:'Explain with AI'});
+  await explain.click();
+  await page.getByRole('alert').filter({hasText:'Gemini is temporarily busy'}).waitFor();
+  assert.deepEqual(await chart.locator('dd').allTextContents(),['$0.00','$20.00']);
+  assert.deepEqual(calls.at(-1),{question:'report',reportArea:'money',reportFormat:'analysis',language:'en',avatar:'sage',start:priorDate,end:priorDate});
+  await explain.click();
+  await page.getByRole('heading',{name:'AI step-by-step explanation'}).waitFor();
+  await page.getByText(`Taxi: $20.00 on ${priorDate}.`,{exact:true}).waitFor();
+  await page.getByText('Compare options next time you take the same route.',{exact:true}).waitFor();
+  await period.selectOption({label:'This month'});
+  assert.equal(await page.getByRole('heading',{name:'AI step-by-step explanation'}).count(),0);
+  assert.equal(calls.length,4);
   if(await page.locator('.app-shell').evaluate(el=>el.classList.contains('sidebar-closed')))await page.locator('.sidebar-toggle').click();
   await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();
   await page.locator('.filterbar').getByRole('button',{name:'Items',exact:true}).click();
