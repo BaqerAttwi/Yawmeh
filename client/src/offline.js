@@ -1,5 +1,6 @@
 import './styles/tokens.css';
 import './styles/offline.css';
+import './styles/glass.css';
 import './lib/theme.js';
 import {entrySchema,schemas} from '../../shared/validation.js';
 import {captureSchema} from '../../shared/daily.js';

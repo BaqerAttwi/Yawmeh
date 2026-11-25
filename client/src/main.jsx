@@ -5,6 +5,7 @@ import './lib/install.js';
 import {createRoot} from 'react-dom/client';
 import './styles/styles.css';
 import './styles/access.css';
+import './styles/glass.css';
 import {AuthGate} from './features/auth/Auth.jsx';
 import {WorkspaceLoading} from './features/auth/WorkspaceLoading.jsx';
 

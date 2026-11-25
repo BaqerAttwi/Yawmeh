@@ -31,17 +31,18 @@
 }
 .monthly-money-columns {position:relative;display:flex;min-width:0;gap:clamp(2px,1vw,12px)}
 .monthly-money-grid {display:flex;flex-direction:column;justify-content:space-between;position:absolute;inset:0 0 auto;height:var(--plot-height);pointer-events:none}
-.monthly-money-grid span {border-top:1px solid var(--border)}
+.monthly-money-grid span {border-top:1px solid var(--line)}
 .monthly-money-column {flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:0;border-radius:var(--radius-md);color:var(--text)}
 .monthly-money-column:hover,.monthly-money-column[aria-pressed="true"] {background:var(--primary-soft);color:var(--text)}
 .monthly-money-column:focus-visible {outline-offset:2px}
 .monthly-money-bars {position:relative;height:var(--plot-height);display:flex;align-items:flex-end;justify-content:center;gap:clamp(2px,.7vw,9px)}
 .monthly-money-bars .expenses,.monthly-money-bars .savings {width:25%;max-width:31px;border-radius:var(--radius-sm) var(--radius-sm) 0 0}
+.monthly-money-bars .expenses.is-over {background:var(--danger)}
 .monthly-money-bars .limit {position:absolute;inset-inline-start:8%;inset-inline-end:8%;border-top:2px dashed var(--budget-limit)}
 .monthly-money-month {display:block;padding:var(--space-2) 0;font-size:var(--font-xs);font-weight:750}
 .monthly-money-detail {margin-top:var(--space-5);padding:clamp(12px,2.5vw,20px);border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-lg)}
 .monthly-money-detail-head h3 {font-size:var(--font-lg)}
-.monthly-money-detail-head .monthly-money-over {color:var(--expense)}
+.monthly-money-detail-head .monthly-money-over {color:var(--danger-text)}
 .monthly-money-detail dl {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);margin:13px 0 0;padding-top:var(--space-3);border-top:1px solid var(--border)}
 .monthly-money-detail dt {font-size:var(--font-xs);color:var(--text)}
 .monthly-money-detail dd {font-size:clamp(var(--font-md),2.2vw,23px);margin:var(--space-1) 0 0;font-weight:750;letter-spacing:-.025em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
