@@ -1,0 +1,76 @@
+:root {
+  color-scheme: light;
+  --bg: light-dark(#f1f4fb, #101727);
+  --surface: light-dark(#ffffff, #182136);
+  --surface-2: light-dark(#e9eef8, #232e46);
+  --border: light-dark(#d4deed, #42516c);
+  --border-control: light-dark(#7585a2, #8092b4);
+  --text: light-dark(#19243e, #f1f4ff);
+  --text-muted: light-dark(#435372, #c5d1e9);
+  --text-subtle: light-dark(#4d5e7a, #b7c5e0);
+  --primary: light-dark(#3d50bd, #aebbff);
+  --primary-hover: light-dark(#3142a0, #c4ccff);
+  --primary-soft: light-dark(#e3e9ff, #2c3964);
+  --on-primary: light-dark(#ffffff, #131d38);
+  --nav-bg: light-dark(#182447, #0d1425);
+  --nav-text: #f2f5ff;
+  --nav-muted: #c1cdea;
+  --nav-active: light-dark(#3b50a3, #2d4080);
+  --nav-soft: light-dark(#26365e, #202c4d);
+  --nav-border: light-dark(#465886, #41537c);
+  --success: light-dark(#126750, #81e2c3);
+  --success-soft: light-dark(#dff3eb, #183d37);
+  --on-success: light-dark(#ffffff, #122e25);
+  --warning: light-dark(#834507, #f6c583);
+  --warning-soft: light-dark(#fff0d8, #47321b);
+  --danger: light-dark(#a22e47, #ffa7b6);
+  --danger-soft: light-dark(#ffebef, #47263a);
+  --on-danger: light-dark(#ffffff, #321321);
+  --info: light-dark(#304697, #bdcaff);
+  --info-soft: light-dark(#e8eeff, #2a3760);
+  --income: var(--success);
+  --expense: var(--danger);
+  --savings: var(--success);
+  --budget-limit: var(--warning);
+  --chart-1: var(--primary);
+  --chart-2: light-dark(#536789, #a7c2f4);
+  --chart-3: light-dark(#363f81, #cad1ff);
+  --chart-4: light-dark(#37598c, #96baf5);
+  --chart-5: light-dark(#52627d, #a3b2d0);
+  --chart-6: light-dark(#315f86, #91caef);
+  --focus: light-dark(#3146ac, #bccaff);
+  --overlay: light-dark(#111c3980, #050915b3);
+  --shadow-color: light-dark(#15275724, #00000055);
+  --image-matte: #ffffff;
+  --shadow-sm: 0 2px 8px var(--shadow-color);
+  --shadow-md: 0 10px 32px var(--shadow-color);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --font-axis: 11px;
+  --font-xs: 12px;
+  --font-sm: 13px;
+  --font-md: 14px;
+  --font-lg: 16px;
+  --font-xl: 20px;
+  --font-2xl: 26px;
+  --font-body: 'DM Sans', 'Noto Sans Arabic', 'IBM Plex Sans Arabic', Tahoma, sans-serif;
+  --font-heading: Manrope, 'Noto Sans Arabic', 'IBM Plex Sans Arabic', Tahoma, sans-serif;
+  --inline-direction: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark; }
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+:dir(rtl) { --inline-direction: -1; }
+:dir(ltr) { --inline-direction: 1; }

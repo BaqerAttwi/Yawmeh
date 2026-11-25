@@ -4,7 +4,7 @@ export async function deliverReminderJobs({db,transport,from,to,jobs,onFailure})
  for(const job of jobs){
   try {
    const [existing]=await db.query('SELECT id FROM reminder_log WHERE reminder_key=?',[job.key]);if(existing.length){result.skipped++;continue;}
-   await transport.sendMail({from,to,subject:job.subject,text:job.text});
+   await transport.sendMail({from:job.from||from,to,subject:job.subject,text:job.text,...(job.html?{html:job.html,attachments:job.attachments}:{})});
    await db.query('INSERT INTO reminder_log(reminder_key) VALUES(?)',[job.key]);result.sent++;
   }catch(error){result.failed++;onFailure?.(error);}
  }

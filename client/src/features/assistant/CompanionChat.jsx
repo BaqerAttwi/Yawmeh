@@ -13,10 +13,11 @@ import {companionLanguage,draftFields,presentReply,replyMetrics} from '../../../
 import {readCompanionHistory,writeCompanionHistory,rememberConversation,historyKey,historyScope} from '../../../../shared/companion-history.js';
 import {Character,assistantLooks} from './Character.jsx';
 import {CompanionVoice} from './CompanionVoice.jsx';
+import {ReceiptScan} from './ReceiptScan.jsx';
 import './companion.css';
 import './companion-chat.css';
 
-const avatar={id:'sage',name:'Sage',color:'#527f6d',intro:'One small step, a calmer day.',ar:'خطوة صغيرة، ونهار أروق.'};
+const avatar={id:'sage',name:'Sage',color:'var(--primary)',intro:'One small step, a calmer day.',ar:'خطوة صغيرة، ونهار أروق.'};
 const read=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
 const actionNames={task:['Task','مهمة'],expense:['Expense','مصروف'],income:['Income','دخل'],opening:['Existing savings','مدخرات موجودة'],withdrawal:['Withdrawal','سحب'],budget:['Budget','ميزانية'],subscription:['Subscription','اشتراك'],item:['Frequent item','عملية متكرّرة']};
@@ -137,6 +138,17 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
   ['Weekly report','تقرير الأسبوع'],
  ];
  const catalog=currencyCatalog(data.settings);
+ function reviewReceipt({merchant,amount,currency}){
+  let entryCurrency='';
+  if(currency){
+   const name=new Intl.DisplayNames('en',{type:'currency',fallback:'none'}).of(currency);
+   const symbol=new Intl.NumberFormat('en',{style:'currency',currency}).formatToParts(0).find(part=>part.type==='currency')?.value;
+   entryCurrency=(catalog.find(item=>item.code.toUpperCase()===currency)||
+    catalog.find(item=>(item.name&&item.name.toLowerCase()===name?.toLowerCase())||(symbol!==currency&&item.symbol===symbol)))?.code||'';
+  }
+  close();
+  onAction('expense',{title:merchant||'',amount:amount??'',currency:entryCurrency,receipt:{currency}},language);
+ }
  const pageCount=Math.ceil(prompts.length/3),visiblePrompts=prompts.slice((promptPage%pageCount)*3,(promptPage%pageCount)*3+3);
  return <div className={`companion-dock companion-state-${state}`} style={{'--companion-accent':avatar.color,'--companion-viewport-height':viewport.height+'px','--companion-keyboard-gap':viewport.gap+'px'}}>
   {open&&<section className={'companion-chat-panel companion-redesign'+(viewport.keyboard?' companion-keyboard-open':'')} role="dialog" aria-label={`${avatar.name} ${t('companion chat','محادثة المساعد')}`} dir={ar?'rtl':'ltr'} lang={ar?'ar':'en'} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();tools?setTools(null):close();}}}>
@@ -161,6 +173,7 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    <div className="companion-prompts">{visiblePrompts.map(([question,label])=><button type="button" key={question} disabled={thinking} onClick={()=>ask(question,ar?label:question)}>{ar?label:question}</button>)}{pageCount>1&&<button type="button" className="companion-more-prompts" aria-label={t('More suggestions','اقتراحات إضافية')} onClick={()=>setPromptPage(p=>p+1)}><RotateCw size={14}/></button>}</div>
    <div className="companion-bottom-tools"><button type="button" aria-expanded={tools==='examples'} onClick={()=>setTools(tools==='examples'?null:'examples')}><FileText size={15}/>{t('Examples','أمثلة')}</button><button type="button" aria-expanded={tools==='history'} onClick={()=>setTools(tools==='history'?null:'history')}><History size={15}/>{t('Recent chats','آخر المحادثات')}</button><button type="button" aria-expanded={tools==='add'} onClick={()=>setTools(tools==='add'?null:'add')}><Plus size={15}/>{t('Quick add','إضافة')}</button><button type="button" aria-expanded={tools==='dates'} onClick={()=>setTools(tools==='dates'?null:'dates')}><CalendarDays size={15}/>{t('Date range','فترة التقرير')}</button></div>
    {tools==='add'&&<section className="companion-tools companion-add-grid" aria-label={t('Quick add','إضافة سريعة')}>{Object.entries(actionNames).filter(([type])=>hasAccess(user,type==='task'?'tasks':'money')).map(([type,names])=><button type="button" key={type} onClick={()=>startDraft(type)}><Plus size={14}/>{names[ar?1:0]}</button>)}</section>}
+   {tools==='add'&&mode==='live'&&hasAccess(user,'money')&&<ReceiptScan available={aiAvailable} busy={thinking} language={language} onReview={reviewReceipt}/>}
    {tools==='dates'&&<form className="companion-date-form" onSubmit={e=>{e.preventDefault();setTools(null);ask('Report for selected dates',t('Report for selected dates','تقرير للفترة المختارة'));}}><label>{t('From','من')}<input type="date" required value={start} max={end} onChange={e=>setStart(e.target.value)}/></label><label>{t('Through','إلى')}<input type="date" required value={end} min={start} onChange={e=>setEnd(e.target.value)}/></label><button type="submit" disabled={thinking}>{t('Report','تقرير')}</button></form>}
    <div className="companion-composer">
     <CompanionVoice key={sessionId} storageKey={key} mode={mode} avatar={avatar.id} conversationId={sessionId} onStateChange={setVoiceState} response={messages.at(-1)} language={language} busy={thinking}/>

@@ -77,6 +77,7 @@ export async function migrate() {
     ['tasks','cancelled','BOOLEAN NOT NULL DEFAULT FALSE'],
     ['users','quiet_start',"VARCHAR(5) NOT NULL DEFAULT ''"],
     ['users','quiet_end',"VARCHAR(5) NOT NULL DEFAULT ''"],
+    ['users','report_emails','BOOLEAN NOT NULL DEFAULT FALSE'],
     ['tasks','estimate_minutes','INT NOT NULL DEFAULT 0'],
     ['subscriptions','rarely_used','BOOLEAN NOT NULL DEFAULT FALSE'],
     ['goals','monthly_amount','DECIMAL(12,2) NOT NULL DEFAULT 0'],

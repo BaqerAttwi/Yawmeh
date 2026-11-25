@@ -14,6 +14,7 @@ import {mysqlCompanionUsage} from './companion-usage.js';
 import {companionStatusMessage} from '../../../../shared/companion-status.js';
 import {workspaceOverview} from '../../../../shared/workspace-reports.js';
 import {reportEvidence} from './report-evidence.js';
+import {mountReceiptScan} from './receipt.js';
 
 const defaultCompanionModel='gemini-3.8-flash';
 const reportFallbackModel='gemini-3.5-flash-lite';
@@ -103,6 +104,7 @@ export function mountCompanionAI(app,db,{env=process.env,fetchAI=fetch,usage=mys
  const permitted=(req,res,next)=>hasAccess(req.user,'money')||hasAccess(req.user,'tasks')?next():res.status(403).json({error:'Companion access is required.'});
  app.get('/api/companion/ai',permitted,(req,res)=>{try{res.json({available:companionAIAvailable(env),reason:companionAIReason(env),model:companionAIModel(env),limits:limits(env)});}catch{res.json({available:false,reason:'model_unavailable',limits:limits(env)});}});
  const limiter=rateLimit({windowMs:60000,limit:6,keyGenerator:req=>String(req.user.id),standardHeaders:'draft-7',legacyHeaders:false,message:{code:'rate_limited',error:'Please wait a minute. Local responses are still available.'}});
+ mountReceiptScan(app,{env,fetchAI,usage,limiter,limits:limits(env),reason:companionAIReason(env),getModel:()=>companionAIModel(env),timeoutMs:companionAITimeout(env)});
  function requireReport(req,res,next){
   const input=companionInputSchema.parse(req.body);
   if(input.start>input.end||daysUntil(input.end,input.start)>365)return res.status(400).json({error:'Choose an ordered range of at most 366 days.'});

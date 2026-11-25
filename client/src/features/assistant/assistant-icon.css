@@ -5,10 +5,10 @@
   flex: 0 0 auto;
   inline-size: 44px;
   block-size: 44px;
-  border: 1px solid #bfd5c7;
-  border-radius: 14px;
-  background: #e7f1eb;
-  color: #315d48;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .assistant-icon-face {
@@ -21,10 +21,10 @@
   border: 3px solid transparent;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 37% 30%, #fffdf6, #e5dcc5) padding-box,
-    linear-gradient(145deg, #947244, #f5e6bf 27%, #bd9b65 51%, #765632 76%, #d6bf92) border-box;
-  box-shadow: inset 0 0 0 1px #6c51275c, inset 0 1px 3px #65513250, 0 2px 4px #34271138;
-  color: #234b39;
+    radial-gradient(circle at 37% 30%, var(--surface), var(--surface-2)) padding-box,
+    linear-gradient(145deg, var(--primary), var(--surface-2) 27%, var(--primary-soft) 51%, var(--primary) 76%, var(--primary-soft)) border-box;
+  box-shadow: inset 0 0 0 1px var(--shadow-color), inset 0 1px 3px var(--shadow-color), 0 2px 4px var(--shadow-color);
+  color: var(--text);
 }
 
 .assistant-icon-logo {
@@ -54,11 +54,11 @@
   height: 15px;
   padding: 1px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
 }
 
 .assistant-icon[data-look="classic"][data-state="speaking"] {
-  background: #d5eddf;
+  background: var(--surface-2);
 }
 
 .companion-header-avatar:has(.assistant-icon) {

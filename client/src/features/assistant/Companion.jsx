@@ -3,7 +3,7 @@ import React,{useMemo,useState} from 'react';
 import {companionSummary} from '../../../../shared/companion.js';
 import './companion.css';
 
-const companions=[{id:'sage',name:'Sage',label:'Calm guide',color:'#527f6d',shape:'leaf'},{id:'nova',name:'Nova',label:'Bright planner',color:'#7466ab',shape:'star'},{id:'pip',name:'Pip',label:'Friendly helper',color:'#b87746',shape:'robot'}];
+const companions=[{id:'sage',name:'Sage',label:'Calm guide',color:'var(--chart-1)',shape:'leaf'},{id:'nova',name:'Nova',label:'Bright planner',color:'var(--chart-3)',shape:'star'},{id:'pip',name:'Pip',label:'Friendly helper',color:'var(--chart-4)',shape:'robot'}];
 const money=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
 const dollars=value=>money.format(value/100);
 export function Companion({data,user,date,mode}) {

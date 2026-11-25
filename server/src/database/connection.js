@@ -10,7 +10,7 @@ export async function snapshot(user, db=pool) {
     const [rows]=await db.query(`SELECT * FROM ${table} WHERE user_id=? ORDER BY id DESC`,[user.id]);
     result[table]=['entries','tasks','inbox'].includes(table)?rows.map(({offline_sync_id,...record})=>record):rows;
   }));
-  const [[settings]]=await db.query('SELECT name,reminder_email AS email,quiet_start,quiet_end,current_rate,last_currency,custom_currencies,home_currency FROM users WHERE id=?',[user.id]);
+  const [[settings]]=await db.query('SELECT name,reminder_email AS email,quiet_start,quiet_end,current_rate,last_currency,custom_currencies,home_currency,report_emails FROM users WHERE id=?',[user.id]);
   result.settings=settings;
   result.cancelled_tasks=result.tasks.filter(t=>t.cancelled);
   result.tasks=result.tasks.filter(t=>!t.cancelled);

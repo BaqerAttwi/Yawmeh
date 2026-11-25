@@ -28,6 +28,7 @@ export const REQUIRED_SCHEMA = { signup_verifications:["token_hash","user_id","e
     "login_count",
     "quiet_start",
     "quiet_end",
+    "report_emails",
     "created_at"
   ],
   "sessions": [

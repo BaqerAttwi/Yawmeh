@@ -6,7 +6,10 @@ export function memoryDatabase(records,users,queries=[]){
     queries.push({sql,args});
     let match=sql.match(/^SELECT \* FROM (\w+) WHERE user_id=\?(?: ORDER BY id DESC)?$/);
     if(match)return [records[match[1]].filter(r=>r.user_id===args[0])];
-    if(sql==='SELECT name,reminder_email AS email,quiet_start,quiet_end,current_rate,last_currency,custom_currencies,home_currency FROM users WHERE id=?')return [[{...users.find(u=>u.id===args[0]),email:''}]];
+    if(sql==='SELECT name,reminder_email AS email,quiet_start,quiet_end,current_rate,last_currency,custom_currencies,home_currency,report_emails FROM users WHERE id=?'){
+      const user=users.find(u=>u.id===args[0]);
+      return [[{...user,email:user?.reminder_email||''}]];
+    }
     if(sql==='SELECT current_rate,last_currency,custom_currencies,home_currency FROM users WHERE id=?')return [users.filter(u=>u.id===args[0]).map(u=>({current_rate:u.current_rate,last_currency:u.last_currency||'USD',custom_currencies:u.custom_currencies,home_currency:u.home_currency||'USD'}))];
     if(/^UPDATE users SET (last_currency|current_rate|custom_currencies|home_currency)=\? WHERE id=\?$/.test(sql)){const u=users.find(u=>u.id===args[1]);u[sql.match(/SET (\w+)=/)[1]]=args[0];return [{affectedRows:1}];}
     if(sql==='SELECT id FROM users WHERE id=? FOR UPDATE')return [users.filter(u=>u.id===args[0]).map(u=>({id:u.id}))];
@@ -42,7 +45,18 @@ export function memoryDatabase(records,users,queries=[]){
     if(sql==='UPDATE inbox SET archived=? WHERE id=? AND user_id=?'){const row=records.inbox.find(r=>r.id===Number(args[1])&&r.user_id===args[2]);if(row)row.archived=args[0];return [{affectedRows:row?1:0}];}
     if(sql==='UPDATE inbox SET task_id=?,archived=? WHERE id=? AND user_id=?'){const row=records.inbox.find(r=>r.id===Number(args[2])&&r.user_id===args[3]);if(row)Object.assign(row,{task_id:args[0],archived:args[1]});return [{affectedRows:row?1:0}];}
     if(sql==='UPDATE tasks SET due=?,reminder=? WHERE id=? AND user_id=?'){const row=records.tasks.find(r=>r.id===Number(args[2])&&r.user_id===args[3]);if(row)Object.assign(row,{due:args[0],reminder:args[1]});return [{affectedRows:row?1:0}];}
-    if(sql==='UPDATE users SET name=?,reminder_email=?,quiet_start=?,quiet_end=? WHERE id=?'){const row=users.find(u=>u.id===args[4]);Object.assign(row,{name:args[0],reminder_email:args[1],quiet_start:args[2],quiet_end:args[3]});return [{affectedRows:1}];}
+    if(sql==='UPDATE users SET report_emails=IF(reminder_email=?,report_emails,0),name=?,reminder_email=?,quiet_start=?,quiet_end=? WHERE id=?'){
+      const row=users.find(u=>u.id===args[5]);
+      if(row.reminder_email!==args[0])row.report_emails=false;
+      Object.assign(row,{name:args[1],reminder_email:args[2],quiet_start:args[3],quiet_end:args[4]});
+      return [{affectedRows:1}];
+    }
+    if(sql==="UPDATE users SET report_emails=? WHERE id=? AND (?=0 OR reminder_email<>'')"){
+      const user=users.find(row=>row.id===args[1]);
+      if(!user||args[2]&&!user.reminder_email)return [{affectedRows:0}];
+      user.report_emails=args[0];
+      return [{affectedRows:1}];
+    }
     if(sql==='UPDATE day_plans SET went_well=?,tomorrow_help=?,closed_at=? WHERE id=? AND user_id=?'){const row=records.day_plans.find(r=>r.id===Number(args[3])&&r.user_id===args[4]);if(row)Object.assign(row,{went_well:args[0],tomorrow_help:args[1],closed_at:args[2]});return [{affectedRows:row?1:0}];}
     if(sql==='UPDATE day_plans SET closed_at=? WHERE id=? AND user_id=?'){const row=records.day_plans.find(r=>r.id===Number(args[1])&&r.user_id===args[2]);if(row)row.closed_at=args[0];return [{affectedRows:row?1:0}];}
     throw new Error('Unexpected database query: '+sql);

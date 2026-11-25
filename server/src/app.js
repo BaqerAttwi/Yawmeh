@@ -33,7 +33,8 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
  app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();});
  app.use('/api',rateLimit({windowMs:60000,limit:120,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many requests. Wait a minute and try again.'}}));
  app.use('/api',protectMutation);
- app.use(express.json({limit:'64kb'}));
+ const parseJSON=express.json({limit:'64kb'});
+ app.use((req,res,next)=>req.method==='POST'&&/^\/api\/companion\/receipt\/?$/i.test(req.path)?next():parseJSON(req,res,next));
  app.get('/api/health',async(req,res)=>{try{await db.query('SELECT id FROM users LIMIT 1');res.json({database:true});}catch{res.status(503).json({database:false});}});
  const auth=createAuth(authStore,recoveryOptions,signupOptions);
  app.use('/api/auth',auth.router);
@@ -92,9 +93,16 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
    const settings=schemas.settings.parse(req.body);
    if(settings.current_rate!==undefined&&!hasAccess(req.user,'money'))return res.status(403).json({error:'Money access is required to set an exchange rate.'});
    await ledgerTransaction(req.user.id,async connection=>{
-     await connection.query('UPDATE users SET name=?,reminder_email=?,quiet_start=?,quiet_end=? WHERE id=?',[settings.name,settings.email,settings.quiet_start,settings.quiet_end,req.user.id]);
+     await connection.query('UPDATE users SET report_emails=IF(reminder_email=?,report_emails,0),name=?,reminder_email=?,quiet_start=?,quiet_end=? WHERE id=?',[settings.email,settings.name,settings.email,settings.quiet_start,settings.quiet_end,req.user.id]);
      if(settings.current_rate!==undefined)await connection.query('UPDATE users SET current_rate=? WHERE id=?',[settings.current_rate,req.user.id]);
    });res.json({ok:true});
+ });
+ app.put('/api/settings/report-emails',async(req,res)=>{
+   if(!hasAccess(req.user,'money')&&!hasAccess(req.user,'tasks'))return res.status(403).json({error:'Money or Tasks access is required.'});
+   const {enabled}=z.object({enabled:z.boolean()}).strict().parse(req.body);
+   const [result]=await db.query("UPDATE users SET report_emails=? WHERE id=? AND (?=0 OR reminder_email<>'')",[enabled,req.user.id,enabled]);
+   if(!result.affectedRows)throw new PlannerError('Save your reminder email address first.');
+   res.json({ok:true});
  });
  app.patch('/api/tasks/:id/category',requireAccess('tasks'),async(req,res)=>{
    const {category}=z.object({category:taskCategorySchema}).strict().parse(req.body);

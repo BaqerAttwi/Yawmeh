@@ -1,3 +1,5 @@
+import './styles/tokens.css';
+import './lib/theme.js';
 import React,{lazy,Suspense} from 'react';
 import './lib/install.js';
 import {createRoot} from 'react-dom/client';
