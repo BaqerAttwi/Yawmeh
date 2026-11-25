@@ -1,17 +1,4 @@
 body { isolation:isolate; }
-body::before,body::after {
-  content:"";
-  position:fixed;
-  z-index:-1;
-  pointer-events:none;
-  inline-size:min(58vw,760px);
-  aspect-ratio:1;
-  border-radius:50%;
-  filter:blur(76px);
-  opacity:.26;
-}
-body::before { inset-block-start:-24vh; inset-inline-start:4vw; background:var(--mint); }
-body::after { inset-block-end:-26vh; inset-inline-end:0; background:var(--gold); }
 
 .app-shell:is(.sidebar-open,.sidebar-closed),.login-page:has(.login-story) { background:transparent; }
 .app-shell .sidebar { background:transparent; border-color:transparent; }
@@ -37,32 +24,30 @@ body::after { inset-block-end:-26vh; inset-inline-end:0; background:var(--gold);
 .app-shell .toast { color:var(--text); }
 .app-shell .toast > span > svg { color:var(--success); }
 .app-shell .toast-undo { color:var(--primary); }
-.app-shell .sidebar .brand .brand-name,.login-page .brand .brand-name { color:var(--gold-strong); }
-.app-shell .sidebar nav button:hover,.app-shell .sidebar .settings-nav:hover { background:var(--mint-soft); }
+.app-shell .sidebar .brand .brand-name,.login-page .brand .brand-name { color:var(--brass-text); }
+.app-shell .sidebar nav button:hover,.app-shell .sidebar .settings-nav:hover { background:var(--surface-2); }
 .app-shell.sidebar-open .sidebar nav button.active,.app-shell.sidebar-open .sidebar .settings-nav.active {
-  background-color:var(--mint);
-  background-image:var(--nav-active);
-  color:var(--navy);
-  box-shadow:0 4px 20px color-mix(in srgb,var(--mint) 30%,transparent);
+  background:var(--nav-active);
+  color:var(--primary);
 }
-.app-shell .sidebar nav button.active svg,.app-shell .sidebar .settings-nav.active svg { color:var(--navy); }
-.app-shell.sidebar-open .sidebar nav button.active::after { background:var(--navy); }
+.app-shell .sidebar nav button.active svg,.app-shell .sidebar .settings-nav.active svg { color:var(--primary); }
+.app-shell.sidebar-open .sidebar nav button.active::after { background:var(--primary); }
 .app-shell .sidebar :is(nav button,.settings-nav,.profile button):focus-visible { outline-color:var(--focus); }
-.app-shell .sidebar .workspace { background:var(--mint-soft); }
-.login-page .login-story { background:var(--mint-soft); }
+.app-shell .sidebar .workspace { background:var(--surface-2); }
+.login-page .login-story { background:var(--surface-2); }
 .login-page .login-preview { background:var(--glass); border-color:var(--glass-border); }
 .login-page .login-panel { color:var(--text); }
-.app-shell :is(.sidebar,.topbar) .guide-mark,.login-page .login-lock { background:var(--gold-soft); color:var(--gold-strong); }
-.app-shell .badge { background:var(--gold-soft); color:var(--gold-strong); }
-.app-shell .badge.low { background:var(--mint-soft); color:var(--success); }
+.app-shell :is(.sidebar,.topbar) .guide-mark,.login-page .login-lock { background:var(--brass-soft); color:var(--brass-text); }
+.app-shell .badge { background:var(--surface-2); color:var(--text-muted); }
+.app-shell .badge.low { background:var(--success-soft); color:var(--success); }
+.app-shell .badge.medium { background:var(--warning-soft); color:var(--warning); }
 .app-shell .badge.high { background:var(--danger-soft); color:var(--danger-text); }
 .app-shell .secondary:not(:disabled),.login-page .secondary:not(:disabled) {
-  background-color:var(--gold);
-  background-image:var(--gold-fill);
-  border-color:var(--gold);
-  color:var(--navy);
+  background:var(--surface);
+  border-color:var(--border-control);
+  color:var(--text);
 }
-.app-shell .secondary:hover:not(:disabled),.login-page .secondary:hover:not(:disabled) { filter:brightness(1.06); }
+.app-shell .secondary:hover:not(:disabled),.login-page .secondary:hover:not(:disabled) { background:var(--surface-2); }
 .app-shell .text-button { background:transparent; border:1px solid var(--line); }
 .app-shell :is(.error,.urgent-text,.negative) { color:var(--danger-text); }
 .app-shell .currency-report :is([data-money="saved"],[data-money="savings"]) strong,
@@ -78,8 +63,6 @@ body::after { inset-block-end:-26vh; inset-inline-end:0; background:var(--gold);
 }
 
 @media (prefers-reduced-motion:no-preference) {
-  body::before,body::after { animation:glow-drift 24s ease-in-out infinite alternate; }
-  body::after { animation-direction:alternate-reverse; }
   .app-shell main :is(.card,.stat-card) { animation:card-rise 360ms ease-out both; }
   .app-shell main :is(.card,.stat-card):nth-child(2) { animation-delay:80ms; }
   .app-shell main :is(.card,.stat-card):nth-child(3) { animation-delay:160ms; }
@@ -96,7 +79,6 @@ body::after { inset-block-end:-26vh; inset-inline-end:0; background:var(--gold);
   .app-shell .report-chart-row [role=img] span,.app-shell .report-review-track span { animation:chart-fill 480ms ease-out both; transform-origin:left center; }
   .app-shell :dir(rtl) :is(.report-chart-row [role=img] span,.report-review-track span) { transform-origin:right center; }
 }
-@keyframes glow-drift { to { translate:calc(7vw * var(--inline-direction)) 5vh; } }
 @keyframes card-rise { from { translate:0 6px; } }
 @keyframes chart-rise { from { scale:1 0; } }
 @keyframes chart-fill { from { scale:0 1; } }

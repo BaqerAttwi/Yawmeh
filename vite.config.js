@@ -11,7 +11,7 @@ async function brandColors(){
     if(!match)throw new Error(`Missing brand color token: ${name}`);
     return match[1];
   };
-  return {theme_color:color('navy'),background_color:color('pwa-background')};
+  return {theme_color:color('ink'),background_color:color('pwa-background')};
 }
 
 const brandMetadata={
