@@ -3,6 +3,7 @@ import {requireAccess} from '../auth/auth.js';
 import {schemas,recurrenceSchema,subtaskSchema,goalMoveSchema} from '../../../../shared/validation.js';
 import {today} from '../../../../shared/domain.js';
 import {PlannerError,nextTaskValues,checkGoalMove} from '../../../../shared/planner.js';
+import {existingOfflineRecord,offlineSyncId} from '../offline-sync.js';
 
 export function mountPlanner(app,db,transaction){
   const date=()=>today(process.env.TIMEZONE||'Asia/Beirut');
@@ -11,9 +12,12 @@ export function mountPlanner(app,db,transaction){
     if(!task||task.cancelled)throw new PlannerError('Active task not found.',404);return task;
   }
   app.post('/api/tasks',requireAccess('tasks'),async(req,res)=>{
+    const syncId=offlineSyncId(req);
     const {subtasks,...task}=schemas.tasks.parse(req.body);
     const id=await transaction(req.user.id,async connection=>{
-      const [created]=await connection.query('INSERT INTO tasks SET ?',{...task,user_id:req.user.id});
+      const existing=await existingOfflineRecord(connection,'tasks',req.user.id,syncId);
+      if(existing)return existing.id;
+      const [created]=await connection.query('INSERT INTO tasks SET ?',{...task,user_id:req.user.id,...(syncId?{offline_sync_id:syncId}:{})});
       for(const title of subtasks)await connection.query('INSERT INTO subtasks SET ?',{title,user_id:req.user.id,task_id:created.insertId,completed:0});
       return created.insertId;
     });res.status(201).json({id});

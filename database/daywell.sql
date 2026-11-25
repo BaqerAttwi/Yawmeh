@@ -61,8 +61,9 @@ CREATE TABLE IF NOT EXISTS `entries` (
  `note` TEXT NOT NULL,
  `voided_on` DATE NULL,
  `void_reason` VARCHAR(500) NOT NULL DEFAULT '',
+ `offline_sync_id` CHAR(36) NULL,
  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
- INDEX (`user_id`), INDEX (`date`)
+ INDEX (`user_id`), INDEX (`date`), UNIQUE KEY `entry_offline_sync` (`user_id`, `offline_sync_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `items` (
@@ -113,7 +114,9 @@ CREATE TABLE IF NOT EXISTS `tasks` (
  `completed_on` DATE NULL,
  `recurrence` ENUM('none','daily','weekly') NOT NULL DEFAULT 'none',
  `previous_task_id` INT NULL,
+ `offline_sync_id` CHAR(36) NULL,
  UNIQUE KEY `unique_previous_task` (`previous_task_id`),
+ UNIQUE KEY `tasks_offline_sync` (`user_id`, `offline_sync_id`),
  INDEX (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -168,6 +171,8 @@ CREATE TABLE IF NOT EXISTS `inbox` (
  `date` DATE NOT NULL,
  `archived` BOOLEAN NOT NULL DEFAULT FALSE,
  `task_id` INT NULL,
+ `offline_sync_id` CHAR(36) NULL,
+ UNIQUE KEY `inbox_offline_sync` (`user_id`, `offline_sync_id`),
  INDEX (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

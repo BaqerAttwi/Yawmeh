@@ -81,17 +81,27 @@ export async function migrate() {
     ['subscriptions','rarely_used','BOOLEAN NOT NULL DEFAULT FALSE'],
     ['goals','monthly_amount','DECIMAL(12,2) NOT NULL DEFAULT 0'],
     ['entries','voided_on','DATE NULL'],
-    ['entries','void_reason',"VARCHAR(500) NOT NULL DEFAULT ''"]
+    ['entries','void_reason',"VARCHAR(500) NOT NULL DEFAULT ''"],
+    ['entries','offline_sync_id','CHAR(36) NULL']
   ]) {
     const [found]=await pool.query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?',[table,column]);
     if(!found.length)await pool.query('ALTER TABLE '+table+' ADD COLUMN '+column+' '+definition);
   }
+  const [offlineIndex]=await pool.query("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='entries' AND INDEX_NAME='entry_offline_sync'");
+  if(!offlineIndex.length)await pool.query('ALTER TABLE entries ADD UNIQUE INDEX entry_offline_sync(user_id,offline_sync_id)');
   await pool.query("ALTER TABLE entries MODIFY currency VARCHAR(40) NOT NULL DEFAULT 'USD'");
   await pool.query("ALTER TABLE users MODIFY last_currency VARCHAR(40) NOT NULL DEFAULT 'USD'");
   await pool.query("CREATE TABLE IF NOT EXISTS day_plans (id INT AUTO_INCREMENT PRIMARY KEY,user_id INT NOT NULL,date DATE NOT NULL,energy ENUM('low','normal','high') NOT NULL DEFAULT 'normal',top_ids JSON NOT NULL,went_well TEXT NOT NULL,tomorrow_help TEXT NOT NULL,UNIQUE KEY user_day(user_id,date))");
   const [closeColumn]=await pool.query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='day_plans' AND COLUMN_NAME='closed_at'");
   if(!closeColumn.length)await pool.query('ALTER TABLE day_plans ADD COLUMN closed_at VARCHAR(30) NULL');
   await pool.query("CREATE TABLE IF NOT EXISTS inbox (id INT AUTO_INCREMENT PRIMARY KEY,user_id INT NOT NULL,text VARCHAR(1000) NOT NULL,date DATE NOT NULL,archived BOOLEAN NOT NULL DEFAULT FALSE,task_id INT NULL,INDEX(user_id))");
+  for(const table of ['tasks','inbox']){
+    const [columns]=await pool.query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME='offline_sync_id'",[table]);
+    if(!columns.length)await pool.query(`ALTER TABLE ${table} ADD COLUMN offline_sync_id CHAR(36) NULL`);
+    const index=`${table}_offline_sync`;
+    const [indexes]=await pool.query('SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?',[table,index]);
+    if(!indexes.length)await pool.query(`ALTER TABLE ${table} ADD UNIQUE INDEX ${index}(user_id,offline_sync_id)`);
+  }
 }
 if(process.argv[1]?.endsWith('migrate.js')) {try {await migrate();console.log('Database tables ready.');} finally {await pool.end();}}
 

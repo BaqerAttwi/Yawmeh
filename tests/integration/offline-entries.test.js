@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {once} from 'node:events';
+import {createApp} from '../../server/src/app.js';
+import {tokenHash} from '../../server/src/modules/auth/passwords.js';
+import {today} from '../../shared/domain.js';
+import {memoryDatabase} from '../helpers/memory-db.js';
+
+test('offline transaction retries are idempotent and tied to the intended account',async t=>{
+  const users=['a','b'].map((letter,index)=>({id:index+1,email:letter+'@test.local',active:true,role:'user',permissions:['money','tasks']}));
+  const sessions=new Map(users.map((user,index)=>[tokenHash(['a','b'][index].repeat(64)),user]));
+  const records={};
+  const server=createApp({db:memoryDatabase(records,users),authStore:{session:async hash=>sessions.get(hash)},recoveryOptions:null}).listen(0,'127.0.0.1');
+  await once(server,'listening');
+  t.after(()=>{server.closeAllConnections();server.close();});
+  const url=`http://127.0.0.1:${server.address().port}/api`;
+  const post=(value,letter='a',kind='entries')=>fetch(url+'/'+kind,{method:'POST',headers:{'content-type':'application/json',cookie:'daywell_session='+letter.repeat(64)},body:JSON.stringify(value)});
+  const date=today(process.env.TIMEZONE||'Asia/Beirut');
+  const entry={type:'income',amount:10,title:'Offline income',date,offline_sync:{account:'1',id:randomUUID()}};
+  const mismatch=await post(entry,'b');
+  assert.equal(mismatch.status,409);
+  assert.equal((await mismatch.json()).code,'OFFLINE_ACCOUNT_MISMATCH');
+  const results=await Promise.all([post(entry),post(entry)]);
+  assert.deepEqual(results.map(response=>response.status),[201,201]);
+  const [first,second]=await Promise.all(results.map(response=>response.json()));
+  assert.deepEqual(first,second);
+  const expense={...entry,type:'expense',title:'Coffee',amount:8,save_as_item:true,offline_sync:{account:'1',id:randomUUID()}};
+  assert.equal((await post(expense)).status,201);
+  assert.equal((await post(expense)).status,201);
+  assert.equal(records.entries.length,2);
+  assert.equal(records.items.length,1);
+  const rejected=await post({...expense,offline_sync:{account:'1',id:randomUUID()}});
+  assert.equal(rejected.status,400);
+  assert.match((await rejected.json()).error,/Insufficient spending balance/);
+  for(const [kind,value] of [['tasks',{title:'An offline task',due:date,priority:'medium',subtasks:['First step']}],['inbox',{text:'An offline note',captured_on:'2026-01-01'}]]){
+    const payload={...value,offline_sync:{account:'1',id:randomUUID()}};
+    assert.equal((await post(payload,'b',kind)).status,409);
+    const responses=await Promise.all([post(payload,'a',kind),post(payload,'a',kind)]);
+    assert.deepEqual(responses.map(response=>response.status),[201,201]);
+    const [original,retry]=await Promise.all(responses.map(response=>response.json()));
+    assert.deepEqual(original,retry);
+    assert.equal(records[kind].length,1);
+  }
+  assert.equal(records.subtasks.length,1);
+  assert.equal(records.inbox[0].date,'2026-01-01');
+  const snapshot=await fetch(url+'/data',{headers:{cookie:'daywell_session='+'a'.repeat(64)}});
+  const data=await snapshot.json();
+  assert.equal(data.entries.length,2);
+  assert.ok(data.entries.every(entry=>!Object.hasOwn(entry,'offline_sync_id')));
+  assert.ok([...data.tasks,...data.inbox].every(record=>!Object.hasOwn(record,'offline_sync_id')));
+});

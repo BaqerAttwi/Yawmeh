@@ -23,6 +23,8 @@ import {canReviewChange,changeCandidates,changeTable,companionChangeSchema} from
 import {Stat,CardTitle,Empty,Donut,Field} from '../components/ui.jsx';
 import {SetupStatus} from '../features/settings/SetupStatus.jsx';
 import {mutateAndRefresh,SaveStateError} from '../lib/mutation.js';
+import {canSyncOffline,newOfflineEntry,offlineAccount,offlineKind,pendingEntries,queueChanged,rememberOfflineAccount,retryableEntryError,storeOfflineEntry,syncOfflineEntries} from '../lib/offline-entries.js';
+import {OfflineQueue} from '../features/settings/OfflineQueue.jsx';
 import {TodayScreen} from '../features/today/Today.jsx';
 import {closeDayValues} from '../../../shared/today.js';
 import '../styles/today.css';
@@ -76,6 +78,71 @@ export default function App({session}){
  async function signOut(){try{await onLogout();}catch(e){setError(e.message);}}
  const [page,setPage]=useState('overview'),[data,setData]=useState(()=>{if(mode==='live')return visibleData(session.data,user);let saved;try{saved=JSON.parse(localStorage.getItem(demoKey));}catch{}return visibleData(saved||{...demoData(),settings:{name:user.name,email:''}},user);}),[launcher,setLauncher]=useState(false),[modal,setModal]=useState(null),[lastSaved,setLastSaved]=useState(null),[toast,setToast]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[filter,setFilter]=useState(can('money')?(can('tasks')?'all':'money'):'tasks'),[tab,setTab]=useState('transactions'),[query,setQuery]=useState(''),[taskFilter,setTaskFilter]=useState('all'),[categoryFilter,setCategoryFilter]=useState('');
  const mutationBusy=useRef(false),refreshLock=useRef(false);const [needsRefresh,setNeedsRefresh]=useState(false),[,tickClock]=useState(0);
+ const offlineMoney=mode==='live'&&can('money'),offlineTasks=mode==='live'&&can('tasks');
+ const offlineEnabled=offlineMoney||offlineTasks;
+ const [offline,setOffline]=useState(()=>!navigator.onLine),[queued,setQueued]=useState([]),[offlineReady,setOfflineReady]=useState(false);
+ const retrySync=useRef(()=>{});
+ useEffect(()=>{
+   if(mode!=='live')return;
+   rememberOfflineAccount(offlineEnabled?{id:String(user.id),tasks:offlineTasks,currency:data.settings.last_currency,currencies:offlineMoney?currencyCatalog(data.settings).map(({code,rate})=>({code,rate})):[]}:null);
+ },[mode,user.id,offlineEnabled,offlineMoney,offlineTasks,data.settings.current_rate,data.settings.custom_currencies,data.settings.last_currency]);
+ useEffect(()=>{
+   if(!offlineEnabled||!import.meta.env.PROD||!navigator.serviceWorker||!window.caches)return;
+   let active=true;
+   const check=async()=>{
+     const cached=await caches.match('/offline.html',{ignoreSearch:true}).catch(()=>null);
+     if(active)setOfflineReady(!!(navigator.serviceWorker.controller&&offlineAccount()?.id===String(user.id)&&cached));
+   };
+   navigator.serviceWorker.addEventListener('controllerchange',check);
+   void check();
+   return()=>{active=false;navigator.serviceWorker.removeEventListener('controllerchange',check);};
+ },[offlineEnabled,user.id]);
+ useEffect(()=>{
+   if(!offlineEnabled)return;
+   const controller=new AbortController();
+   const allowed=record=>canSyncOffline(record,{money:offlineMoney,tasks:offlineTasks});
+   const update=()=>setQueued(pendingEntries(user.id).filter(allowed));
+   const sync=async()=>{
+     setOffline(!navigator.onLine);
+     if(!navigator.onLine||mutationBusy.current||!pendingEntries(user.id).some(record=>!record.error&&allowed(record)))return;
+     mutationBusy.current=true;
+     setBusy(true);
+     let saved=false;
+     try{
+       await syncOfflineEntries(user.id,(value,kind)=>api('/'+kind,'POST',value,{signal:controller.signal}),()=>{saved=true;},allowed);
+       if(saved&&!controller.signal.aborted){
+         setData(await api('/data','GET',undefined,{signal:controller.signal}));
+         refreshLock.current=false;setNeedsRefresh(false);setLastSaved(new Date());
+         notify('Offline records synced');
+       }
+     }catch(e){
+       if(!controller.signal.aborted){
+         if(saved){refreshLock.current=true;setNeedsRefresh(true);}
+         setError(saved?'Offline records synced. Refresh to see your latest records.':e.message);
+       }
+     }finally{
+       mutationBusy.current=false;
+       setBusy(false);
+       if(!controller.signal.aborted)update();
+     }
+   };
+   retrySync.current=sync;
+   const timer=setInterval(sync,15000);
+   const events=['online','offline','focus'];
+   for(const event of events)window.addEventListener(event,sync);
+   window.addEventListener(queueChanged,update);
+   window.addEventListener('storage',update);
+   update();
+   void sync();
+   return()=>{
+     controller.abort();
+     retrySync.current=()=>{};
+     clearInterval(timer);
+     for(const event of events)window.removeEventListener(event,sync);
+     window.removeEventListener(queueChanged,update);
+     window.removeEventListener('storage',update);
+   };
+ },[offlineEnabled,offlineMoney,offlineTasks,user.id]);
  useEffect(()=>{const tick=()=>tickClock(n=>n+1);const id=setInterval(tick,30000);window.addEventListener('focus',tick);return()=>{clearInterval(id);window.removeEventListener('focus',tick);};},[]);
  const current=today();const [start,setStart]=useState(current.slice(0,7)+'-01'),[end,setEnd]=useState(new Date(Number(current.slice(0,4)),Number(current.slice(5,7)),0,12).toLocaleDateString('en-CA'));
  const taskCategories=useMemo(()=>[...new Set([...DEFAULT_TASK_CATEGORIES,...data.tasks.map(taskCategory)])],[data.tasks]);
@@ -104,12 +171,28 @@ export default function App({session}){
  async function refreshRecords(){if(mutationBusy.current)return;mutationBusy.current=true;setBusy(true);try{setData(await api('/data'));refreshLock.current=false;setNeedsRefresh(false);setError('');notify('Records refreshed. Review the latest changes before retrying.');}catch(e){setError(e.message);}finally{mutationBusy.current=false;setBusy(false);}}
  async function change(action){
    if(mutationBusy.current)return false;
-   if(refreshLock.current){setError('Refresh your records before making another change.');return false;}
+   if(refreshLock.current&&!action.offlineEntry){setError('Refresh your records before making another change.');return false;}
    mutationBusy.current=true;setError('');setBusy(true);
    let receipt;
    try{
      if(mode==='live'){
-       setData(await mutateAndRefresh(api,action,result=>{receipt=result;}));
+       if(action.offlineEntry&&globalThis.crypto?.randomUUID){
+         const kind=action.path.slice(1);
+         const record=newOfflineEntry(user.id,kind==='inbox'?{...action.value,captured_on:current}:action.value,kind);
+         let queuedLocally=!navigator.onLine||pendingEntries(user.id).some(entry=>!entry.error&&offlineKind(entry)===kind);
+         if(!queuedLocally){
+           try{receipt=await api(action.path,'POST',record.value);}
+           catch(e){if(!retryableEntryError(e))throw e;queuedLocally=true;}
+         }
+         if(queuedLocally){
+           storeOfflineEntry(record);setModal(null);notify('Saved on this device · pending sync');
+           return true;
+         }
+         try{
+           setData(await api('/data'));
+           refreshLock.current=false;setNeedsRefresh(false);
+         }catch{throw new SaveStateError('Your change was saved, but the latest records could not be loaded. Refresh your records before making another change.','saved');}
+       }else setData(await mutateAndRefresh(api,action,result=>{receipt=result;}));
      }else{
        const next=structuredClone(data);
        receipt=action.demo(next);
@@ -131,18 +214,21 @@ export default function App({session}){
 
  function addEntry(value,message='Transaction recorded',undoPurchase=false){
    const {save_as_item,item_price_usd}=value;
+   const offlineEntry=offlineMoney&&['income','expense'].includes(value.type)&&!!globalThis.crypto?.randomUUID;
    let item;
    value={note:'',category:'Other',...value,amount:Number(value.amount),saved:Number(value.saved||0)};
    try{
      value=entrySchema.parse(value);
      item=expenseItem(value,{save_as_item,item_price_usd});
      captureRates(value,data.settings);
-     checkEntry(value,data.entries);
+     if(offlineEntry&&(!navigator.onLine||pendingEntries(user.id).some(entry=>!entry.error&&offlineKind(entry)==='entries'))){
+       if(value.saved>value.amount)throw new Error('Savings allocation cannot exceed income.');
+     }else checkEntry(value,data.entries);
      checkUnassignedWithdrawal(value,data.entries,data.goal_moves);
      if(value.date>current)throw new Error('Transactions cannot be dated in the future.');
    }catch(e){setError(e.issues?.map(i=>i.message).join('; ')||e.message);return;}
    return change({
-     path:'/entries',value:item?{...value,save_as_item:true,item_price_usd:item.amount}:value,
+     path:'/entries',value:item?{...value,save_as_item:true,item_price_usd:item.amount}:value,offlineEntry,
      message:item?'Expense recorded and item saved':message,undoPurchase,
      demo:d=>{
        let id=Date.now();
@@ -160,7 +246,7 @@ export default function App({session}){
      type:'expense',title:item.title,amount:item.amount,category:item.category,date:current,currency:'USD',
    },`${item.title} recorded · ${money(cents(item.amount))} USD`,true);
  }
- function add(table,value){try{value=schemas[table].parse(value);}catch(e){setError(e.issues.map(i=>i.message).join('; '));return false;}return change({path:'/'+table,value,demo:d=>{const {subtasks,...record}=value;const id=randomId();d[table].unshift({...record,id,...(table==='tasks'?{completed:0}:{}),...(table==='subscriptions'?{active:1}:{})});if(table==='tasks')d.subtasks.push(...subtasks.map(title=>({id:randomId(),task_id:id,title,completed:0})));return {id};}});}
+ function add(table,value){try{value=schemas[table].parse(value);}catch(e){setError(e.issues.map(i=>i.message).join('; '));return false;}return change({path:'/'+table,value,offlineEntry:offlineTasks&&table==='tasks',demo:d=>{const {subtasks,...record}=value;const id=randomId();d[table].unshift({...record,id,...(table==='tasks'?{completed:0}:{}),...(table==='subscriptions'?{active:1}:{})});if(table==='tasks')d.subtasks.push(...subtasks.map(title=>({id:randomId(),task_id:id,title,completed:0})));return {id};}});}
  function toggleTask(t){return change({path:'/tasks/'+t.id,method:'PATCH',value:{completed:!t.completed},demo:d=>completeDemoTask(d,t.id,!t.completed,current),message:t.completed?'Task reopened':t.recurrence&&t.recurrence!=='none'?'Done! Your next occurrence is ready.':'One more thing done. Nice work!'});}
  function changeRecurrence(task,recurrence){return change({path:'/tasks/'+task.id+'/recurrence',method:'PATCH',value:{recurrence},demo:d=>{d.tasks.find(t=>t.id===task.id).recurrence=recurrence;},message:recurrence==='none'?'Repeating stopped':'Repeat schedule updated'});}
  function addSubtask(task,title){const parsed=subtaskSchema.safeParse({title});if(!parsed.success){setError(parsed.error.issues[0].message);return false;}return change({path:'/tasks/'+task.id+'/subtasks',value:parsed.data,demo:d=>{if(task.completed)throw new PlannerError('Reopen the task before adding subtasks.');if(d.subtasks.filter(s=>s.task_id===task.id).length>=30)throw new PlannerError('A task can have up to 30 subtasks.');d.subtasks.push({id:randomId(),task_id:task.id,title:parsed.data.title,completed:0});},message:'Small step added'});}
@@ -170,7 +256,7 @@ export default function App({session}){
  function finishToday(value){return change({path:'/day_plans/today/close',value,demo:d=>{const result=closeDayValues(d,current,value);if(result.alreadyClosed)return;for(const move of result.moves)Object.assign(d.tasks.find(t=>t.id===move.id),move);const index=d.day_plans.findIndex(p=>p.date===current);if(index<0)d.day_plans.push({...result.plan,id:randomId()});else d.day_plans[index]=result.plan;},message:'Today is wrapped up. Your plan is saved.'});}
  function reopenToday(){return change({path:'/day_plans/today/reopen',value:{},demo:d=>{const plan=d.day_plans.find(p=>p.date===current);if(plan)plan.closed_at=null;},message:'Today reopened; moved tasks keep their dates'});}
  function savePlan(date,patch){return change({path:'/day_plans/'+date,method:'PATCH',value:patch,demo:d=>{const index=d.day_plans.findIndex(p=>p.date===date),value=mergePlan(d.day_plans[index],patch,d.tasks,date);if(index<0)d.day_plans.push({...value,id:randomId()});else d.day_plans[index]=value;},message:'Daily plan saved'});}
- function captureNote(text){const parsed=captureSchema.safeParse({text});if(!parsed.success){setError(parsed.error.issues[0].message);return false;}return change({path:'/inbox',value:parsed.data,demo:d=>d.inbox.unshift({...parsed.data,id:randomId(),date:current,archived:0,task_id:null}),message:'Thought captured'});}
+ function captureNote(text){const parsed=captureSchema.safeParse({text});if(!parsed.success){setError(parsed.error.issues[0].message);return false;}return change({path:'/inbox',value:parsed.data,offlineEntry:offlineTasks,demo:d=>d.inbox.unshift({...parsed.data,id:randomId(),date:current,archived:0,task_id:null}),message:'Thought captured'});}
  function archiveNote(note,archived){return change({path:'/inbox/'+note.id,method:'PATCH',value:{archived},demo:d=>{d.inbox.find(n=>n.id===note.id).archived=archived;},message:archived?'Note archived; you can restore it':'Note restored'});}
  function convertNote(note,due){return change({path:'/inbox/'+note.id+'/convert',value:{due},demo:d=>{rescheduleSchema.parse({due});const n=d.inbox.find(n=>n.id===note.id);if(n.task_id)return;const id=randomId();d.tasks.unshift({id,title:n.text.slice(0,160),note:n.text,category:'Personal',due,priority:'medium',recurrence:'none',estimate_minutes:0,reminder:null,scheduled_time:null,completed:0});n.task_id=id;n.archived=1;},message:'Task ready; original note kept in Archived notes'});}
  function moveTask(task,due){return change({path:'/tasks/'+task.id+'/reschedule',method:'PATCH',value:{due},demo:d=>{rescheduleSchema.parse({due});const t=d.tasks.find(t=>t.id===task.id);Object.assign(t,rescheduled(t,due));},message:'Task moved, with its reminder'});}
@@ -296,6 +382,7 @@ export default function App({session}){
  return <div className={`app-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`}><aside id="workspace-sidebar" className="sidebar" aria-label="Workspace navigation and companion"><button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeNavigation}><X size={20}/></button><a className="brand" aria-label="yawmeh.me home" href="#" onClick={e=>{e.preventDefault();go('overview');}}><img className="brand-logo" src="/branding/yawmeh-logo-small.webp" alt=""/><span className="brand-name">yawmeh.me</span></a><div className="workspace"><span className="workspace-avatar">A</span><div><strong>Personal workspace</strong><small>A little more intentional</small></div><ChevronDown size={14}/></div><div className="nav-label">YOUR WORKSPACE</div><nav><button className="nav-demo guide-nav" aria-label="Guide" title="Guide: start here step by step" onClick={showGuide}><span className="guide-mark" aria-hidden="true">G</span><span className="guide-nav-label">Guide</span></button>{Object.entries(pages).filter(([k])=>k!=='settings'&&allowed(k)).map(([key,p])=><React.Fragment key={key}><button className={page===key?'active':''} aria-label={p.name} data-tour={`nav-${key}`} onClick={()=>go(key)}><p.icon size={19}/>{p.name}{key==='assistant'&&<span className="new-tag">NEW</span>}</button>{(key==='tasks'||key==='money'&&!can('tasks'))&&<><button className="nav-demo" aria-label="Watch demo" onClick={showTrailer}><Play size={15}/>Watch demo</button><button className="nav-demo nav-tutorials" aria-label="Video tutorials" onClick={showTutorials}><Play size={15}/><span className="tutorial-label-desktop">Video tutorials</span><span className="tutorial-label-mobile">Videos</span></button></>}</React.Fragment>)}</nav><div className="sidebar-bottom">{!guideActive&&<CompanionChat data={data} user={user} date={current} mode={mode} onAction={open} onChangeReview={openChangeReview}/>}<button data-tour="nav-settings" className={'settings-nav '+(page==='settings'?'active':'')} onClick={()=>go('settings')}><Settings size={18}/>Settings</button><div className="profile"><span className="avatar">{data.settings.name.slice(0,2).toUpperCase()}</span><div><strong>{data.settings.name}</strong><small>Personal account</small></div><button className="icon-button" aria-label="Account settings" onClick={()=>go('settings')}><MoreHorizontal size={19}/></button></div></div></aside>{isPhone&&sidebarOpen&&<button type="button" className="sidebar-scrim" aria-label="Close navigation backdrop" onClick={closeNavigation}/>}
  <div className="main-shell" inert={isPhone&&sidebarOpen?true:undefined}><header className="topbar"><div className="topbar-leading"><button ref={navigationToggle} type="button" className="sidebar-toggle" aria-label={sidebarOpen?'Close navigation':'Open navigation'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={()=>setSidebarOpen(value=>!value)}>{sidebarOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumb">Workspace <ChevronRight size={13}/><span>{pages[page].name}</span></div></div><div className="topbar-actions"><button className="guide-topbar" aria-label="Guide" title="Guide: start here step by step" onClick={showGuide}><span className="guide-mark" aria-hidden="true">G</span><span>Guide</span></button><button className="demo-chip" onClick={()=>go('settings')}><span/>{mode==='demo'?'Demo workspace':'Live workspace'}</button>{can('money')&&<button className="icon-button" aria-label="Upcoming reminders" onClick={()=>{go('money');setTab('subscriptions');}}><Bell size={19}/>{upcoming.some(s=>daysUntil(s.renewal)<=3)&&<i className="notification-dot"/>}</button>}<button className="icon-button" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut size={18}/></button><div className="launcher-wrap"><button className={'icon-button '+(launcher?'selected':'')} aria-label="Open app launcher" aria-expanded={launcher} onClick={()=>setLauncher(!launcher)}><Grid3X3 size={21}/></button>{launcher&&<div className="launcher"><h3>Your everyday apps</h3><p>Everything you need, in its own space.</p><div>{Object.entries(pages).filter(([k])=>k!=='settings'&&allowed(k)).map(([key,p])=><button key={key} onClick={()=>go(key)}><span><p.icon size={24}/></span>{p.name}</button>)}</div></div>}</div><span className="avatar small">{data.settings.name.slice(0,2).toUpperCase()}</span></div></header>
  <main><p className="save-status" role="status">{busy?'Saving…':needsRefresh?'Refresh needed to verify saved records':lastSaved?'Last saved '+lastSaved.toLocaleTimeString():'Ready'}</p>{mode==='demo'&&<section className="demo-welcome-actions"><strong>You’re exploring demo data.</strong><button className="secondary" onClick={()=>session.onSignup?.()}>Create your account</button></section>}{mode==='demo'&&user.role!=='admin'&&<div className="preview-note"><span>Previewing {user.name}’s access: {user.permissions.filter(p=>p!=='assistant').map(p=>APP_LABELS[p]).join(', ')}</span><button className="text-button" onClick={()=>onPreview(demoAdmin)}>Back to admin demo <ArrowRight size={14}/></button></div>}<div className="page-heading"><div><div className="eyebrow">{page==='overview'?<><Sun size={14}/> LET’S MAKE TODAY COUNT</>:'YOUR PERSONAL '+(page==='money'?'FINANCES':page==='tasks'?'PLANNER':'SPACE')}</div><h1>{page==='overview'?`A good day starts here, ${data.settings.name}.`:pages[page].name}</h1><p>{page==='overview'?'A clear view of your money, your plans, and what’s next.':pages[page].caption}</p></div><div className="button-row">{page==='tasks'&&<button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button>}{(!isToday&&(page==='tasks'||(can('money')&&['money','overview'].includes(page))))&&<button data-tour={page==='tasks'?'add-task':undefined} className="primary" onClick={()=>open(page==='tasks'?'task':'transactionChoice')}><Plus size={17}/>{page==='tasks'?'Add task':'Add transaction'}</button>}</div></div>
+ {offlineEnabled&&(import.meta.env.PROD||offline||queued.length>0)&&<OfflineQueue records={queued} ready={offlineReady} offline={offline} busy={busy} onRetry={()=>void retrySync.current()}/>}
  {needsRefresh&&<div className="info-note" role="status">Refresh the latest records before making more changes.<button className="secondary" disabled={busy} onClick={refreshRecords}>Refresh records</button></div>}
  {error&&!modal&&<div className="error" role="alert">{error}<button className="icon-button" onClick={()=>setError('')} aria-label="Dismiss error"><X size={15}/></button></div>}
  {page==='overview'&&<div className="overview-tabs" aria-label="Overview views">{[['checkin','Today'],['dashboard','Dashboard'],['history','History'],['review','Weekly review'],['calendar','Calendar']].map(([key,title])=><button key={key} data-tour={key==='checkin'?'today-tab':undefined} className={overviewTab===key?'selected':''} onClick={()=>setOverviewTab(key)}>{title}</button>)}</div>}

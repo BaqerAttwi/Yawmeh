@@ -4,27 +4,13 @@ import {WorkspaceLoading} from './WorkspaceLoading.jsx';
 import {PasswordForm} from './PasswordForm.jsx';
 import React, {useEffect, useState} from 'react';
 import {Leaf, ArrowRight, LockKeyhole, ShieldCheck, CheckSquare, LogIn} from 'lucide-react';
+import {request} from '../../lib/request.js';
+import {rememberOfflineAccount} from '../../lib/offline-entries.js';
 import {APP_ACCESS} from '../../../../shared/access.js';
 
 export const demoAdmin = {id:'demo-admin',name:'Alex',email:'admin@demo.local',role:'admin',permissions:APP_ACCESS,active:true};
 export const demoMember = {id:'demo-tasks',name:'Sam',email:'sam@demo.local',role:'user',permissions:['tasks'],active:true};
-export async function request(path, method='GET', body, {timeoutMs=20000,signal}={}) {
-  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
-  const cancel=()=>controller.abort();
-  if(signal?.aborted)cancel();
-  else signal?.addEventListener('abort',cancel,{once:true});
-  try{
-  const response=await fetch('/api'+path,{method,credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
-  let result;try{result=await response.json();}catch(error){if(error.name==='AbortError')throw error;throw new Error('The server is unavailable. Please try again shortly.');}
-  if(!response.ok){const error=new Error(result.error||'Request failed.');error.status=response.status;error.code=result.code;throw error;}
-  return result;
-  }catch(error){
-   if(error.name!=='AbortError'||signal?.aborted)throw error;
-   const failure=new Error('The connection is taking too long. Please try again.');
-   failure.code='request_timeout';
-   throw failure;
-  }finally{clearTimeout(timeout);signal?.removeEventListener('abort',cancel);}
-}
+export {request};
 
 export function AuthGate({children,prepareWorkspace}) {
   const {checkSession,hasSessionCookie,googleSignin}=document.getElementById('root').dataset;
@@ -73,6 +59,7 @@ export function AuthGate({children,prepareWorkspace}) {
   }
   async function logout(){
     if(session?.mode==='live') {try{await request('/auth/logout','POST',{});}catch(e){setError(e.message);throw e;}}
+    if(session?.mode==='live')rememberOfflineAccount(null);
     setSession(null);setError('');
   }
   if(loading)return <WorkspaceLoading/>;

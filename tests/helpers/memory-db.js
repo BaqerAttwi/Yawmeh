@@ -10,6 +10,8 @@ export function memoryDatabase(records,users,queries=[]){
     if(sql==='SELECT current_rate,last_currency,custom_currencies,home_currency FROM users WHERE id=?')return [users.filter(u=>u.id===args[0]).map(u=>({current_rate:u.current_rate,last_currency:u.last_currency||'USD',custom_currencies:u.custom_currencies,home_currency:u.home_currency||'USD'}))];
     if(/^UPDATE users SET (last_currency|current_rate|custom_currencies|home_currency)=\? WHERE id=\?$/.test(sql)){const u=users.find(u=>u.id===args[1]);u[sql.match(/SET (\w+)=/)[1]]=args[0];return [{affectedRows:1}];}
     if(sql==='SELECT id FROM users WHERE id=? FOR UPDATE')return [users.filter(u=>u.id===args[0]).map(u=>({id:u.id}))];
+    const offline=sql.match(/^SELECT id FROM (entries|tasks|inbox) WHERE user_id=\? AND offline_sync_id=\?$/);
+    if(offline)return [records[offline[1]].filter(record=>record.user_id===args[0]&&record.offline_sync_id===args[1]).map(({id})=>({id}))];
     match=sql.match(/^SELECT \* FROM (tasks|goals|inbox|subscriptions) WHERE id=\? AND user_id=\? FOR UPDATE$/);
     if(match)return [records[match[1]].filter(r=>r.id===Number(args[0])&&r.user_id===args[1])];
     if(sql==='SELECT * FROM subtasks WHERE task_id=? AND user_id=?')return [records.subtasks.filter(r=>r.task_id===args[0]&&r.user_id===args[1])];

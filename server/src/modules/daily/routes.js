@@ -4,6 +4,7 @@ import {requireAccess} from '../auth/auth.js';
 import {daySchema,planSchema,captureSchema,rescheduleSchema,mergePlan,rescheduled} from '../../../../shared/daily.js';
 import {PlannerError} from '../../../../shared/planner.js';
 import {today} from '../../../../shared/domain.js';
+import {existingOfflineRecord,offlineSyncId} from '../offline-sync.js';
 export function mountDaily(app,db,transaction){
  const current=()=>today(process.env.TIMEZONE||'Asia/Beirut');
  app.post('/api/day_plans/today/close',requireAccess('tasks'),async(req,res)=>{
@@ -36,7 +37,18 @@ export function mountDaily(app,db,transaction){
   });res.json({ok:true});
  });
  app.post('/api/inbox',requireAccess('tasks'),async(req,res)=>{
-  const value=captureSchema.parse(req.body);const [r]=await db.query('INSERT INTO inbox SET ?',{...value,user_id:req.user.id,date:current(),archived:0,task_id:null});res.status(201).json({id:r.insertId});
+  const syncId=offlineSyncId(req);
+  const value=captureSchema.parse(syncId?{text:req.body.text}:req.body);
+  const insert=async connection=>{
+    const existing=await existingOfflineRecord(connection,'inbox',req.user.id,syncId);
+    if(existing)return existing.id;
+    const date=syncId?daySchema.optional().parse(req.body.captured_on)||current():current();
+    if(date>current())throw new PlannerError('Notes cannot be dated in the future.');
+    const [result]=await connection.query('INSERT INTO inbox SET ?',{...value,user_id:req.user.id,date,archived:0,task_id:null,...(syncId?{offline_sync_id:syncId}:{})});
+    return result.insertId;
+  };
+  const id=syncId?await transaction(req.user.id,insert):await insert(db);
+  res.status(201).json({id});
  });
  app.patch('/api/inbox/:id',requireAccess('tasks'),async(req,res)=>{
   const {archived}=z.object({archived:z.boolean()}).strict().parse(req.body);

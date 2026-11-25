@@ -23,6 +23,7 @@ import {aiRequest,aiText,providers} from './modules/ai/providers.js';
 import {createAuth,mysqlAuthStore,protectMutation,requireAccess,requireAdmin} from './modules/auth/auth.js';
 import {mountPlanner} from './modules/planning/routes.js';
 import {PlannerError,checkUnassignedWithdrawal} from '../../shared/planner.js';
+import {existingOfflineRecord,offlineSyncId} from './modules/offline-sync.js';
 
 export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions={recovery:recoveryStore(db)},signupOptions,speechOptions,companionOptions,trustProxy=trustedProxies()}={}) {
  const app=express();
@@ -52,7 +53,7 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
    try {await connection.beginTransaction();await connection.query('SELECT id FROM users WHERE id=? FOR UPDATE',[userId]);const result=await action(connection);await connection.commit();return result;}
    catch(error){await connection.rollback();throw error;}finally{connection.release();}
  }
- async function insertEntry(connection,userId,entry) {
+ async function insertEntry(connection,userId,entry,syncId) {
    const preferences=await moneyPreferences(connection,userId);
    try{entry=captureRates(entry,preferences);}catch(error){throw new PlannerError(error.message);}
    const [entries]=await connection.query('SELECT * FROM entries WHERE user_id=?',[userId]);
@@ -61,16 +62,19 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
      const [moves]=await connection.query('SELECT * FROM goal_moves WHERE user_id=?',[userId]);
      checkUnassignedWithdrawal(entry,entries,moves);
    }
-   const [result]=await connection.query('INSERT INTO entries SET ?',{...entry,rate_snapshot:JSON.stringify(entry.rate_snapshot),user_id:userId});
+   const [result]=await connection.query('INSERT INTO entries SET ?',{...entry,rate_snapshot:JSON.stringify(entry.rate_snapshot),user_id:userId,...(syncId?{offline_sync_id:syncId}:{})});
    await connection.query('UPDATE users SET last_currency=? WHERE id=?',[entry.currency,userId]);return result.insertId;
  }
  app.post('/api/entries',requireAccess('money'),async(req,res)=>{
+   const syncId=offlineSyncId(req);
    const entry=entrySchema.parse(req.body);
-   if(entry.date>today(process.env.TIMEZONE||'Asia/Beirut'))return res.status(400).json({error:'Transactions cannot be dated in the future.'});
    let item;
    try{item=expenseItem(entry,req.body);}catch(error){return res.status(400).json({error:error.issues?.[0]?.message||error.message});}
    const id=await ledgerTransaction(req.user.id,async connection=>{
-     const entryId=await insertEntry(connection,req.user.id,entry);
+     const existing=await existingOfflineRecord(connection,'entries',req.user.id,syncId);
+     if(existing)return existing.id;
+     if(entry.date>today(process.env.TIMEZONE||'Asia/Beirut'))throw new PlannerError('Transactions cannot be dated in the future.');
+     const entryId=await insertEntry(connection,req.user.id,entry,syncId);
      if(item)await connection.query('INSERT INTO items SET ?',{...item,user_id:req.user.id});
      return entryId;
    });
@@ -144,7 +148,7 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
  app.use((error,req,res,next)=>{
    if(error.type==='entity.parse.failed'||error instanceof URIError)return res.status(400).json({error:'The request contains invalid JSON or an invalid URL.'});
    if(error.type==='entity.too.large')return res.status(413).json({error:'This request is too large. Shorten the text and try again.'});
-   if(error instanceof PlannerError)return res.status(error.status).json({error:error.message});
+   if(error instanceof PlannerError)return res.status(error.status).json({error:error.message,...(error.code?{code:error.code}:{})});
    if(error instanceof z.ZodError)return res.status(400).json({error:error.issues.map(i=>`${i.path.join('.')}: ${i.message}`).join('; ')});
    if(error.code==='ER_DUP_ENTRY')return res.status(409).json({error:'An account with this email already exists.'});
    const known=['Savings allocation','Please explain','This withdrawal','Insufficient spending','Active subscription','This renewal'];

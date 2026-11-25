@@ -7,7 +7,8 @@ export async function snapshot(user, db=pool) {
   const result={};
   await Promise.all(['entries','items','budgets','subscriptions','tasks','subtasks','goals','goal_moves','day_plans','inbox'].map(async table=>{
     if(!hasAccess(user,['tasks','subtasks','day_plans','inbox'].includes(table)?'tasks':'money')) {result[table]=[];return;}
-    const [rows]=await db.query(`SELECT * FROM ${table} WHERE user_id=? ORDER BY id DESC`,[user.id]);result[table]=rows;
+    const [rows]=await db.query(`SELECT * FROM ${table} WHERE user_id=? ORDER BY id DESC`,[user.id]);
+    result[table]=['entries','tasks','inbox'].includes(table)?rows.map(({offline_sync_id,...record})=>record):rows;
   }));
   const [[settings]]=await db.query('SELECT name,reminder_email AS email,quiet_start,quiet_end,current_rate,last_currency,custom_currencies,home_currency FROM users WHERE id=?',[user.id]);
   result.settings=settings;

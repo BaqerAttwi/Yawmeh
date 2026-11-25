@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offline capture · yawmeh.me</title>
+  <style>
+    :root{color-scheme:light;font:16px system-ui;color:#294637;background:#f7f8fa}
+    main{max-width:480px;margin:auto;padding:32px 20px}
+    form{background:#fff;border:1px solid #d9e4db;border-radius:16px;padding:20px;margin:20px 0}
+    label{display:grid;gap:5px;margin-bottom:14px;font-weight:600}
+    input,select,textarea,button{font:inherit;padding:9px;border:1px solid #9cad9e;border-radius:8px}
+    a{color:inherit}button{background:#294637;color:#fff;padding-inline:14px}
+    #error{color:#a22222}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Offline capture</h1>
+    <p id="intro">Sign in online to prepare offline capture on this device.</p>
+    <form id="entry" hidden>
+      <h2>Transaction</h2>
+      <label>Type <select name="type"><option value="expense">Expense</option><option value="income">Income</option></select></label>
+      <label>Description <input name="title" required maxlength="160"></label>
+      <label>Currency <select name="currency" required></select></label>
+      <label>Amount <input name="amount" type="number" inputmode="decimal" min="0.01" max="999999999" step="0.01" required></label>
+      <label>Date <input name="date" type="date" min="1000-01-01" required></label>
+      <label>Category <input name="category" maxlength="80" placeholder="Other"></label>
+      <label>Note (optional) <textarea name="note" maxlength="2000" rows="2"></textarea></label>
+      <button>Save on this device</button>
+    </form>
+    <form id="task" hidden>
+      <h2>Task</h2>
+      <label>Task name <input name="title" required maxlength="160"></label>
+      <label>Due date <input name="due" type="date" min="1000-01-01" required></label>
+      <button>Save task on this device</button>
+    </form>
+    <form id="note" hidden>
+      <h2>Inbox note</h2>
+      <label>Note <textarea name="text" required maxlength="1000" rows="3"></textarea></label>
+      <button>Save note on this device</button>
+    </form>
+    <p id="error" role="alert" hidden></p>
+    <p id="pending" role="status"></p>
+    <details id="queue" hidden><summary>Pending records</summary><ul></ul></details>
+    <a href="/">Return to workspace</a>
+  </main>
+  <script type="module" src="/client/src/offline.js"></script>
+</body>
+</html>

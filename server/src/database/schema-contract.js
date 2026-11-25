@@ -50,6 +50,7 @@ export const REQUIRED_SCHEMA = { signup_verifications:["token_hash","user_id","e
     "note",
     "voided_on",
     "void_reason",
+    "offline_sync_id",
     "created_at"
   ],
   "items": [
@@ -93,7 +94,8 @@ export const REQUIRED_SCHEMA = { signup_verifications:["token_hash","user_id","e
     "completed",
     "completed_on",
     "recurrence",
-    "previous_task_id"
+    "previous_task_id",
+    "offline_sync_id"
   ],
   "subtasks": [
     "id",
@@ -135,7 +137,8 @@ export const REQUIRED_SCHEMA = { signup_verifications:["token_hash","user_id","e
     "text",
     "date",
     "archived",
-    "task_id"
+    "task_id",
+    "offline_sync_id"
   ],
   "reminder_log": [
     "id",
