@@ -15,10 +15,13 @@ import {guidanceGoal,guidanceReply} from './companion-guidance.js';
 import {dictionaryWord} from './chat-dictionary.js';
 import {languageProfile} from './lebanese-language.js';
 import {naturalCapture,normalizeSpokenMoney} from './companion-capture.js';
+import {companionHelp} from './companion-help.js';
 const usd=n=>'≈ '+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100)+' (USD estimate)';
 
 // Deterministic local conversation. No network, generated numbers or automatic writes.
 export function localCompanion(data,user,question,current,selected,context=null){
+ const help=companionHelp(user,question);
+ if(help)return {...help,context};
  question=commonRequestAlias(question)||question;
  // A short service name is a suggestion, never a saved subscription or price.
  const tokens=question.trim().split(/\s+/);

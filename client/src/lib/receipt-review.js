@@ -23,6 +23,5 @@ export function removeReceiptDraft(account,id){
 }
 
 export function needsCategoryReview(entry){
- return entry.type==='expense'&&!entry.voided_on&&!entry.reviewed&&
-  ['', 'other', 'uncategorized'].includes((entry.category||'').trim().toLowerCase());
+ return entry.type==='expense'&&!entry.voided_on&&!entry.reviewed&&!!entry.category_review_requested&&entry.category==='Other';
 }

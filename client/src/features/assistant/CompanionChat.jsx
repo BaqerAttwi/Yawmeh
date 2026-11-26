@@ -14,6 +14,7 @@ import {readCompanionHistory,writeCompanionHistory,rememberConversation,historyK
 import {Character,assistantLooks} from './Character.jsx';
 import {CompanionVoice} from './CompanionVoice.jsx';
 import {ReceiptScan} from './ReceiptScan.jsx';
+import {companionHelp} from '../../../../shared/companion-help.js';
 import './companion.css';
 import './companion-chat.css';
 
@@ -110,9 +111,10 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
   // Yield once so the activity indicator paints while preparing a local reply.
   pending.current=setTimeout(async()=>{
    try{
-    const changeRequest=parseCompanionChange(question);
-    const report=!changeRequest&&companionReportRequest(question,user);
-    const prepared=changeRequest?proposeCompanionChange(user,changeRequest,nextLanguage):localCompanion(data,user,report?.command||question,date,{start,end},report?null:conversation.current);
+    const help=companionHelp(user,question,nextLanguage);
+    const changeRequest=!help&&parseCompanionChange(question);
+    const report=!help&&!changeRequest&&companionReportRequest(question,user);
+    const prepared=help?{...help,context:conversation.current}:changeRequest?proposeCompanionChange(user,changeRequest,nextLanguage):localCompanion(data,user,report?.command||question,date,{start,end},report?null:conversation.current);
     setAINotice('');
     let result=prepared,reply;
     if(mode==='live'&&useAI&&aiAvailable&&report&&!forceLocal){
@@ -137,6 +139,7 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  function startDraft(type){clearDrafts();close();onAction(type,{},language);}
  const prompts=[
   ['What can I ask?','شو فيني اسأل؟'],
+  ...(hasAccess(user,'money')?[['Where is Needs review?','وين قائمة المراجعة؟'],['How do I edit a transaction?','كيف عدّل معاملة؟']]:[]),
   ...(hasAccess(user,'tasks')?[['Plan my day','رتّب يومي'],['I have 15 minutes','عندي ١٥ دقيقة'],['What is my next task?','شو اعمل هلق؟'],['Show overdue tasks','شو المهام المتأخرة؟'],['What have I completed today?','شو خلصت اليوم؟'],['Upcoming tasks','مهامي الجاي']]:[]),
   ...(hasAccess(user,'money')?[['How can I save more?','كيف فيني وفر أكتر؟'],['What are my savings?','شو مدخراتي؟'],['Budget status','وضع الميزانية'],['Review subscriptions','راجع الاشتراكات'],['Compare spending this month','قارن مصاريف الشهر']]:[]),
   ...(hasAccess(user,'money')?[['Recent expenses','آخر المصاريف'],['Largest expense this month','أكبر مصروف هالشهر'],['Which subscriptions are due?','شو الاشتراكات المستحقة؟'],['Can you add expenses?','ضيف مصروف']]:[]),

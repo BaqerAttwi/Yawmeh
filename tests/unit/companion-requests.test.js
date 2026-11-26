@@ -5,6 +5,7 @@ import {localCompanion} from '../../shared/local-companion.js';
 import {demoData} from '../../client/src/features/demo/data.js';
 import {isLocalCompanionFollowup} from '../../shared/companion-followup.js';
 import {companionReportRequest} from '../../shared/companion-report-ai.js';
+import {presentReply} from '../../shared/companion-presentation.js';
 const date='2026-11-05',data=demoData(),admin={role:'admin'};
 const ask=(q,user=admin)=>localCompanion(data,user,q,date,{start:date,end:date});
 test('researched example library includes three writing styles and respects app access',()=>{
@@ -13,6 +14,24 @@ test('researched example library includes three writing styles and respects app 
  const restricted=availableCompanionRequests({role:'user',permissions:['tasks']});
  assert.equal(restricted.some(row=>row.group==='money'||row.permission==='money'),false);
  assert.ok(restricted.some(row=>row.group==='tasks'));
+});
+test('new workspace help understands English, Arabic and Arabizi examples',()=>{
+ for(const row of companionRequests.filter(entry=>entry.group==='help')){
+  for(const phrase of row.examples){
+   const result=ask(phrase);
+   assert.equal(result.help,true,phrase);
+   assert.equal(result.action,undefined,phrase);
+  }
+ }
+ assert.match(ask('Where is Needs review?').answer,/Choose a category later.*Old expenses/);
+ assert.match(ask('The amount is wrong on a saved transaction').answer,/Correct \/ undo transaction/);
+ assert.match(ask('Where is Needs review?',{role:'user',permissions:['tasks']}).answer,/does not have Money access/);
+ assert.match(ask('Where is Calendar?',{role:'user',permissions:['tasks']}).answer,/More views/);
+ assert.equal(ask('I spent $10 on an offline course').action?.type,'expense');
+ const context=ask('Add task').context;
+ const help=localCompanion(data,admin,'How does offline sync work?',date,{start:date,end:date},context);
+ assert.equal(help.context,context);
+ assert.match(presentReply(help,'en').answer,/Sync.*top bar/);
 });
 test('query aliases map to supported record reports without writing data',()=>{
  const before=structuredClone(data);

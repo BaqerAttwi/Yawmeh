@@ -3,6 +3,15 @@ import {hasAccess} from './access.js';
 // Original example phrases informed by the research in docs/companion-research.md.
 // Templates describe supported operations; they are not copied user conversations.
 export const companionRequests=[
+ {id:'help_review',group:'help',permission:'money',title:['Find Needs review','وين قائمة المراجعة'],examples:['Where is Needs review?','وين قائمة المراجعة؟','wein review queue?']},
+ {id:'help_transaction',group:'help',permission:'money',title:['Edit a saved transaction','عدّل معاملة محفوظة'],examples:['How do I edit a transaction?','كيف عدّل معاملة؟','kif edit transaction?']},
+ {id:'help_receipt',group:'help',permission:'money',title:['Scan or reopen a receipt','امسح أو افتح إيصال'],examples:['How do I scan a receipt?','كيف امسح إيصال؟','kif scan receipt?']},
+ {id:'help_categories',group:'help',permission:'money',title:['Choose a category','اختَر فئة'],examples:['How do I add a custom category?','كيف ضيف فئة مخصصة؟','kif add custom category?']},
+ {id:'help_monthly_money',group:'help',permission:'money',title:['Read Monthly Money','افهم المال شهريًا'],examples:['How do I read Monthly Money?','كيف بقرأ المال شهريًا؟','kif read Monthly Money?']},
+ {id:'help_offline',group:'help',title:['Capture offline and sync','سجّل بلا نت وزامن'],examples:['How does offline sync work?','كيف بشتغل بلا انترنت؟','kif offline sync?']},
+ {id:'help_appearance',group:'help',title:['Change appearance','غيّر المظهر'],examples:['How do I change the app color?','كيف بغيّر لون التطبيق؟','kif change app color?']},
+ {id:'help_email',group:'help',title:['Enable report emails','فعّل تقارير البريد'],examples:['How do I enable report emails?','كيف بفعّل تقارير البريد؟','kif enable report emails?']},
+ {id:'help_navigation',group:'help',title:['Find Calendar and History','وين التقويم والسجل'],examples:['Where is Calendar?','وين التقويم؟','wein find calendar?']},
  {id:'plan',group:'tasks',title:['Plan my day','رتّب نهاري'],examples:['Plan my day','رتّب يومي','ratteb yomi'],canonical:'plan my day',aliases:['What should I focus on today?','Help me prioritize my tasks','شو أول شي لازم اعمل اليوم؟','shou awal shi lezem a3mol lyom']},
  {id:'quick',group:'tasks',title:['Use a short break','استفيد من وقت صغير'],examples:['I have 15 minutes','عندي 15 دقيقة','3ande 15 da2aye2']},
  {id:'task',group:'tasks',title:['Add a reminder','ضيف تذكير'],examples:['Add task call the dentist tomorrow at 9 am','ذكرني اتصل بطبيب الاسنان بكرا الساعة 9 الصبح','bdi zakkerni call dentist bokra se3a 9 sobe7']},

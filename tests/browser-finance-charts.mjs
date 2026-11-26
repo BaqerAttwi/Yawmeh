@@ -106,7 +106,8 @@ try{
     await transaction.getByRole('button',{name:t('Edit {name}',{name:originalTitle})}).click();
     const editor=page.getByRole('dialog',{name:t('Edit transaction')});
     await editor.locator('[name=title]').fill(updatedTitle);
-    await editor.locator('[name=category]').fill('Household');
+    await editor.getByRole('combobox',{name:t('Category')}).selectOption({label:t('Add a custom category')});
+    await editor.getByRole('textbox',{name:t('Custom category')}).fill('Household');
     await editor.locator('[name=note]').fill('Receipt checked');
     await editor.getByRole('button',{name:t('Save changes'),exact:true}).click();
     await editor.waitFor({state:'hidden'});

@@ -81,7 +81,9 @@ if(account?.currencies?.length){
   fields.date.defaultValue=fields.date.max=today();
   bind(form,'entries',raw=>{
     const currency=account.currencies.find(item=>item.code===raw.currency);
-    const value=entrySchema.parse({...raw,category:raw.category.trim()||'Other',unit_rate:currency?.rate});
+    const missingCategory=!raw.category.trim();
+    const value=entrySchema.parse({...raw,category:raw.category.trim()||'Other',unit_rate:currency?.rate,
+      ...(raw.type==='expense'&&missingCategory?{category_review_requested:true}:{})});
     if(value.date>today())throw new Error('Transactions cannot be dated in the future.');
     return value;
   },()=>{fields.date.value=fields.date.max=today();});

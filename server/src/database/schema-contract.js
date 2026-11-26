@@ -52,6 +52,7 @@ export const REQUIRED_SCHEMA = { signup_verifications:["token_hash","user_id","e
     "voided_on",
     "void_reason",
     "reviewed",
+    "category_review_requested",
     "offline_sync_id",
     "created_at"
   ],

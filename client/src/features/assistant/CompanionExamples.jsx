@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import {availableCompanionRequests} from '../../../../shared/companion-requests.js';
 import {languageProfile} from '../../../../shared/lebanese-language.js';
 
-const groups={tasks:['Plan and remember','خطّط وتذكّر'],money:['Track and review money','سجّل وراجع المصاري'],drafts:['Fix a draft','عدّل مسودة'],reports:['Review your activity','راجع نشاطك']};
+const groups={help:['Help using Yawmeh','مساعدة باستخدام يومِه'],tasks:['Plan and remember','خطّط وتذكّر'],money:['Track and review money','سجّل وراجع المصاري'],drafts:['Fix a draft','عدّل مسودة'],reports:['Review your activity','راجع نشاطك']};
 const searchable=text=>text.normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().trim();
 export function CompanionExamples({user,language,text,onChoose}){
  const [style,setStyle]=useState('auto'),ar=language==='ar';

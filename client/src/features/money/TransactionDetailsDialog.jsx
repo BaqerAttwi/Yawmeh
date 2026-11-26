@@ -4,8 +4,9 @@ import {formatMoney,currencyOf,savedRates} from '../../../../shared/currency.js'
 import {cents} from '../../../../shared/domain.js';
 import {Field} from '../../components/ui.jsx';
 import {workspaceText} from '../../lib/workspace-text.js';
+import {MoneyCategoryField} from './MoneyCategoryField.jsx';
 
-export function TransactionDetailsDialog({entry,language,busy,error,onClose,onSave,review=false}){
+export function TransactionDetailsDialog({entry,language,categories,busy,error,onClose,onSave,review=false}){
  const dialog=useRef(null);
  const [validation,setValidation]=useState('');
  const t=workspaceText(language);
@@ -27,7 +28,7 @@ export function TransactionDetailsDialog({entry,language,busy,error,onClose,onSa
   </div>
   <form onSubmit={submit}>
    <Field label={t('Transaction name')} name="title" dir="auto" defaultValue={entry.title} maxLength={160} required/>
-   <Field label={t('Category')} name="category" dir="auto" defaultValue={entry.category||'Other'} maxLength={80} required/>
+   <MoneyCategoryField language={language} categories={categories} value={entry.category||'Other'}/>
    <label className="field"><span>{t('Note (optional)')}</span><textarea name="note" dir="auto" defaultValue={entry.note||''} maxLength={2000} rows={3}/></label>
    <p className="form-hint">{t('To correct the amount, currency, or date, reverse the transaction in History and enter it again.')}</p>
    {(validation||error)&&<p className="error" role="alert">{validation||error}</p>}

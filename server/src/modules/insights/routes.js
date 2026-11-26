@@ -16,8 +16,9 @@ export function mountInsights(app,db,transaction){
   }
   app.patch('/api/entries/:id/details',requireAccess('money'),async(req,res)=>{
     const {title,category,note,reviewed}=entryReviewSchema.parse(req.body);
-    const [result]=await db.query('UPDATE entries SET title=?,category=?,note=?,reviewed=IF(?,TRUE,reviewed) WHERE id=? AND user_id=? AND voided_on IS NULL',
-      [title,category,note,reviewed===true,req.params.id,req.user.id]);
+    const clearReview=reviewed===true||category!=='Other';
+    const [result]=await db.query('UPDATE entries SET title=?,category=?,note=?,reviewed=IF(?,TRUE,reviewed),category_review_requested=IF(?,FALSE,category_review_requested) WHERE id=? AND user_id=? AND voided_on IS NULL',
+      [title,category,note,reviewed===true,clearReview,req.params.id,req.user.id]);
     if(!result.affectedRows)return res.status(404).json({error:'Active record not found.'});
     res.json({ok:true});
   });

@@ -84,6 +84,7 @@ export async function migrate() {
     ['entries','voided_on','DATE NULL'],
     ['entries','void_reason',"VARCHAR(500) NOT NULL DEFAULT ''"],
     ['entries','reviewed','BOOLEAN NOT NULL DEFAULT FALSE'],
+    ['entries','category_review_requested','BOOLEAN NOT NULL DEFAULT FALSE'],
     ['entries','offline_sync_id','CHAR(36) NULL']
   ]) {
     const [found]=await pool.query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?',[table,column]);

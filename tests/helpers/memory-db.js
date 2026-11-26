@@ -39,10 +39,13 @@ export function memoryDatabase(records,users,queries=[]){
       if(row)row.title=args[0];
       return [{affectedRows:row?1:0}];
     }
-    if(sql==='UPDATE entries SET title=?,category=?,note=?,reviewed=IF(?,TRUE,reviewed) WHERE id=? AND user_id=? AND voided_on IS NULL'){
-      const [title,category,note,reviewed,id,userId]=args;
+    if(sql==='UPDATE entries SET title=?,category=?,note=?,reviewed=IF(?,TRUE,reviewed),category_review_requested=IF(?,FALSE,category_review_requested) WHERE id=? AND user_id=? AND voided_on IS NULL'){
+      const [title,category,note,reviewed,clearReview,id,userId]=args;
       const row=records.entries.find(record=>record.id===Number(id)&&record.user_id===userId&&!record.voided_on);
-      if(row)Object.assign(row,{title,category,note,...(reviewed?{reviewed:true}:{})});
+      if(row){
+        Object.assign(row,{title,category,note,...(reviewed?{reviewed:true}:{})});
+        if(clearReview&&row.category_review_requested)row.category_review_requested=false;
+      }
       return [{affectedRows:row?1:0}];
     }
     if(sql==='UPDATE entries SET voided_on=?,void_reason=? WHERE id=? AND user_id=?'){const row=records.entries.find(r=>r.id===Number(args[2])&&r.user_id===args[3]);if(row)Object.assign(row,{voided_on:args[0],void_reason:args[1]});return [{affectedRows:row?1:0}];}

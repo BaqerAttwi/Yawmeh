@@ -25,6 +25,7 @@ export function replyMetrics(text,language='en') {
 }
 
 export function presentReply(result,language) {
+ if(result.help)return {...result,language};
  if(language!=='ar'){
   if(result.context?.field==='time')return {...result,language:'en',answer:'What time? For example, 1 pm or 13:00. Your task draft is still here; nothing has been saved.'};
   if(result.context?.field==='date')return {...result,language:'en',answer:'Which date? Say today, tomorrow, or enter YYYY-MM-DD. Your task draft is still here; nothing has been saved.'};

@@ -1,4 +1,8 @@
 const arabic={
+ 'Choose a category later':'اختر الفئة لاحقًا','Add a custom category':'أضف فئة مخصصة','Custom category':'فئة مخصصة',
+ 'Food & drinks':'طعام ومشروبات','Groceries':'بقالة','Dining out':'مطاعم','Housing':'سكن','Utilities':'خدمات منزلية',
+ 'Transport':'مواصلات','Shopping':'تسوّق','Health':'صحة','Insurance':'تأمين','Learning':'تعلّم',
+ 'Entertainment':'ترفيه','Travel':'سفر','Gifts':'هدايا','Bills':'فواتير','Work':'عمل','Freelance':'عمل حر','Other':'أخرى',
  'Needs review':'بحاجة إلى مراجعة','Receipt draft':'مسودة إيصال','Review receipt':'راجع الإيصال',
  'Discard draft':'تجاهل المسودة','Discard this receipt draft?':'هل تريد تجاهل مسودة الإيصال؟',
  'Receipt drafts are saved in this browser until you record or discard them.':'تُحفظ مسودات الإيصالات في هذا المتصفح حتى تسجّلها أو تتجاهلها.',
