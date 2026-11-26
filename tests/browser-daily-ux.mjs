@@ -180,7 +180,8 @@ try {
   assert.deepEqual(await form.locator('.money-effect dd').allTextContents(),['$90.00','$20.00','$70.00']);
   await form.getByRole('button',{name:'Save transaction',exact:true}).click();
   const balance=live.getByRole('region',{name:'Your spending balance'});
-  await balance.getByText(/70.00 available to spend/).waitFor();
+  await balance.getByText('Safe to spend today',{exact:true}).waitFor();
+  await balance.getByText('$70.00',{exact:true}).first().waitFor();
   await balance.getByRole('button',{name:'Log an expense'}).click();
   await form.locator('[name=title]').fill('Tea');
   await form.locator('[name=amount]').fill('4');

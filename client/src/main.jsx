@@ -8,6 +8,9 @@ import './styles/access.css';
 import './styles/workspace.css';
 import {AuthGate} from './features/auth/Auth.jsx';
 import {WorkspaceLoading} from './features/auth/WorkspaceLoading.jsx';
+import {applyPalette,getPalette} from './lib/palette.js';
+
+applyPalette(getPalette());
 
 let workspaceModule;
 function loadWorkspace(){

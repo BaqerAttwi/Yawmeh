@@ -25,9 +25,10 @@ export function SpendingBalance({data,end}) {
  }));
  return <details className="spending-breakdown" onToggle={event=>setOpen(event.currentTarget.open)}>
   <summary>
-   <strong>{byCurrency.length===1?`${byCurrency[0]} available to spend`:'Available to spend'}</strong>
+   <span className="balance-hero-label">Safe to spend today</span>
+   <strong className="balance-hero-value"><bdi>{byCurrency.length===1?byCurrency[0]:formatted(balance.available)}</bdi></strong>
    {byCurrency.length>1&&<span className="spending-currencies">{byCurrency.join(' · ')}</span>}
-   <span>See breakdown</span>
+   <span className="balance-hero-pill">See breakdown</span>
   </summary>
   <p>Balance through {end}. Spending is tracked separately in each currency.</p>
   {converts&&<p>Combined estimate ({display}): {formatted(balance.available)}. Uses saved exchange rates.</p>}

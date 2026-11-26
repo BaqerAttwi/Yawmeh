@@ -16,7 +16,7 @@ previousMonthEnd.setUTCDate(0);
 const previousEnd=previousMonthEnd.toISOString().slice(0,10),previousStart=previousEnd.slice(0,7)+'-01';
 records.entries.push({...records.entries[3],id:999,date:previousEnd,amount:150,currency:'USD'});
 records.budgets.push({...records.budgets[0],id:999,start:previousStart,end:previousEnd,amount:100});
-const server=createApp({db:memoryDatabase(records,[user]),authStore:{session:async()=>user},recoveryOptions:null}).listen(0,'127.0.0.1');
+const server=createApp({db:memoryDatabase(records,[user]),authStore:{session:async()=>user,listSessions:async()=>[]},recoveryOptions:null}).listen(0,'127.0.0.1');
 await once(server,'listening');
 const url=`http://127.0.0.1:${server.address().port}`;
 const screenshotDir=process.env.CHART_SCREENSHOT_DIR;
@@ -24,7 +24,7 @@ let browser;
 try{
   browser=await chromium.launch({headless:true,channel:'msedge'});
   if(screenshotDir)await mkdir(screenshotDir,{recursive:true});
-  for(const [width,scheme,rtl] of [[1280,'light',false],[360,'light',false],[360,'dark',false],[360,'light',true],[360,'dark',true]]){
+  for(const width of [1280,360])for(const scheme of ['light','dark'])for(const rtl of [false,true]){
     const context=await browser.newContext({viewport:{width,height:900},colorScheme:scheme,reducedMotion:'reduce'});
     await context.route('https://**/*',route=>route.abort());
     if(rtl)await context.addInitScript(()=>localStorage.setItem('yawmeh:workspace-language:live:1','ar'));
@@ -39,6 +39,8 @@ try{
     const monthButtons=monthly.getByRole('group',{name:'Select a month'}).getByRole('button');
     const chart=monthly.locator('.finance-chart');
     await chart.locator('.recharts-surface').waitFor();
+    const chartColors=()=>chart.evaluate(el=>['--primary','--income','--expense','--savings','--budget-limit','--danger'].map(token=>getComputedStyle(el).getPropertyValue(token)));
+    const originalChartColors=await chartColors();
     const budget=monthly.locator('.monthly-money-budget');
     const monthHeading=monthly.locator('.monthly-money-detail h3');
     const initialMonth=await monthHeading.textContent();
@@ -112,6 +114,29 @@ try{
     await page.getByText('View detailed reports and export',{exact:true}).click();
     await page.locator('.report-details select').first().selectOption('cash-flow');
     await page.locator('.report-details .recharts-surface').waitFor();
+    await go('Settings');
+    const swatches=page.getByRole('group',{name:rtl?'لون التطبيق':'App color'});
+    const labels=rtl?['ليموني','محيطي','مرجاني','زمردي']:['Lime','Ocean','Coral','Emerald'];
+    const paletteNames=['ocean','coral','emerald'];
+    for(const [index,name] of paletteNames.entries()){
+      const swatch=swatches.getByRole('button',{name:labels[index+1]});
+      await swatch.focus();
+      await swatch.press('Space');
+      assert.equal(await swatch.getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('html').getAttribute('data-palette'),name);
+    }
+    await page.reload();
+    await go('Settings');
+    assert.equal(await swatches.getByRole('button',{name:labels[3]}).getAttribute('aria-pressed'),'true');
+    await go('Overview');
+    const heroColor=await page.locator('.spending-breakdown summary').evaluate(el=>getComputedStyle(el).backgroundColor);
+    assert.equal(heroColor,'rgb(5, 150, 105)');
+    await page.locator('.overview-tabs').getByRole('button',{name:'Dashboard',exact:true}).click();
+    await chart.locator('.recharts-surface').waitFor();
+    assert.deepEqual(await chartColors(),originalChartColors);
+    await go('Settings');
+    await swatches.getByRole('button',{name:labels[0]}).click();
+    assert.equal(await page.locator('html').getAttribute('data-palette'),null);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     assert.deepEqual(errors,[]);
     await context.close();

@@ -1,11 +1,14 @@
 import './styles/tokens.css';
 import './styles/offline.css';
 import './lib/theme.js';
+import {applyPalette,getPalette} from './lib/palette.js';
 import {entrySchema,schemas} from '../../shared/validation.js';
 import {captureSchema} from '../../shared/daily.js';
 import {today} from '../../shared/domain.js';
 import {canSyncOffline,newOfflineEntry,offlineAccount,offlineTitle,pendingEntries,queueChanged,storeOfflineEntry,syncOfflineEntries} from './lib/offline-entries.js';
 import {request} from './lib/request.js';
+
+applyPalette(getPalette());
 
 const form=document.querySelector('#entry'),task=document.querySelector('#task'),note=document.querySelector('#note');
 const intro=document.querySelector('#intro'),queue=document.querySelector('#queue'),list=queue.querySelector('ul');

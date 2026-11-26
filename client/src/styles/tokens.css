@@ -1,22 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
 :root {
   color-scheme: light;
   --white: #ffffff;
-  --ink: #1c1e1d;
-  --pwa-background: #f7f6f3;
-  --charcoal: #121416;
+  --ink: #0f1115;
+  --pwa-background: #f3f4f6;
+  --charcoal: #0b0c0f;
   --bg: light-dark(var(--pwa-background), var(--charcoal));
-  --surface: light-dark(var(--white), #1a1d20);
-  --surface-2: light-dark(#f2f1ed, #22262a);
+  --surface: light-dark(var(--white), #15171c);
+  --surface-2: light-dark(#f3f4f6, #1c1f25);
+  --palette-lime: #c6f432;
+  --palette-ocean: #2563eb;
+  --palette-coral: #ff5b3a;
+  --palette-emerald: #059669;
+  --brand: var(--palette-lime);
+  --brand-hover: color-mix(in srgb,var(--brand) 92%,var(--on-brand));
+  --on-brand: #0b1f14;
+  --hero: light-dark(#0b2a1c, #13311f);
+  --hero-fg: var(--white);
+  --hero-2: #a7c4b5;
+  --hero-accent: var(--brand);
+  --accent-strong: light-dark(#0f5132,var(--palette-lime));
+  --positive: #1f7a4d;
+  --negative: #b42318;
 
 
   --line: var(--border);
-  --border: light-dark(#e5e2db, #2c3136);
-  --border-strong: light-dark(#d6d2c9, #3a4046);
+  --border: light-dark(#e5e7eb, #262a31);
+  --border-strong: light-dark(#ced2da, #3a4046);
   --border-control: var(--border-strong);
-  --text: light-dark(var(--ink), #ececea);
-  --text-muted: light-dark(#676a65, #a3a7a6);
-  --text-subtle: light-dark(#8d8f89, #80858a);
-  --teal: light-dark(#1f5f58, #6fb5a9);
+  --text: light-dark(var(--ink), #f2f3f5);
+  --text-2: light-dark(#4b5162, #a3a8b4);
+  --text-3: light-dark(#8a90a0, #6e7482);
+  --text-muted: var(--text-2);
+  --text-subtle: var(--text-3);
+  --teal: var(--accent-strong);
   --teal-soft: light-dark(#e8f0ee, #1f2f2d);
   --brass: light-dark(#8f6424, #d0ab6c);
   --brass-text: var(--brass);
@@ -24,8 +42,8 @@
   --slate-blue: light-dark(#4a6788, #93b0d3);
   --slate-blue-text: var(--slate-blue);
   --primary: var(--teal);
-  --primary-hover: light-dark(#184c46, #86c4b9);
-  --primary-soft: var(--teal-soft);
+  --primary-hover: light-dark(var(--hero), var(--brand));
+  --primary-soft: light-dark(#edf5e5, #243329);
   --on-primary: light-dark(var(--white), #0f1413);
   --nav-bg: var(--surface);
   --nav-text: var(--text);
@@ -36,15 +54,15 @@
   --success: light-dark(#1f7a5a, #7cc4a3);
   --success-soft: var(--teal-soft);
   --on-success: var(--on-primary);
-  --warning: var(--brass-text);
-  --warning-soft: var(--brass-soft);
-  --danger: light-dark(#b23c33, #ef8f84);
+  --warning: light-dark(#b54708, #f3bb88);
+  --warning-soft: light-dark(#fdf3e7, #39291d);
+  --danger: light-dark(var(--negative), #ef8f84);
   --danger-text: var(--danger);
   --danger-soft: light-dark(#f8e9e5, #3b2a28);
   --on-danger: light-dark(var(--white), #201311);
   --info: var(--text-muted);
   --info-soft: var(--surface-2);
-  --income: var(--success);
+  --income: light-dark(var(--positive), #7cc4a3);
   --expense: var(--slate-blue);
   --expense-text: var(--slate-blue-text);
   --savings: var(--brass);
@@ -56,16 +74,17 @@
   --chart-4: light-dark(#6f6255, #c2b3a3);
   --chart-5: light-dark(#645772, #b8a8c6);
   --chart-6: light-dark(#5d6a74, #a3b2be);
-  --focus: var(--teal);
+  --focus: var(--accent-strong);
   --overlay: light-dark(rgba(37,37,35,.42), rgba(10,11,13,.72));
   --shadow-color: light-dark(rgba(37,37,35,.08), rgba(0,0,0,.28));
 
   --shadow-sm: 0 2px 8px var(--shadow-color);
   --shadow-md: 0 4px 14px var(--shadow-color);
   --image-matte: var(--white);
-  --radius-sm: 4px;
+  --radius-sm: 10px;
   --radius-md: 6px;
   --radius-lg: 8px;
+  --radius-card: 16px;
   --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
@@ -82,9 +101,37 @@
   --font-lg: 16px;
   --font-xl: 20px;
   --font-2xl: 24px;
+  --font-page: 28px;
+  --font-title: 32px;
+  --font-display: 40px;
+  --font-arabic: 15px;
   --font-body: Inter, 'IBM Plex Sans Arabic', system-ui, sans-serif;
   --font-heading: var(--font-body);
   --inline-direction: 1;
+}
+:root[data-palette="ocean"] {
+  --brand: var(--palette-ocean);
+  --on-brand: var(--white);
+  --hero: light-dark(#0b1b3a,#10244d);
+  --hero-2: #9fb3d9;
+  --hero-accent: #60a5fa;
+  --accent-strong: light-dark(var(--palette-ocean),var(--hero-accent));
+}
+:root[data-palette="coral"] {
+  --brand: var(--palette-coral);
+  --on-brand: var(--white);
+  --hero: light-dark(#17171c,#1e1e25);
+  --hero-2: #a9a9b5;
+  --hero-accent: #ff8a6e;
+  --accent-strong: light-dark(#17171c,#f2f3f5);
+}
+:root[data-palette="emerald"] {
+  --brand: var(--palette-emerald);
+  --on-brand: var(--white);
+  --hero: var(--palette-emerald);
+  --hero-2: #c8f0df;
+  --hero-accent: var(--white);
+  --accent-strong: var(--palette-emerald);
 }
 @media (prefers-color-scheme: dark) {
   :root { color-scheme: dark; }
@@ -93,3 +140,18 @@
 :root[data-theme="dark"] { color-scheme: dark; }
 :dir(rtl) { --inline-direction: -1; }
 :dir(ltr) { --inline-direction: 1; }
+
+/* The existing plots share some of the workspace tokens. Keep their original palette. */
+:is(.finance-chart, .finance-ring, .donut, .progress-track, .report-chart, .report-review-chart, .insight-ring, .priority-chart, .demo-ring, .monthly-money-plot) {
+  --border: light-dark(#e5e2db, #2c3136);
+  --surface: light-dark(#ffffff, #1a1d20);
+  --surface-2: light-dark(#f2f1ed, #22262a);
+  --text: light-dark(#1c1e1d, #ececea);
+  --text-muted: light-dark(#676a65, #a3a7a6);
+  --primary: light-dark(#1f5f58, #6fb5a9);
+  --primary-soft: var(--teal-soft);
+  --income: light-dark(#1f7a5a, #7cc4a3);
+  --danger: light-dark(#b23c33, #ef8f84);
+  --focus: light-dark(#0f5132, #a7c4b5);
+  --radius-sm: 4px;
+}

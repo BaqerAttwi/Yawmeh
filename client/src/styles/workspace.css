@@ -1,7 +1,7 @@
 :root {font-variant-numeric:tabular-nums}
 body {background:var(--bg);color:var(--text);line-height:1.45}
 h1,h2,h3 {font-weight:600}
-:lang(ar) {font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;line-height:1.6;letter-spacing:normal}
+:where([dir="rtl"]):not(svg),html:lang(ar) {font-family:'IBM Plex Sans Arabic',Inter,system-ui,sans-serif;font-size:var(--font-arabic);line-height:1.6;letter-spacing:normal}
 
 .app-shell {--workspace-sidebar-width:232px}
 .app-shell .sidebar {
@@ -16,18 +16,18 @@ h1,h2,h3 {font-weight:600}
 .sidebar-open .main-shell {margin-inline-start:var(--workspace-sidebar-width);width:calc(100% - var(--workspace-sidebar-width));min-width:0}
 .app-shell .sidebar .brand {justify-content:flex-start;gap:10px;padding:var(--space-2) var(--space-2) var(--space-4)}
 .app-shell .sidebar .brand .brand-logo {width:28px;height:28px}
-.app-shell .sidebar .brand .brand-name {display:inline;font-size:16px;font-weight:700;letter-spacing:0;color:var(--text)}
+.app-shell .sidebar .brand .brand-name {display:inline;font-size:var(--font-lg);font-weight:600;letter-spacing:0;color:var(--text)}
 .app-shell .sidebar .workspace {display:flex;margin:0 0 var(--space-3);padding:var(--space-2) 10px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
 .app-shell .workspace strong {font-size:var(--font-md);font-weight:600}
 .app-shell .workspace small {font-size:var(--font-xs);margin:1px 0 0}
 .app-shell .sidebar nav {margin:0;gap:1px}
 .app-shell .sidebar nav button,.app-shell .sidebar .settings-nav,.app-shell .sidebar .companion-launcher {
-  width:100%;padding:7px 10px;min-height:34px;justify-content:flex-start;gap:10px;border:0;border-radius:var(--radius-md);
+  width:100%;padding:7px 10px;min-height:40px;justify-content:flex-start;gap:10px;border:0;border-radius:var(--radius-sm);
   font-size:var(--font-md);font-weight:500;color:var(--text-muted);background:transparent;
 }
 .app-shell .sidebar nav button svg,.app-shell .sidebar .settings-nav svg {color:inherit;width:16px;height:16px}
 .app-shell .sidebar nav button:hover,.app-shell .sidebar .settings-nav:hover,.app-shell .sidebar .companion-launcher:hover {background:var(--surface-2);color:var(--text)}
-.app-shell .sidebar nav button.active,.app-shell .sidebar .settings-nav.active {background:var(--primary-soft);color:var(--primary);font-weight:600}
+.app-shell .sidebar nav button.active,.app-shell .sidebar .settings-nav.active {background:var(--text);color:var(--bg);font-weight:500}
 .app-shell .sidebar nav button.active::after {display:none}
 .app-shell .sidebar .nav-label {display:block;margin:var(--space-2) 10px var(--space-1);font-size:var(--font-xs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
 .app-shell .sidebar .sidebar-bottom {padding:var(--space-3) 0 0;margin-top:auto}
@@ -38,7 +38,9 @@ h1,h2,h3 {font-weight:600}
 .app-shell .sidebar-open .sidebar-close {inset-block-start:9px;inset-inline-end:9px}
 .app-shell.sidebar-closed .sidebar {width:0;padding:0;border:0;overflow:visible}
 .app-shell.sidebar-closed .sidebar>.companion-dock {display:flex;position:fixed}
-.app-shell .sidebar>.companion-dock {position:static;margin:0;width:auto;display:flex;align-items:stretch}
+.app-shell .sidebar>.companion-dock {position:static;margin:0;margin-block-start:auto;width:auto;display:flex;align-items:stretch}
+.app-shell .sidebar>.companion-dock+.sidebar-bottom {margin-block-start:0}
+.app-shell .sidebar :is(.gentle-note,.new-tag) {display:none}
 .app-shell .sidebar .companion-launcher-label {display:block;padding:0;border:0;background:transparent;color:inherit;font-size:inherit}
 .app-shell .sidebar>.companion-dock>.companion-launcher {flex-direction:row;align-items:center;justify-content:flex-start}
 .app-shell .sidebar .companion-launcher .assistant-icon {width:19px;height:19px;min-width:19px;border-width:1px}
@@ -81,29 +83,33 @@ h1,h2,h3 {font-weight:600}
 
 .app-shell main {max-width:1120px;padding:var(--space-7) var(--space-8) 56px;margin-inline:auto}
 .app-shell .page-heading,.app-shell .dashboard-page .page-heading {align-items:flex-end;margin-bottom:var(--space-4);gap:var(--space-4)}
-.app-shell .main-shell .page-heading h1 {font-size:var(--font-2xl);line-height:1.25;font-weight:650;letter-spacing:-.02em}
-.app-shell .page-heading p {font-size:var(--font-md);margin-block-start:var(--space-1);color:var(--text-muted)}
+.app-shell .main-shell .page-heading h1 {font-size:var(--font-page);line-height:1.25;font-weight:600;letter-spacing:-.02em}
+.app-shell .page-heading .page-date {font-size:var(--font-sm);margin-block:0 var(--space-1);color:var(--text-muted)}
 .app-shell .eyebrow,.modal-heading .eyebrow,.login-page .eyebrow {display:none}
 
-.app-shell .card,.app-shell .stat-card,.card,.stat-card {background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)}
+.app-shell .card,.app-shell .stat-card,.card,.stat-card {background:var(--surface);border:0;border-radius:var(--radius-card);box-shadow:none}
+.app-shell .card:has(:is(.finance-chart,.finance-ring,.report-chart,.insight-ring,.priority-chart,.demo-ring,.monthly-money-plot)),
+.app-shell :is(.monthly-money,.currency-report,.today-metric,.today-balance) {border:1px solid transparent}
 .app-shell .card .card {background:transparent;border:0;border-block-start:1px solid var(--border);border-radius:0}
 .card-heading,.currency-report-heading,.monthly-money-header {padding:14px 18px;border-block-end:1px solid var(--border)}
 .app-shell .card-heading h3,.currency-report-heading h3,.app-shell .monthly-money .monthly-money-header h2 {font-size:var(--font-md);font-weight:600;letter-spacing:0}
 .app-shell .card-heading p,.currency-report-heading p,.monthly-money-header p {font-size:var(--font-xs);margin-block-start:2px;color:var(--text-muted)}
-.app-shell .stat-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)}
+.app-shell .stat-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);background:transparent;border:0}
 .app-shell .stat-grid:empty {display:none}
-.app-shell .stat-grid .stat-card {border:0;border-inline-end:1px solid var(--border);border-radius:0}
-.app-shell .stat-grid .stat-card:last-child {border-inline-end:0}
-.app-shell .stat-card h2 {font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.app-shell .stat-grid .stat-card {border:0;border-radius:var(--radius-card);padding:var(--space-5)}
+.app-shell .stat-card h2 {font-size:var(--font-2xl);font-weight:600;font-variant-numeric:tabular-nums}
 .app-shell .stat-card p,.app-shell .stat-card>div>span:first-child {font-size:var(--font-xs);color:var(--text-muted)}
-.app-shell :is(.primary,.secondary),.login-page :is(.primary,.secondary),.offline-capture button {
-  min-block-size:36px;padding:8px 14px;border-radius:var(--radius-md);font-size:var(--font-sm);font-weight:600;line-height:1.35;
+.app-shell :is(.primary,.secondary),.login-page :is(.primary,.secondary) {
+  min-block-size:40px;padding:var(--space-2) var(--space-4);border-radius:var(--radius-pill);font-size:var(--font-sm);font-weight:600;line-height:1.35;
 }
-.app-shell .secondary,.login-page .secondary {background:var(--surface);border-color:var(--border-strong);color:var(--text)}
+.app-shell .secondary,.login-page .secondary {background:var(--surface);border-color:var(--border);color:var(--text)}
 .app-shell .secondary:hover:not(:disabled),.login-page .secondary:hover:not(:disabled) {background:var(--surface-2)}
 .app-shell .text-button {color:var(--primary)}
-.app-shell .badge,.category {border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-muted);font-size:var(--font-xs)}
-:is(input,select,textarea) {border-color:var(--border-strong);border-radius:var(--radius-md)}
+.app-shell .badge,.category {border:0;border-radius:var(--radius-pill);background:var(--surface-2);color:var(--text-muted);font-size:var(--font-xs)}
+.app-shell .badge:is(.high,.overdue) {background:var(--warning-soft);color:var(--warning)}
+:is(input,select,textarea) {border-color:var(--border-strong);border-radius:var(--radius-sm)}
+input:is([type="checkbox"],[type="radio"]) {accent-color:var(--accent-strong)}
+progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring *, .monthly-money-budget-use *)) {accent-color:var(--accent-strong)}
 .app-shell :is(.field input,.field select,.field textarea) {border-color:var(--border-strong)}
 :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible {outline:2px solid var(--focus);outline-offset:2px}
 .app-shell .sidebar :is(button,a):focus-visible {outline-color:var(--focus)}
@@ -120,7 +126,7 @@ h1,h2,h3 {font-weight:600}
   font-size:var(--font-sm);font-weight:500;white-space:nowrap;box-shadow:none;
 }
 .app-shell .segmented button:hover,.app-shell .overview-tabs button:hover {color:var(--text)}
-.app-shell .segmented button.selected,.app-shell .overview-tabs button.selected {background:transparent;border-block-end-color:var(--primary);color:var(--text);font-weight:600}
+.app-shell .segmented button.selected,.app-shell .overview-tabs button.selected {background:transparent;border-block-end-color:var(--accent-strong);color:var(--text);font-weight:600}
 .app-shell .date-range {margin-block:0 var(--space-2);border-color:var(--border-strong);background:var(--surface)}
 .app-shell .date-range input {font-size:var(--font-xs)}
 
@@ -130,12 +136,54 @@ h1,h2,h3 {font-weight:600}
 .app-shell .currency-report-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
 .app-shell .currency-report-grid>div {gap:var(--space-1);padding:var(--space-4) 18px;border-inline-end:1px solid var(--border);border-block-end:1px solid var(--border)}
 .currency-report-grid>div:nth-child(3n) {border-inline-end:0}
-.app-shell .currency-report-grid [data-money] strong {font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.app-shell .currency-report-grid [data-money] strong {font-size:var(--font-xl);font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .app-shell .currency-report-grid [data-money="income"] strong {color:var(--income)}
 .currency-report-grid :is([data-money="savings"],[data-money="spent"]) small::before {content:"";display:inline-block;width:8px;height:8px;margin-inline-end:6px;border-radius:2px;background:var(--savings)}
 .currency-report-grid [data-money="spent"] small::before {background:var(--expense)}
 .app-shell .currency-report-grid :is(small,span),.currency-report-note {font-size:var(--font-xs);color:var(--text-muted)}
 .currency-report-note {padding:10px 18px}
+
+.app-shell .currency-report:has(.featured-currency-summary) {background:transparent}
+.currency-report:has(.featured-currency-summary) .currency-report-heading {padding-inline:0;border-block-end:0}
+.featured-currency-summary {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--space-3)}
+.app-shell .featured-currency-summary .currency-report-grid {gap:var(--space-3)}
+.app-shell .featured-currency-summary .currency-report-grid>div {
+  min-inline-size:0;border:0;border-radius:var(--radius-card);background:var(--surface);
+}
+.currency-report:has(.featured-currency-summary) .currency-report-chart {
+  margin-block-start:var(--space-3);border:0;border-radius:var(--radius-card);background:var(--surface);
+}
+.balance-hero,.today-balance .spending-breakdown>summary {
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:var(--space-2);
+  min-inline-size:0;padding:var(--space-5);border-radius:var(--radius-card);
+  background:var(--hero);color:var(--hero-fg);text-align:start;
+}
+.today-balance .spending-breakdown>summary {list-style:none}
+.app-shell .today-balance:not(:has(.spending-breakdown[open])) {padding:0;background:transparent}
+.today-balance .spending-breakdown>summary::-webkit-details-marker {display:none}
+.balance-hero-label,.today-balance .spending-breakdown>summary>.balance-hero-label {color:var(--hero-2);font-size:var(--font-md)}
+.balance-hero-value,.today-balance .spending-breakdown>summary>.balance-hero-value {
+  font-size:var(--font-display);line-height:1.15;font-weight:600;letter-spacing:-.04em;
+  color:var(--hero-fg);overflow-wrap:anywhere;
+}
+.balance-hero-pill,.today-balance .spending-breakdown>summary>.balance-hero-pill {
+  padding:var(--space-1) var(--space-2);border-radius:var(--radius-pill);
+  background:var(--hero-accent);color:var(--hero);font-size:var(--font-xs);font-weight:600;
+}
+.today-balance .spending-breakdown>summary>.spending-currencies {color:var(--hero-2)}
+.today-balance .spending-breakdown>summary>span {text-decoration:none}
+.today-balance .spending-breakdown>summary:hover>.balance-hero-pill {background:var(--brand-hover)}
+.balance-hero-value bdi,[data-money] strong bdi,.table-wrap .amount bdi {direction:ltr;unicode-bidi:isolate}
+:dir(rtl) :is(.lucide-chevron-left,.lucide-chevron-right,.lucide-arrow-left,.lucide-arrow-right):not(.report-chart *,.finance-chart *,.priority-chart *) {scale:-1 1}
+.app-shell .quick-purchase-card {
+  padding:var(--space-5);border-radius:var(--radius-card);background:var(--surface);
+}
+.app-shell .quick-purchase-card .quick-items {display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.app-shell .quick-purchase-card .quick-items button {
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  text-align:start;white-space:normal;gap:var(--space-2);padding:var(--space-1) var(--space-2);
+}
+.app-shell .quick-purchase-card .quick-items button small {text-align:end}
 .money-overview-grid {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start;gap:var(--space-5);margin-block-end:var(--space-5)}
 .app-shell .monthly-money {padding:0;margin:0}
 .app-shell .monthly-money-range {background:var(--surface-2);color:var(--text-muted)}
@@ -152,7 +200,7 @@ h1,h2,h3 {font-weight:600}
 .app-shell .monthly-money-detail dl>div:nth-child(2) {border-color:var(--savings)}
 .app-shell .monthly-money-detail dl>div:nth-child(3) {border-block-start:2px dashed var(--budget-limit)}
 .app-shell .monthly-money-detail dl>div.monthly-money-over {border-color:var(--danger)}
-.app-shell .monthly-money-detail dd {font-size:clamp(var(--font-md),2.2vw,var(--font-lg));font-weight:650}
+.app-shell .monthly-money-detail dd {font-size:var(--font-lg);font-weight:600}
 .app-shell .monthly-money-note {margin-block-start:var(--space-3);padding:0 18px var(--space-3);color:var(--text-muted)}
 .budget-overview-list {padding:var(--space-4) 18px;display:grid;gap:var(--space-4);font-size:var(--font-sm)}
 .budget-overview-row>div:first-child {display:flex;justify-content:space-between;gap:var(--space-2);margin-bottom:6px}
@@ -182,7 +230,7 @@ h1,h2,h3 {font-weight:600}
 .app-shell .report-metrics>div {background:transparent;border-radius:0;border-inline-end:1px solid var(--border);padding:var(--space-4) 18px}
 .app-shell .report-metrics>div:last-child {border-inline-end:0}
 .app-shell .report-metrics dt {font-size:var(--font-xs);color:var(--text-muted)}
-.app-shell .report-metrics dd {font-size:22px;font-weight:600}
+.app-shell .report-metrics dd {font-size:var(--font-xl);font-weight:600}
 .app-shell .today-hero {padding:var(--space-4) 18px}
 .app-shell .today-hero h2,.app-shell .today-panel h3 {font-size:var(--font-md);margin:0 0 var(--space-2)}
 .app-shell .today-hero p {margin:0 0 var(--space-2);color:var(--text-muted)}
@@ -194,19 +242,19 @@ h1,h2,h3 {font-weight:600}
 .app-shell .companion-welcome .companion-eyebrow {display:none}
 .app-shell .companion-welcome h2 {font-size:var(--font-lg);font-weight:600}
 .app-shell .companion-chat-panel .companion-tools {background:var(--surface);border-color:var(--border)}
-.app-shell .toast {background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
+.app-shell .toast {background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:none}
 .app-shell .toast-undo {color:var(--primary)}
 .login-page .login-story {background:var(--surface-2);color:var(--text)}
-.login-page .login-preview {background:var(--surface);border-color:var(--border);transform:none}
+.login-page .login-preview {background:var(--surface);border-color:var(--border);border-radius:var(--radius-card);box-shadow:none;transform:none}
 .login-page .login-story h1 {font-size:var(--font-2xl);letter-spacing:-.02em}
-.login-page .login-form-wrap h2 {font-size:var(--font-2xl);font-weight:650;letter-spacing:-.02em}
-.login-page .login-story .brand-name {color:var(--brass)}
-.offline-capture form {border-color:var(--border);border-radius:var(--radius-lg)}
+.login-page .login-form-wrap h2 {font-size:var(--font-2xl);font-weight:600;letter-spacing:-.02em}
+.login-page .login-story .brand-name {color:var(--primary)}
 
 @media(max-width:900px){
   .app-shell .topbar {padding-inline:var(--space-4)}
   .app-shell main {padding-inline:var(--space-4)}
   .money-overview-grid {grid-template-columns:minmax(0,1fr)}
+  .featured-currency-summary {grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:700px){
   .app-shell .main-shell {margin-inline-start:0;width:100%}
@@ -224,14 +272,16 @@ h1,h2,h3 {font-weight:600}
   .sync-menu .topbar-popover {inset-inline-end:var(--space-2)}
   .app-shell main {padding-block-start:var(--space-5)}
   .app-shell .currency-report-grid,.app-shell .stat-grid,.app-shell .stat-grid.three {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app-shell .stat-grid,.app-shell .stat-grid.three {grid-template-columns:minmax(0,1fr)}
   .app-shell .stat-grid.three .stat-card:last-child {grid-column:auto}
   .currency-report-grid>div:nth-child(3n) {border-inline-end:1px solid var(--border)}
   .currency-report-grid>div:nth-child(2n) {border-inline-end:0}
   .app-shell .currency-report-grid>div {padding:var(--space-3)}
-  .app-shell .currency-report-grid [data-money] strong {font-size:22px}
+  .app-shell .currency-report-grid [data-money] strong {font-size:var(--font-xl)}
   .app-shell .sidebar-closed .companion-dock {inset-inline-end:var(--space-2)}
   .app-shell .filterbar .segmented {flex-wrap:nowrap}
   .app-shell .filterbar .segmented button {font-size:var(--font-xs)}
+  .app-shell .quick-purchase-card .quick-items {grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:no-preference){
   :is(button,summary,a) {transition:background-color 120ms,color 120ms,border-color 120ms}

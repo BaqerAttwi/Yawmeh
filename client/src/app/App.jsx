@@ -41,7 +41,7 @@ import {checkVoid} from '../../../shared/insights.js';
 import '../styles/insights.css';
 import React,{lazy,Suspense,useState,useEffect,useRef,useMemo} from 'react';
 
-import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronDown,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Leaf,Users,Play,Compass,Menu,FileChartColumn} from 'lucide-react';
+import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Leaf,Users,Play,Compass,Menu,FileChartColumn} from 'lucide-react';
 import {balances,cents,today,periodSummary,checkEntry,nextRenewal,daysUntil,DEFAULT_TASK_CATEGORIES,taskCategory} from '../../../shared/domain.js';
 import {demoData} from '../features/demo/data.js';
 import {entrySchema,expenseItem,schemas,taskCategorySchema} from '../../../shared/validation.js';
@@ -63,7 +63,7 @@ const pageLoading=<p className="muted" role="status">Loading…</p>;
 const money=formatMoney;
 const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const categories=['Food & drinks','Groceries','Transport','Shopping','Health','Learning','Entertainment','Bills','Work','Freelance','Savings','Other'];
-const pages={overview:{name:'Overview',icon:LayoutDashboard,caption:'Your day, at a glance.'},money:{name:'Money',icon:Wallet,caption:'Transactions, balances, and budgets.'},tasks:{name:'Tasks',icon:CheckSquare,caption:'Upcoming and completed tasks.'},reports:{name:'Reports',icon:FileChartColumn,caption:'Review your money and tasks by period.'},users:{name:'Users & access',icon:Users,caption:'Workspace members and permissions.'},settings:{name:'Settings',icon:Settings,caption:'Preferences, notifications, and account settings.'}};
+const pages={overview:{name:'Overview',icon:LayoutDashboard},money:{name:'Money',icon:Wallet},tasks:{name:'Tasks',icon:CheckSquare},reports:{name:'Reports',icon:FileChartColumn},users:{name:'Users & access',icon:Users},settings:{name:'Settings',icon:Settings}};
 export default function App({session}){
  const {mode,onLogout,onExpired,onPreview}=session,user=session.user;
  const can=app=>hasAccess(user,app);
@@ -394,9 +394,8 @@ export default function App({session}){
  </section>;
  const renderTask=task=><PlanningTaskRow key={task.id} task={task} parts={taskIndex.parts.get(task.id)||[]} hasNext={taskIndex.parents.has(task.id)} busy={busy} onToggle={toggleTask} onCategory={t=>open('taskCategory',t)} onRecurrence={changeRecurrence} onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onSaveDetail={saveDetail} onReschedule={moveTask}/>;
 
- const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th className="right">Amount</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?' · Reversed':''}</strong><small>{e.type==='income'?`Income · ${formatMoney(cents(e.saved),currencyOf(e),savedRates(e))} to savings`:e.type==='opening'?'Added to savings':e.type==='withdrawal'?'Savings → spending':'Purchase'}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small></div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</td></tr>)}</tbody></table>{!entries.length&&<Empty text="No transactions in this period. Add one to get started."/>}</div>;
- return <div className={`app-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`} dir={language==='ar'?'rtl':language==='en'?'ltr':undefined} lang={language||undefined}><aside id="workspace-sidebar" className="sidebar" aria-label="Workspace navigation and companion"><button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeNavigation}><X size={20}/></button><a className="brand" aria-label="yawmeh.me home" href="#" onClick={e=>{e.preventDefault();go('overview');}}><img className="brand-logo" src="/branding/yawmeh-logo-small.webp" alt=""/><span className="brand-name">yawmeh</span></a>
- <div className="workspace"><div><strong>Personal workspace</strong><small>{data.settings.name}</small></div><ChevronDown size={13}/></div>
+ const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th className="right">Amount</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?' · Reversed':''}</strong><small>{e.type==='income'?`Income · ${formatMoney(cents(e.saved),currencyOf(e),savedRates(e))} to savings`:e.type==='opening'?'Added to savings':e.type==='withdrawal'?'Savings → spending':'Purchase'}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small></div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}><bdi>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</bdi></td></tr>)}</tbody></table>{!entries.length&&<Empty text="No transactions in this period. Add one to get started."/>}</div>;
+ return <div className={`app-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`} dir={language==='ar'?'rtl':language==='en'?'ltr':undefined} lang={language||undefined}><aside id="workspace-sidebar" className="sidebar" aria-label="Workspace navigation and companion"><button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeNavigation}><X size={20}/></button><a className="brand" aria-label="yawmeh.me home" href="#" onClick={e=>{e.preventDefault();go('overview');}}><img className="brand-logo" src="/branding/yawmeh-logo-small.webp" alt=""/><span className="brand-name">yawmeh.me</span></a>
  <div className="nav-label">Workspace</div>
  <nav>{Object.entries(pages).filter(([key])=>key!=='settings'&&allowed(key)).map(([key,pageInfo])=>
    <button key={key} className={page===key?'active':''} aria-label={pageInfo.name} data-tour={'nav-'+key} onClick={()=>go(key)}><pageInfo.icon size={16}/>{pageInfo.name}</button>
@@ -426,8 +425,8 @@ export default function App({session}){
    </div>
  </div></header>
  <main className={page==='overview'&&overviewTab==='dashboard'?'dashboard-page':undefined}>{mode==='demo'&&<section className="demo-welcome-actions"><strong>You’re exploring demo data.</strong><button className="secondary" onClick={()=>session.onSignup?.()}>Create your account</button></section>}{mode==='demo'&&user.role!=='admin'&&<div className="preview-note"><span>Previewing {user.name}’s access: {user.permissions.filter(p=>p!=='assistant').map(p=>APP_LABELS[p]).join(', ')}</span><button className="text-button" onClick={()=>onPreview(demoAdmin)}>Back to admin demo <ArrowRight size={14}/></button></div>}<div className="page-heading">
-   <div><h1>{page==='overview'?({checkin:'Today',dashboard:'Dashboard',history:'History',review:'Weekly review',calendar:'Calendar'}[overviewTab]):pages[page].name}</h1>
-   <p>{page==='money'||page==='overview'&&overviewTab==='dashboard'?dateLabel(start)+' – '+dateLabel(end)+', '+end.slice(0,4):page==='overview'?dateLabel(current)+', '+current.slice(0,4):pages[page].caption}</p></div>
+   <div><p className="page-date">{page==='money'||page==='overview'&&overviewTab==='dashboard'?dateLabel(start)+' – '+dateLabel(end)+', '+end.slice(0,4):dateLabel(current)+', '+current.slice(0,4)}</p>
+   <h1>{page==='overview'?({checkin:'Today',dashboard:'Dashboard',history:'History',review:'Weekly review',calendar:'Calendar'}[overviewTab]):pages[page].name}</h1></div>
    <div className="button-row">
      {page==='tasks'&&<><button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button><button data-tour="add-task" className="primary" onClick={()=>open('task')}><Plus size={15}/>Add task</button></>}
      {page==='money'&&can('money')&&<><button className="secondary" data-tour={tab==='transactions'?'add-income':undefined} onClick={()=>open('income')}><Plus size={15}/>Income</button><button className="primary" data-tour={tab==='transactions'?'add-expense':undefined} onClick={()=>open('expense')}><Plus size={15}/>Expense</button></>}
@@ -485,7 +484,7 @@ export default function App({session}){
  </div></div>{can('money')&&filter!=='tasks'&&<section className="card recent-card"><CardTitle title="Recent transactions" action={<button className="text-button" onClick={()=>go('money')}>View all <ArrowRight size={14}/></button>}/><TransactionTable entries={filteredEntries.slice(0,5)}/></section>}
  </>}
  {page==='money'&&<>
- <CurrencyReport data={data} start={start} end={end}/>
+ <CurrencyReport data={data} start={start} end={end} featured/>
  {tab==='transactions'&&<div className="money-overview-grid"><MonthlyMoney data={data} current={current} end={end} onSetLimit={value=>open('budget',value)} onManage={()=>{go('money');setTab('budgets');}}/><BudgetOverview data={data} start={start} end={end} onManage={()=>{go('money');setTab('budgets');}}/></div>}
  {tab==='transactions'&&<section className="card"><CardTitle title="Transactions" subtitle="Income, expenses, and savings transfers."/><div className="search-box"><Search size={17}/><input placeholder="Search transactions, categories or notes…" value={query} onChange={e=>setQuery(e.target.value)}/></div><TransactionTable entries={filteredEntries}/></section>}
  {tab==='savings'&&<section className="card"><CardTitle title="Savings activity" subtitle="Withdrawals always include a reason and date. Transfers do not count as expenses." action={<div className="button-row"><button data-tour="add-savings" className="secondary" onClick={()=>open('opening')}>Add existing savings</button><button className="primary" onClick={()=>open('withdrawal')}>Withdraw savings</button></div>}/><TransactionTable entries={filteredEntries.filter(e=>e.type==='withdrawal'||e.type==='opening'||(e.type==='income'&&e.saved>0))}/></section>}
@@ -509,7 +508,7 @@ export default function App({session}){
    <div className="settings-side">
      <section className="settings-group" aria-labelledby="settings-device">
        <h2 id="settings-device"><Compass size={18} aria-hidden="true"/>Workspace</h2>
-       <ThemePreference/>
+       <ThemePreference language={language||document.documentElement.lang}/>
        <InstallApp/>
        {user.role==='admin'&&<SetupStatus mode={mode} api={api}/>}
      </section>
