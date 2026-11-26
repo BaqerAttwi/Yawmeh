@@ -10,6 +10,9 @@ import {randomId} from '../../../shared/id.js';
 import {formText} from '../../../shared/companion-form-language.js';
 import {Currencies,CurrencyFields} from '../features/settings/Currencies.jsx';
 import {CurrencyReport} from '../components/CurrencyReport.jsx';
+import {TransactionDetailsDialog} from '../features/money/TransactionDetailsDialog.jsx';
+import {MoneyReviewQueue} from '../features/money/MoneyReviewQueue.jsx';
+import {receiptDrafts,removeReceiptDraft,storeReceiptDraft} from '../lib/receipt-review.js';
 import {MonthlyMoney} from '../features/money/MonthlyMoney.jsx';
 import {BudgetOverview} from '../features/money/BudgetOverview.jsx';
 import {SpendingBalance,TodayMoneySummary} from '../components/SpendingBalance.jsx';
@@ -84,6 +87,15 @@ export default function App({session}){
  const languageKey='yawmeh:workspace-language:'+mode+':'+user.id;
  const [language,setLanguage]=useState(()=>{try{return localStorage.getItem(languageKey)||null;}catch{return null;}});
  const t=workspaceText(language||document.documentElement.lang);
+ const [receiptQueue,setReceiptQueue]=useState(()=>mode==='live'&&can('money')?receiptDrafts(user.id):[]);
+ useEffect(()=>{
+   if(mode!=='live'||!can('money'))return;
+   const reloadDrafts=event=>{
+     if(event.key===null||event.key.startsWith('yawmeh:receipt-review:'+user.id+':'))setReceiptQueue(receiptDrafts(user.id));
+   };
+   window.addEventListener('storage',reloadDrafts);
+   return()=>window.removeEventListener('storage',reloadDrafts);
+ },[mode,user.id,user.permissions]);
  function switchLanguage(){
    const next=(language||document.documentElement.lang)==='ar'?'en':'ar';
    setLanguage(next);
@@ -205,14 +217,14 @@ export default function App({session}){
      if(mode==='live'){
        if(action.offlineEntry&&globalThis.crypto?.randomUUID){
          const kind=action.path.slice(1);
-         const record=newOfflineEntry(user.id,kind==='inbox'?{...action.value,captured_on:current}:action.value,kind);
+         const record=newOfflineEntry(user.id,kind==='inbox'?{...action.value,captured_on:current}:action.value,kind,action.value.offline_sync?.id);
          let queuedLocally=!navigator.onLine||pendingEntries(user.id).some(entry=>!entry.error&&offlineKind(entry)===kind);
          if(!queuedLocally){
            try{receipt=await api(action.path,'POST',record.value);}
            catch(e){if(!retryableEntryError(e))throw e;queuedLocally=true;}
          }
          if(queuedLocally){
-           storeOfflineEntry(record);setModal(null);notify('Saved on this device · pending sync');
+           storeOfflineEntry(record);action.onQueued?.();setModal(null);notify('Saved on this device · pending sync');
            return true;
          }
          try{
@@ -241,6 +253,7 @@ export default function App({session}){
 
  function addEntry(value,message='Transaction recorded',undoPurchase=false){
    const {save_as_item,item_price_usd}=value;
+   const draftId=modal?.type==='expense'?modal.initial.receipt?.draftId:undefined;
    const offlineEntry=offlineMoney&&['income','expense'].includes(value.type)&&!!globalThis.crypto?.randomUUID;
    let item;
    value={note:'',category:'Other',...value,amount:Number(value.amount),saved:Number(value.saved||0)};
@@ -254,8 +267,10 @@ export default function App({session}){
      checkUnassignedWithdrawal(value,data.entries,data.goal_moves);
      if(value.date>current)throw new Error('Transactions cannot be dated in the future.');
    }catch(e){setError(e.issues?.map(i=>i.message).join('; ')||e.message);return;}
+   const payload=item?{...value,save_as_item:true,item_price_usd:item.amount}:value;
    return change({
-     path:'/entries',value:item?{...value,save_as_item:true,item_price_usd:item.amount}:value,offlineEntry,
+     path:'/entries',value:draftId?{...payload,offline_sync:{id:draftId,account:String(user.id)}}:payload,offlineEntry,
+     onQueued:draftId?()=>clearSavedReceiptDraft(draftId):undefined,
      message:item?'Expense recorded and item saved':message,undoPurchase,
      demo:d=>{
        let id=Date.now();
@@ -288,6 +303,37 @@ export default function App({session}){
  function convertNote(note,due){return change({path:'/inbox/'+note.id+'/convert',value:{due},demo:d=>{rescheduleSchema.parse({due});const n=d.inbox.find(n=>n.id===note.id);if(n.task_id)return;const id=randomId();d.tasks.unshift({id,title:n.text.slice(0,160),note:n.text,category:'Personal',due,priority:'medium',recurrence:'none',estimate_minutes:0,reminder:null,scheduled_time:null,completed:0});n.task_id=id;n.archived=1;},message:'Task ready; original note kept in Archived notes'});}
  function moveTask(task,due){return change({path:'/tasks/'+task.id+'/reschedule',method:'PATCH',value:{due},demo:d=>{rescheduleSchema.parse({due});const t=d.tasks.find(t=>t.id===task.id);Object.assign(t,rescheduled(t,due));},message:'Task moved, with its reminder'});}
  function saveDetail(table,record,field,value){return change({path:'/'+table+'/'+record.id+'/'+field,method:'PATCH',value:{[field]:value},demo:d=>{d[table].find(r=>r.id===record.id)[field]=value;},message:'Plan updated'});}
+ function editEntry(entry,review=false){setError('');setModal({type:'entryDetails',entry,review});}
+ function saveEntryDetails(entry,value){
+   return change({path:'/entries/'+entry.id+'/details',method:'PATCH',value,message:t(value.reviewed?'Transaction reviewed':'Transaction updated'),demo:d=>{
+     const record=d.entries.find(item=>String(item.id)===String(entry.id)&&!item.voided_on);
+     if(!record)throw new Error('Active record not found.');
+     Object.assign(record,value);
+   }});
+ }
+ function clearSavedReceiptDraft(id){
+   try{removeReceiptDraft(user.id,id);}catch{/* The stable submission ID prevents a duplicate if this draft reappears. */}
+   setReceiptQueue(queue=>queue.filter(draft=>draft.id!==id));
+ }
+ function reviewReceiptDraft(draft){
+   open('expense',{...draft.initial,receipt:{...draft.initial.receipt,draftId:draft.id}},draft.language,()=>clearSavedReceiptDraft(draft.id));
+ }
+ function discardReceiptDraft(draft){
+   if(!window.confirm(t('Discard this receipt draft?')))return;
+   try{removeReceiptDraft(user.id,draft.id);setReceiptQueue(receiptDrafts(user.id));}
+   catch{setError(t('This browser could not discard the receipt draft.'));}
+ }
+ function openCompanionAction(type,initial,entryLanguage,onSaved){
+   if(type!=='expense'||!initial?.receipt)return open(type,initial,entryLanguage,onSaved);
+   try{
+     const draft=storeReceiptDraft(user.id,{...initial,date:current},entryLanguage);
+     setReceiptQueue(receiptDrafts(user.id));
+     reviewReceiptDraft(draft);
+   }catch{
+     open(type,initial,entryLanguage,onSaved);
+     notify(t('This browser could not save the receipt draft. You can still review it now.'));
+   }
+ }
  function voidEntry(entry,reason,message='Transaction reversed; original retained in history'){return change({path:'/entries/'+entry.id+'/void',value:{reason},demo:d=>{const record=checkVoid(d.entries,d.goal_moves,entry.id,reason);record.voided_on=current;record.void_reason=reason.trim();},message});}
  function undoQuickPurchase(){
    if(!can('money')||toast?.undoId==null||mutationBusy.current)return;
@@ -405,7 +451,7 @@ export default function App({session}){
  </section>;
  const renderTask=task=><PlanningTaskRow language={language} key={task.id} task={task} parts={taskIndex.parts.get(task.id)||[]} hasNext={taskIndex.parents.has(task.id)} busy={busy} onToggle={toggleTask} onCategory={t=>open('taskCategory',t)} onRecurrence={changeRecurrence} onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onSaveDetail={saveDetail} onReschedule={moveTask}/>;
 
- const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>{t("Transaction")}</th><th>{t("Category")}</th><th>{t("Date")}</th><th className="right">{t("Amount")}</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?t(" · Reversed"):''}</strong><small>{e.type==='income'?t('Income · {amount} to savings',{amount:formatMoney(cents(e.saved),currencyOf(e),savedRates(e))}):e.type==='opening'?t("Added to savings"):e.type==='withdrawal'?t("Savings → spending"):t("Purchase")}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small></div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}><bdi>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</bdi></td></tr>)}</tbody></table>{!entries.length&&<Empty text={t("No transactions in this period. Add one to get started.")}/>}</div>;
+ const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>{t("Transaction")}</th><th>{t("Category")}</th><th>{t("Date")}</th><th className="right">{t("Amount")}</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?t(" · Reversed"):''}</strong><small>{e.type==='income'?t('Income · {amount} to savings',{amount:formatMoney(cents(e.saved),currencyOf(e),savedRates(e))}):e.type==='opening'?t("Added to savings"):e.type==='withdrawal'?t("Savings → spending"):t("Purchase")}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small>{!e.voided_on&&<button type="button" className="text-button" aria-label={t("Edit {name}",{name:e.title})} disabled={busy||needsRefresh} onClick={()=>editEntry(e)}>{t("Edit transaction")}</button>}</div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}><bdi>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</bdi></td></tr>)}</tbody></table>{!entries.length&&<Empty text={t("No transactions in this period. Add one to get started.")}/>}</div>;
  return <div className={`app-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`} dir={language==='ar'?'rtl':language==='en'?'ltr':undefined} lang={language||undefined}><aside id="workspace-sidebar" className="sidebar" aria-label="Workspace navigation and companion"><button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeNavigation}><X size={20}/></button><a className="brand" aria-label="yawmeh.me home" href="#" onClick={e=>{e.preventDefault();go('overview');}}><img className="brand-logo" src="/branding/yawmeh-logo-small.webp" alt=""/><span className="brand-name">yawmeh.me</span></a>
  <div className="nav-label">Workspace</div>
  <nav>{Object.entries(pages).filter(([key])=>key!=='settings'&&allowed(key)).map(([key,pageInfo])=>
@@ -413,7 +459,7 @@ export default function App({session}){
  )}</nav>
  <div className="nav-label help-label">Help</div>
  <nav className="help-nav"><button type="button" aria-label="Guide" onClick={showGuide}><Compass size={16}/>Guide &amp; tutorials</button></nav>
- {!guideActive&&<CompanionChat data={data} user={user} date={current} mode={mode} onAction={open} onChangeReview={openChangeReview}/>}
+ {!guideActive&&<CompanionChat data={data} user={user} date={current} mode={mode} onAction={openCompanionAction} onChangeReview={openChangeReview}/>}
  <div className="sidebar-bottom"><button data-tour="nav-settings" className={'settings-nav '+(page==='settings'?'active':'')} onClick={()=>go('settings')}><Settings size={18}/>Settings</button><div className="profile"><span className="avatar">{data.settings.name.slice(0,2).toUpperCase()}</span><div><strong>{data.settings.name}</strong><small>Personal account</small></div><button className="icon-button" aria-label="Account settings" onClick={()=>go('settings')}><MoreHorizontal size={19}/></button></div></div></aside>{isPhone&&sidebarOpen&&<button type="button" className="sidebar-scrim" aria-label="Close navigation backdrop" onClick={closeNavigation}/>}
  <div className="main-shell" inert={isPhone&&sidebarOpen?true:undefined}><header className="topbar"><div className="topbar-leading"><button ref={navigationToggle} type="button" className="sidebar-toggle" aria-label={sidebarOpen?'Close navigation':'Open navigation'} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={()=>setSidebarOpen(value=>!value)}>{sidebarOpen?<X size={20}/>:<Menu size={20}/>}</button><div className="breadcrumb">Workspace <ChevronRight size={13}/><span>{pages[page].name}</span></div></div> <div className="topbar-actions">
    <details className="topbar-menu sync-menu">
@@ -488,7 +534,7 @@ export default function App({session}){
  <GettingStarted firstTask={firstTask} firstIncome={firstIncome} onStartRecord={startFirstRecord} user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onTutorials={()=>{setGettingStarted(false);showTutorials();}} onTrailer={()=>{setGettingStarted(false);showTrailer();}} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/>
  {page==='overview'&&overviewTab==='checkin'&&<TodayScreen language={language} data={data} user={user} busy={busy} error={error} renderTask={renderTask} onReviewPayment={subscription=>open('renew',subscription)} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife language={language} data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
  {page==='overview'&&overviewTab==='checkin'&&<details className="card overview-disclosure"><summary>{t('Suggestions and setup')}</summary><div className="overview-details"><Everyday language={language} data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/></div></details>}
- {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
+ {page==='overview'&&overviewTab==='history'&&<History language={language} data={data} user={user} busy={busy||needsRefresh} onEdit={editEntry} onVoid={voidEntry} onReopen={toggleTask}/>}
  {page==='overview'&&overviewTab==='review'&&<WeeklyReview data={data} user={user}/>}
  {page==='reports'&&allowed('reports')&&<Suspense fallback={pageLoading}><Reports data={data} user={user} current={current} reportAPI={mode==='live'?api:null} busy={busy} onAddItem={category=>open('item',{category})}/></Suspense>}
  {page==='overview'&&overviewTab==='calendar'&&<PlanningCalendar data={data} user={user} onOpen={event=>{if(event.kind==='task'){go('tasks');setTaskFilter('all');setCategoryFilter('');setQuery(data.tasks.find(t=>t.id===event.sourceId)?.title||event.title);}else{go('money');setTab('subscriptions');}}}/>}
@@ -509,6 +555,8 @@ export default function App({session}){
  </div></details>
  </>}
  {page==='money'&&<>
+ {tab==='transactions'&&<MoneyReviewQueue drafts={receiptQueue} entries={data.entries} language={language} busy={busy||needsRefresh}
+   onReceipt={reviewReceiptDraft} onDiscard={discardReceiptDraft} onCategory={entry=>editEntry(entry,true)}/>}
  <CurrencyReport language={language} data={data} start={start} end={end} featured/>
  {tab==='transactions'&&<div className="money-overview-grid"><MonthlyMoney language={language} data={data} current={current} end={end} onSetLimit={value=>open('budget',value)} onManage={()=>{go('money');setTab('budgets');}}/><BudgetOverview language={language} data={data} start={start} end={end} onManage={()=>{go('money');setTab('budgets');}}/></div>}
  {tab==='transactions'&&<section className="card"><CardTitle title={t("Transactions")} subtitle={t("Income, expenses, and savings transfers.")}/><div className="search-box"><Search size={17}/><input placeholder={t("Search transactions, categories or notes…")} value={query} onChange={e=>setQuery(e.target.value)}/></div><TransactionTable entries={filteredEntries}/></section>}
@@ -547,7 +595,7 @@ export default function App({session}){
 
  {mode==='demo'&&(page==='overview'||page==='tasks'||page==='money')&&<DemoGuides can={app=>app===page||page==='overview'&&can(app)}/>}{page==='users'&&user.role==='admin'&&<Suspense fallback={pageLoading}><UserManager mode={mode} api={api} onPreview={onPreview}/></Suspense>}
 
- </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice language={modal.language} onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal data={data} modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
+ </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice language={modal.language} onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal?.type==='entryDetails'?<TransactionDetailsDialog entry={modal.entry} review={modal.review} language={language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onSave={saveEntryDetails}/>:modal&&<EntryModal data={data} modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
 }
 function TransactionChoice({language,onChoose,onClose}){
  const t=workspaceText(language);

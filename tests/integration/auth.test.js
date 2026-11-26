@@ -79,6 +79,28 @@ test('record title edits require ownership and permissions and leave ledger valu
  f.records.entries[0].voided_on='2026-11-11';
  assert.equal((await rename('/entries/20/title',maya,{title:'Reversed entry'})).status,404);
 });
+test('transaction detail edits validate fields and preserve ledger values',async t=>{
+ const f=await fixture(t),sam=await f.login('sam@test.local'),maya=await f.login('maya@test.local');
+ const admin=await f.login('admin@test.local');
+ const details={title:' Updated income ',category:' Work ',note:' Project payment '};
+ const edit=(id,cookie,body)=>f.call('/entries/'+id+'/details',{cookie,method:'PATCH',body});
+ assert.equal((await edit(20,sam,details)).status,403);
+ assert.equal((await edit(20,admin,details)).status,404);
+ assert.equal((await edit(999,maya,details)).status,404);
+ assert.equal((await edit(20,maya,{...details,amount:1})).status,400);
+ assert.equal((await edit(20,maya,{...details,category:' '})).status,400);
+ const original={...f.records.entries[0]};
+ assert.equal((await edit(20,maya,details)).status,200);
+ assert.deepEqual(f.records.entries[0],{...original,title:'Updated income',category:'Work',note:'Project payment'});
+ assert.equal((await edit(20,maya,{...details,note:''})).status,200);
+ assert.equal(f.records.entries[0].note,'');
+ assert.equal((await edit(20,maya,{...details,reviewed:true})).status,200);
+ assert.equal(f.records.entries[0].reviewed,true);
+ assert.equal((await edit(20,maya,{...details,note:''})).status,200);
+ assert.equal(f.records.entries[0].reviewed,true);
+ f.records.entries[0].voided_on='2026-11-11';
+ assert.equal((await edit(20,maya,details)).status,404);
+});
 test('cancelled tasks are recoverable, private, and excluded from active snapshots',async t=>{
  const f=await fixture(t),cookie=await f.login('sam@test.local');
  assert.equal((await f.call('/tasks/11/cancel',{cookie,method:'PATCH',body:{cancelled:true}})).status,404);

@@ -6,11 +6,14 @@ const date=daySchema;
 const money=z.coerce.number().positive().max(999999999).refine(v=>Math.abs(v*100-Math.round(v*100))<0.00001,'Use at most two decimal places');
 export const exchangeRateSchema=z.coerce.number().positive().max(1000000).refine(v=>Math.abs(v*1e6-Math.round(v*1e6))<0.0001,'Use at most six decimal places');
 const category=z.string().trim().min(1).max(80).default('Other');
+const entryNote=z.string().trim().max(2000);
+export const entryDetailsSchema=z.object({title:text,category:category.unwrap(),note:entryNote}).strict();
+export const entryReviewSchema=entryDetailsSchema.extend({reviewed:z.literal(true).optional()});
 export const taskCategorySchema=z.string().trim().min(1,'Enter a category.').max(80,'Use at most 80 characters.');
 export const recurrenceSchema=z.enum(['none','daily','weekly']);
 export const subtaskSchema=z.object({title:text}).strict();
 export const goalMoveSchema=z.object({kind:z.enum(['fund','release']),amount:money,note:z.string().trim().max(500).default('')}).strict();
-export const entrySchema=z.object({exchange_rate:exchangeRateSchema.optional(),unit_rate:rateSchema.optional(),rate_reference:currencyCodeSchema.optional(),currency:currencyCodeSchema.default('USD'),type:z.enum(['income','opening','expense','withdrawal']),title:text,amount:money,saved:z.coerce.number().min(0).max(999999999).default(0).refine(v=>Math.abs(v*100-Math.round(v*100))<0.00001),category,date,note:z.string().trim().max(2000).default('')}).refine(e=>e.type==='income'||e.saved===0,'Only income can include an allocation');
+export const entrySchema=z.object({exchange_rate:exchangeRateSchema.optional(),unit_rate:rateSchema.optional(),rate_reference:currencyCodeSchema.optional(),currency:currencyCodeSchema.default('USD'),type:z.enum(['income','opening','expense','withdrawal']),title:text,amount:money,saved:z.coerce.number().min(0).max(999999999).default(0).refine(v=>Math.abs(v*100-Math.round(v*100))<0.00001),category,date,note:entryNote.default('')}).refine(e=>e.type==='income'||e.saved===0,'Only income can include an allocation');
 export const expenseItemSchema=z.object({save_as_item:z.boolean().default(false),item_price_usd:money.optional()});
 export function expenseItem(entry,options){
   const {save_as_item,item_price_usd}=expenseItemSchema.parse(options);

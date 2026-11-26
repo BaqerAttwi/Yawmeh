@@ -1,0 +1,12 @@
+.money-review {padding:var(--space-3) var(--space-5);margin-block-end:var(--space-4)}
+.money-review>summary {cursor:pointer;font-weight:600}
+.money-review>summary::marker {color:var(--primary)}
+.money-review>summary .count-badge {margin-inline-start:var(--space-1)}
+.money-review-list {margin-block-start:var(--space-3)}
+.money-review-row {
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:var(--space-2);padding-block:var(--space-3);border-block-start:1px solid var(--border);
+}
+.money-review-row>div:first-child {min-inline-size:0;overflow-wrap:anywhere}
+.money-review-row small {display:block;color:var(--text-muted)}
+.money-review-list>p {margin-block-end:var(--space-2)}

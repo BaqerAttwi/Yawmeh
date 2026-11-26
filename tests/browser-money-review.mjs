@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {isAbsolute} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createApp} from '../server/src/app.js';
+import {demoData} from '../client/src/features/demo/data.js';
+import {workspaceText} from '../client/src/lib/workspace-text.js';
+import {memoryDatabase} from './helpers/memory-db.js';
+
+const module=process.env.PLAYWRIGHT_MODULE||'playwright';
+const {chromium}=await import(isAbsolute(module)?pathToFileURL(module).href:module);
+const user={id:1,name:'Review Tester',email:'review@test.local',role:'user',active:true,permissions:['money','tasks','assistant'],current_rate:89000};
+const data=demoData();
+const records=Object.fromEntries(Object.entries(data).filter(([,value])=>Array.isArray(value)).map(([key,value])=>[key,value.map(row=>({...row,user_id:1}))]));
+const server=createApp({db:memoryDatabase(records,[user]),authStore:{session:async()=>user,listSessions:async()=>[]},recoveryOptions:null}).listen(0,'127.0.0.1');
+await once(server,'listening');
+const url=`http://127.0.0.1:${server.address().port}`;
+let browser;
+try{
+ browser=await chromium.launch({headless:true,channel:'msedge'});
+ for(const [width,language] of [[1280,'en'],[360,'ar']]){
+  const t=workspaceText(language);
+  const context=await browser.newContext({viewport:{width,height:850},reducedMotion:'reduce'});
+  await context.route('https://**/*',route=>route.abort());
+  await context.route('**/api/companion/ai',route=>route.fulfill({json:{available:true}}));
+  const title='Receipt queue '+language;
+  await context.route('**/api/companion/receipt',route=>route.fulfill({json:{merchant:title,amount:12.5,currency:'USD'}}));
+  if(language==='ar')await context.addInitScript(()=>localStorage.setItem('yawmeh:workspace-language:live:1','ar'));
+  await context.addCookies([{name:'daywell_session',value:'a'.repeat(64),url}]);
+  const page=await context.newPage(),errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(url);
+  await page.getByRole('button',{name:'Close getting started'}).click();
+  await page.locator('.companion-launcher').click();
+  await page.locator('.companion-bottom-tools button').nth(2).click();
+  const photo=page.locator('.companion-tools input[type=file]').last();
+  const png=await page.evaluate(()=>document.createElement('canvas').toDataURL('image/png').split(',')[1]);
+  await photo.setInputFiles({name:'receipt.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+  const form=page.locator('dialog[open]');
+  await form.waitFor();
+  assert.equal(await form.locator('[name=title]').inputValue(),title);
+  assert.equal(await form.locator('[name=amount]').inputValue(),'12.5');
+  await form.locator('.modal-heading button').click();
+  assert.equal(records.entries.filter(entry=>entry.title===title).length,0);
+  await page.reload();
+  if(width<=700)await page.getByRole('button',{name:'Open navigation',exact:true}).click();
+  await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();
+  const queue=page.locator('.money-review');
+  await queue.locator('summary').click();
+  await queue.getByRole('button',{name:t('Review receipt'),exact:true}).click();
+  assert.equal(await form.locator('[name=title]').inputValue(),title);
+  await form.locator('[name=category]').selectOption('Other');
+  await form.getByRole('button',{name:/^(Save transaction|احفظ العملية)$/}).click();
+  await form.waitFor({state:'hidden'});
+  assert.equal(records.entries.filter(entry=>entry.title===title).length,1);
+  const row=queue.locator('.money-review-row').filter({hasText:title});
+  if(await queue.getAttribute('open')===null)await queue.locator('summary').click();
+  await row.getByRole('button',{name:t('Review category'),exact:true}).click();
+  assert.equal(await form.locator('[name=category]').inputValue(),'Other');
+  await form.getByRole('button',{name:t('Confirm review'),exact:true}).click();
+  await row.waitFor({state:'hidden'});
+  const entry=records.entries.find(item=>item.title===title);
+  assert.equal(entry.reviewed,true);
+  assert.equal(entry.amount,12.5);
+  assert.deepEqual(errors,[]);
+  console.log(`Receipt recovery and category review passed at ${width}px in ${language}.`);
+  await context.close();
+ }
+}finally{
+ await browser?.close();
+ server.closeAllConnections();
+ server.close();
+}

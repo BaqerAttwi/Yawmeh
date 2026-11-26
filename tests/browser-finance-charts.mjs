@@ -99,6 +99,20 @@ try{
       await page.locator('.sidebar').getByRole('button',{name,exact:true}).click();
     }
     await go('Money');
+    const originalTitle=records.entries.find(entry=>entry.id===4).title;
+    const updatedTitle='Updated groceries '+[width,scheme,rtl?'RTL':'LTR'].join(' ');
+    const transaction=page.locator('tr').filter({hasText:originalTitle});
+    const transactionAmount=await transaction.locator('.amount').textContent();
+    await transaction.getByRole('button',{name:t('Edit {name}',{name:originalTitle})}).click();
+    const editor=page.getByRole('dialog',{name:t('Edit transaction')});
+    await editor.locator('[name=title]').fill(updatedTitle);
+    await editor.locator('[name=category]').fill('Household');
+    await editor.locator('[name=note]').fill('Receipt checked');
+    await editor.getByRole('button',{name:t('Save changes'),exact:true}).click();
+    await editor.waitFor({state:'hidden'});
+    const edited=page.locator('tr').filter({hasText:updatedTitle});
+    await edited.getByText('Receipt checked',{exact:false}).waitFor();
+    assert.equal(await edited.locator('.amount').textContent(),transactionAmount);
     const range=page.locator('.date-range');
     assert.equal(await range.getAttribute('dir'),'ltr');
     const [startBox,endBox]=await Promise.all([range.locator('input').first().boundingBox(),range.locator('input').last().boundingBox()]);
@@ -112,6 +126,11 @@ try{
     await dialog.getByRole('button',{name:/^(Cancel|إلغاء|إلغِ)$/}).click();
 
     await go('Overview');
+    await page.locator('.overview-more>summary').click();
+    await page.locator('.overview-menu').getByRole('button',{name:t('History'),exact:true}).click();
+    await page.locator('.history-record').filter({hasText:updatedTitle}).getByRole('button',{name:t('Edit {name}',{name:updatedTitle})}).click();
+    assert.equal(await editor.locator('[name=category]').inputValue(),'Household');
+    await editor.getByRole('button',{name:t('Cancel'),exact:true}).click();
     await page.locator('.overview-tabs').getByRole('button',{name:t('Today'),exact:true}).click();
     const summaryCards=page.locator('.today-money-summary > section');
     assert.equal(await summaryCards.count(),3);

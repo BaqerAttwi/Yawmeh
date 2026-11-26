@@ -13,8 +13,8 @@ export function rememberOfflineAccount(account) {
   }catch{/* The online workspace can operate with storage disabled. */}
 }
 
-export function newOfflineEntry(userId,value,kind='entries') {
-  return {kind,createdAt:performance.timeOrigin+performance.now(),value:{...value,offline_sync:{id:crypto.randomUUID(),account:String(userId)}}};
+export function newOfflineEntry(userId,value,kind='entries',syncId=crypto.randomUUID()) {
+  return {kind,createdAt:performance.timeOrigin+performance.now(),value:{...value,offline_sync:{id:syncId,account:String(userId)}}};
 }
 
 export const offlineKind=record=>record.kind||'entries';

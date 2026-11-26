@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS `entries` (
  `note` TEXT NOT NULL,
  `voided_on` DATE NULL,
  `void_reason` VARCHAR(500) NOT NULL DEFAULT '',
+ `reviewed` BOOLEAN NOT NULL DEFAULT FALSE,
  `offline_sync_id` CHAR(36) NULL,
  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
  INDEX (`user_id`), INDEX (`date`), UNIQUE KEY `entry_offline_sync` (`user_id`, `offline_sync_id`)
