@@ -117,7 +117,7 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .overview-tabs,.app-shell .filterbar {
   display:flex;align-items:center;gap:var(--space-3);border-block-end:1px solid var(--border);margin-block-end:var(--space-5);
 }
-.app-shell .overview-tabs {flex-wrap:nowrap;overflow:auto}
+.app-shell .overview-tabs {flex-direction:row;flex-wrap:wrap;overflow:visible}
 .app-shell .main-shell .filterbar .segmented,.app-shell .segmented {
   padding:0;background:transparent;border:0;border-radius:0;gap:var(--space-1);min-width:0;max-width:100%;overflow-x:auto;
 }
@@ -127,6 +127,33 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 }
 .app-shell .segmented button:hover,.app-shell .overview-tabs button:hover {color:var(--text)}
 .app-shell .segmented button.selected,.app-shell .overview-tabs button.selected {background:transparent;border-block-end-color:var(--accent-strong);color:var(--text);font-weight:600}
+.app-shell .overview-tabs>button {width:auto;min-height:42px}
+.overview-more {position:relative}
+.overview-more>summary {
+  display:flex;align-items:center;gap:var(--space-1);min-height:42px;list-style:none;
+  padding:var(--space-2);color:var(--text-muted);font-size:var(--font-sm);cursor:pointer;
+  border-block-end:2px solid transparent;
+}
+.overview-more>summary::-webkit-details-marker {display:none}
+.overview-more>summary.selected {color:var(--text);border-block-end-color:var(--accent-strong);font-weight:600}
+.overview-menu {
+  position:absolute;inset-inline-end:0;inset-block-start:100%;min-inline-size:148px;z-index:10;
+  display:grid;padding:var(--space-1);border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);box-shadow:var(--shadow-sm);
+}
+.app-shell .overview-menu button {justify-content:flex-start;border:0;border-radius:var(--radius-sm)}
+.app-shell .overview-menu button:is(:hover,[aria-current="page"]) {background:var(--surface-2);color:var(--text)}
+@media(max-height:400px) {
+  .overview-menu {inset-block-start:auto;inset-block-end:100%;max-block-size:42dvh;overflow-y:auto}
+}
+.dashboard-essentials {display:grid;gap:var(--space-3);margin-block:var(--space-4)}
+.dashboard-essentials:empty {display:none}
+.overview-disclosure {margin-block-start:var(--space-3);padding:var(--space-4) var(--space-5)}
+.overview-disclosure>summary {font-weight:600;cursor:pointer}
+.overview-disclosure>summary::marker {color:var(--primary)}
+.overview-details {display:grid;gap:var(--space-3);margin-block-start:var(--space-3);min-inline-size:0}
+.app-shell .overview-details>.card {margin:0}
+.today-screen>.overview-disclosure {margin-block-start:0}
 .app-shell .date-range {margin-block:0 var(--space-2);border-color:var(--border-strong);background:var(--surface)}
 .app-shell .date-range input {font-size:var(--font-xs)}
 
@@ -158,7 +185,10 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   min-inline-size:0;padding:var(--space-5);border-radius:var(--radius-card);
   background:var(--hero);color:var(--hero-fg);text-align:start;
 }
-.today-balance .spending-breakdown>summary {list-style:none}
+.today-balance .spending-breakdown>summary {
+  list-style:none;background:var(--spend-card);color:var(--spend-value);
+  border:1px solid var(--spend-edge);
+}
 .app-shell .today-balance:not(:has(.spending-breakdown[open])) {padding:0;background:transparent}
 .today-balance .spending-breakdown>summary::-webkit-details-marker {display:none}
 .balance-hero-label,.today-balance .spending-breakdown>summary>.balance-hero-label {color:var(--hero-2);font-size:var(--font-md)}
@@ -170,9 +200,11 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   padding:var(--space-1) var(--space-2);border-radius:var(--radius-pill);
   background:var(--hero-accent);color:var(--hero);font-size:var(--font-xs);font-weight:600;
 }
-.today-balance .spending-breakdown>summary>.spending-currencies {color:var(--hero-2)}
+.today-balance .spending-breakdown>summary>:is(.balance-hero-label,.spending-currencies) {color:var(--spend-label)}
+.today-balance .spending-breakdown>summary>.balance-hero-value {color:var(--spend-value)}
+.today-balance .spending-breakdown>summary>.balance-hero-pill {background:var(--spend-pill);color:var(--spend-pill-text)}
 .today-balance .spending-breakdown>summary>span {text-decoration:none}
-.today-balance .spending-breakdown>summary:hover>.balance-hero-pill {background:var(--brand-hover)}
+.today-balance .spending-breakdown>summary:hover>.balance-hero-pill {background:var(--spend-pill-hover)}
 .balance-hero-value bdi,[data-money] strong bdi,.table-wrap .amount bdi {direction:ltr;unicode-bidi:isolate}
 :dir(rtl) :is(.lucide-chevron-left,.lucide-chevron-right,.lucide-arrow-left,.lucide-arrow-right):not(.report-chart *,.finance-chart *,.priority-chart *) {scale:-1 1}
 .app-shell .quick-purchase-card {
@@ -184,6 +216,14 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   text-align:start;white-space:normal;gap:var(--space-2);padding:var(--space-1) var(--space-2);
 }
 .app-shell .quick-purchase-card .quick-items button small {text-align:end}
+.app-shell .quick-purchase-card .quick-items button strong {font-weight:500}
+.today-money-summary {display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:var(--space-3);margin-block-end:var(--space-3)}
+.today-money-summary .today-balance {margin:0}
+.today-money-summary .spending-breakdown>summary {min-block-size:154px}
+.today-money-stat {display:grid;align-content:center;gap:var(--space-2);padding:var(--space-5);overflow-wrap:anywhere}
+.today-money-stat strong {font-size:var(--font-2xl);font-weight:600}
+.today-money-stat progress {inline-size:100%;block-size:var(--space-1)}
+.today-money-stat small {color:var(--text-muted)}
 .money-overview-grid {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start;gap:var(--space-5);margin-block-end:var(--space-5)}
 .app-shell .monthly-money {padding:0;margin:0}
 .app-shell .monthly-money-range {background:var(--surface-2);color:var(--text-muted)}
@@ -194,12 +234,9 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .monthly-money-column[aria-pressed="true"] {color:var(--primary)}
 .app-shell .monthly-money-month {font-weight:500}
 .app-shell .monthly-money-column[aria-pressed="true"] .monthly-money-month {font-weight:700}
-.app-shell .monthly-money-detail {background:var(--surface-2);margin:var(--space-4) 18px 0;padding:var(--space-3)}
+.app-shell .monthly-money-detail {background:transparent;border:0;border-radius:0;margin:var(--space-4) 18px 0;padding:0}
 .app-shell .monthly-money-detail dl {border:0;padding-block-start:0}
-.app-shell .monthly-money-detail dl>div {min-inline-size:0;border-block-start:2px solid var(--expense);padding-block-start:var(--space-2)}
-.app-shell .monthly-money-detail dl>div:nth-child(2) {border-color:var(--savings)}
-.app-shell .monthly-money-detail dl>div:nth-child(3) {border-block-start:2px dashed var(--budget-limit)}
-.app-shell .monthly-money-detail dl>div.monthly-money-over {border-color:var(--danger)}
+.app-shell .monthly-money-detail dl>div {min-inline-size:0;border-block-start:1px solid var(--border);padding-block-start:var(--space-2)}
 .app-shell .monthly-money-detail dd {font-size:var(--font-lg);font-weight:600}
 .app-shell .monthly-money-note {margin-block-start:var(--space-3);padding:0 18px var(--space-3);color:var(--text-muted)}
 .budget-overview-list {padding:var(--space-4) 18px;display:grid;gap:var(--space-4);font-size:var(--font-sm)}
@@ -282,6 +319,7 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   .app-shell .filterbar .segmented {flex-wrap:nowrap}
   .app-shell .filterbar .segmented button {font-size:var(--font-xs)}
   .app-shell .quick-purchase-card .quick-items {grid-template-columns:minmax(0,1fr)}
+  .today-money-summary {grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:no-preference){
   :is(button,summary,a) {transition:background-color 120ms,color 120ms,border-color 120ms}

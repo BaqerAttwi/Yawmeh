@@ -34,6 +34,7 @@ try{
    results.push(await page.evaluate(({name,width})=>({width,page:name,scrollWidth:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('main *')].filter(e=>{const r=e.getBoundingClientRect();return r.width&&r.right>innerWidth+1&&!e.closest('.table-wrap');}).slice(0,12).map(e=>({tag:e.tagName,cls:e.className,right:Math.round(e.getBoundingClientRect().right)}))}),{name,width}));
    const tabs=name==='Overview'?['Dashboard','History','Weekly review','Calendar']:name==='Money'?['Savings','Goals','Items','Budgets','Subscriptions']:[];
    for(const tab of tabs){
+    if(name==='Overview'&&tab!=='Dashboard')await page.locator('.overview-more>summary').click();
     await page.locator(name==='Overview'?'.overview-tabs':'.filterbar .segmented').getByRole('button',{name:tab,exact:true}).click();
     results.push(await page.evaluate(({name,width})=>({width,page:name,scrollWidth:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('main *')].filter(e=>{const r=e.getBoundingClientRect();return r.width&&r.right>innerWidth+1&&!e.closest('.table-wrap, .segmented, .orbit');}).slice(0,15).map(e=>({tag:e.tagName,cls:e.className,parent:e.parentElement.className,right:Math.round(e.getBoundingClientRect().right)}))}),{name:name+' / '+tab,width}));
    }

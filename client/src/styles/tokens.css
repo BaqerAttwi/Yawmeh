@@ -21,6 +21,13 @@
   --hero-2: #a7c4b5;
   --hero-accent: var(--brand);
   --accent-strong: light-dark(#0f5132,var(--palette-lime));
+  --spend-card: light-dark(color-mix(in srgb,var(--brand) 12%,var(--surface)),var(--hero));
+  --spend-edge: light-dark(color-mix(in srgb,var(--brand) 32%,var(--border)),transparent);
+  --spend-label: light-dark(var(--text-2),var(--hero-2));
+  --spend-value: light-dark(var(--text),var(--hero-fg));
+  --spend-pill: light-dark(color-mix(in srgb,var(--brand) 24%,var(--surface)),var(--hero-accent));
+  --spend-pill-hover: light-dark(color-mix(in srgb,var(--brand) 34%,var(--surface)),var(--brand-hover));
+  --spend-pill-text: light-dark(var(--text),var(--hero));
   --positive: #1f7a4d;
   --negative: #b42318;
 

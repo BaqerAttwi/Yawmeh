@@ -1,3 +1,4 @@
+import {workspaceText} from "../lib/workspace-text.js";
 import {GettingStarted} from '../features/demo/GettingStarted.jsx';
 import {TutorialDialog} from '../features/demo/TutorialDialog.jsx';
 import {DemoGuides} from '../features/demo/DemoGuides.jsx';
@@ -11,7 +12,7 @@ import {Currencies,CurrencyFields} from '../features/settings/Currencies.jsx';
 import {CurrencyReport} from '../components/CurrencyReport.jsx';
 import {MonthlyMoney} from '../features/money/MonthlyMoney.jsx';
 import {BudgetOverview} from '../features/money/BudgetOverview.jsx';
-import {SpendingBalance} from '../components/SpendingBalance.jsx';
+import {SpendingBalance,TodayMoneySummary} from '../components/SpendingBalance.jsx';
 import {formatMoney,rateLabel,currencyOf,captureRates,savedRates,currencyCatalog} from '../../../shared/currency.js';
 import {Everyday} from '../features/today/Everyday.jsx';
 import {Sessions} from '../features/settings/Sessions.jsx';
@@ -41,7 +42,7 @@ import {checkVoid} from '../../../shared/insights.js';
 import '../styles/insights.css';
 import React,{lazy,Suspense,useState,useEffect,useRef,useMemo} from 'react';
 
-import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Leaf,Users,Play,Compass,Menu,FileChartColumn} from 'lucide-react';
+import {LayoutDashboard,Wallet,CheckSquare,Sparkles,Settings,ArrowUpRight,ArrowDownLeft,Plus,ChevronDown,ChevronRight,ArrowRight,X,Search,Bell,CalendarDays,PiggyBank,MoreHorizontal,Coffee,ShoppingBag,Repeat,Mail,Check,LogOut,Download,Target,Leaf,Users,Play,Compass,Menu,FileChartColumn} from 'lucide-react';
 import {balances,cents,today,periodSummary,checkEntry,nextRenewal,daysUntil,DEFAULT_TASK_CATEGORIES,taskCategory} from '../../../shared/domain.js';
 import {demoData} from '../features/demo/data.js';
 import {entrySchema,expenseItem,schemas,taskCategorySchema} from '../../../shared/validation.js';
@@ -73,6 +74,7 @@ export default function App({session}){
  const navigationToggle=useRef();
  const languageKey='yawmeh:workspace-language:'+mode+':'+user.id;
  const [language,setLanguage]=useState(()=>{try{return localStorage.getItem(languageKey)||null;}catch{return null;}});
+ const t=workspaceText(language||document.documentElement.lang);
  function switchLanguage(){
    const next=(language||document.documentElement.lang)==='ar'?'en':'ar';
    setLanguage(next);
@@ -306,7 +308,7 @@ export default function App({session}){
      message:receipt=>receipt?.renewal?`Payment recorded. Next renewal is ${receipt.renewal}.`:'Payment recorded and renewal date updated',
    });
  }
- function open(type,initial={},language='en',onSaved){setError('');const last=data.entries.filter(e=>e.type==='expense'&&!e.voided_on).sort((a,b)=>b.date.localeCompare(a.date)||Number(b.id)-Number(a.id))[0];setModal({type,language,onSaved,initial:{currency:data.settings.last_currency||'USD',...(type==='expense'?{category:last?.category||'Other'}:{}),...initial}});}
+ function open(type,initial={},entryLanguage=(page==='money'||isToday)&&language==='ar'?'ar':'en',onSaved){setError('');const last=data.entries.filter(e=>e.type==='expense'&&!e.voided_on).sort((a,b)=>b.date.localeCompare(a.date)||Number(b.id)-Number(a.id))[0];setModal({type,language:entryLanguage,onSaved,initial:{currency:data.settings.last_currency||'USD',...(type==='expense'?{category:last?.category||'Other'}:{}),...initial}});}
  function cancelTask(task,cancelled){return change({path:'/tasks/'+task.id+'/cancel',method:'PATCH',value:{cancelled},demo:d=>{d.cancelled_tasks??=[];if(cancelled){d.tasks=d.tasks.filter(t=>t.id!==task.id);d.cancelled_tasks.push({...task,cancelled:true});}else{d.cancelled_tasks=d.cancelled_tasks.filter(t=>t.id!==task.id);d.tasks.push({...task,cancelled:false});}},message:cancelled?'Task cancelled. Restore it in Today.':'Task restored'});}
  function openChangeReview(proposal,language,onSaved){
    const parsed=companionChangeSchema.safeParse(proposal);
@@ -386,15 +388,15 @@ export default function App({session}){
    });
  }
  const quickPurchases=data.items?.length>0&&<section className="quick-card quick-purchase-card">
-   <h3>Quick purchases</h3><p>Tap an item to record one purchase today.</p>
+   <h3>{t("Quick purchases")}</h3><p>{t("Tap an item to record one purchase today.")}</p>
    <div className="quick-items">{data.items.slice(0,4).map((item,i)=><button type="button" key={item.id} className="secondary" disabled={busy||needsRefresh} onClick={()=>logSavedPurchase(item)}>
      <span>{i===0?<Coffee size={18}/>:<ShoppingBag size={18}/>}</span>
-     <strong>Log {item.title}</strong><small>{money(cents(item.amount))} USD</small>
+     <strong>{t("Log {item}",{item:item.title})}</strong><small><bdi>{money(cents(item.amount))} USD</bdi></small>
    </button>)}</div>
  </section>;
- const renderTask=task=><PlanningTaskRow key={task.id} task={task} parts={taskIndex.parts.get(task.id)||[]} hasNext={taskIndex.parents.has(task.id)} busy={busy} onToggle={toggleTask} onCategory={t=>open('taskCategory',t)} onRecurrence={changeRecurrence} onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onSaveDetail={saveDetail} onReschedule={moveTask}/>;
+ const renderTask=task=><PlanningTaskRow language={language} key={task.id} task={task} parts={taskIndex.parts.get(task.id)||[]} hasNext={taskIndex.parents.has(task.id)} busy={busy} onToggle={toggleTask} onCategory={t=>open('taskCategory',t)} onRecurrence={changeRecurrence} onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onSaveDetail={saveDetail} onReschedule={moveTask}/>;
 
- const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th className="right">Amount</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?' · Reversed':''}</strong><small>{e.type==='income'?`Income · ${formatMoney(cents(e.saved),currencyOf(e),savedRates(e))} to savings`:e.type==='opening'?'Added to savings':e.type==='withdrawal'?'Savings → spending':'Purchase'}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small></div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}><bdi>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</bdi></td></tr>)}</tbody></table>{!entries.length&&<Empty text="No transactions in this period. Add one to get started."/>}</div>;
+ const TransactionTable=({entries})=><div className="table-wrap"><table><thead><tr><th>{t("Transaction")}</th><th>{t("Category")}</th><th>{t("Date")}</th><th className="right">{t("Amount")}</th></tr></thead><tbody>{entries.map(e=><tr key={e.id}><td><div className="transaction-name"><span className={'transaction-icon '+e.type}>{e.type==='expense'?<ShoppingBag size={17}/>:e.type==='withdrawal'?<PiggyBank size={17}/>:<ArrowDownLeft size={17}/>}</span><div><strong>{e.title}{e.voided_on?t(" · Reversed"):''}</strong><small>{e.type==='income'?t('Income · {amount} to savings',{amount:formatMoney(cents(e.saved),currencyOf(e),savedRates(e))}):e.type==='opening'?t("Added to savings"):e.type==='withdrawal'?t("Savings → spending"):t("Purchase")}{e.note&&' · '+e.note}<br/>{rateLabel(e)}</small></div></div></td><td><span className="category">{e.category}</span></td><td className="muted nowrap">{dateLabel(e.date)}</td><td className={'right amount '+(['income','opening'].includes(e.type)?'positive':'')}><bdi>{e.type==='expense'?'−':e.type==='withdrawal'?'↔':'+'}{formatMoney(cents(e.amount),currencyOf(e),savedRates(e))}</bdi></td></tr>)}</tbody></table>{!entries.length&&<Empty text={t("No transactions in this period. Add one to get started.")}/>}</div>;
  return <div className={`app-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`} dir={language==='ar'?'rtl':language==='en'?'ltr':undefined} lang={language||undefined}><aside id="workspace-sidebar" className="sidebar" aria-label="Workspace navigation and companion"><button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeNavigation}><X size={20}/></button><a className="brand" aria-label="yawmeh.me home" href="#" onClick={e=>{e.preventDefault();go('overview');}}><img className="brand-logo" src="/branding/yawmeh-logo-small.webp" alt=""/><span className="brand-name">yawmeh.me</span></a>
  <div className="nav-label">Workspace</div>
  <nav>{Object.entries(pages).filter(([key])=>key!=='settings'&&allowed(key)).map(([key,pageInfo])=>
@@ -426,75 +428,89 @@ export default function App({session}){
  </div></header>
  <main className={page==='overview'&&overviewTab==='dashboard'?'dashboard-page':undefined}>{mode==='demo'&&<section className="demo-welcome-actions"><strong>You’re exploring demo data.</strong><button className="secondary" onClick={()=>session.onSignup?.()}>Create your account</button></section>}{mode==='demo'&&user.role!=='admin'&&<div className="preview-note"><span>Previewing {user.name}’s access: {user.permissions.filter(p=>p!=='assistant').map(p=>APP_LABELS[p]).join(', ')}</span><button className="text-button" onClick={()=>onPreview(demoAdmin)}>Back to admin demo <ArrowRight size={14}/></button></div>}<div className="page-heading">
    <div><p className="page-date">{page==='money'||page==='overview'&&overviewTab==='dashboard'?dateLabel(start)+' – '+dateLabel(end)+', '+end.slice(0,4):dateLabel(current)+', '+current.slice(0,4)}</p>
-   <h1>{page==='overview'?({checkin:'Today',dashboard:'Dashboard',history:'History',review:'Weekly review',calendar:'Calendar'}[overviewTab]):pages[page].name}</h1></div>
+   <h1>{t(page==='overview'?({checkin:'Today',dashboard:'Dashboard',history:'History',review:'Weekly review',calendar:'Calendar'}[overviewTab]):pages[page].name)}</h1></div>
    <div className="button-row">
-     {page==='tasks'&&<><button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button><button data-tour="add-task" className="primary" onClick={()=>open('task')}><Plus size={15}/>Add task</button></>}
-     {page==='money'&&can('money')&&<><button className="secondary" data-tour={tab==='transactions'?'add-income':undefined} onClick={()=>open('income')}><Plus size={15}/>Income</button><button className="primary" data-tour={tab==='transactions'?'add-expense':undefined} onClick={()=>open('expense')}><Plus size={15}/>Expense</button></>}
-     {page==='overview'&&!isToday&&can('money')&&<button className="primary" onClick={()=>open('transactionChoice')}><Plus size={15}/>Add transaction</button>}
+     {page==='tasks'&&<><button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button><button data-tour="add-task" className="primary" onClick={()=>open('task')}><Plus size={15}/>{t("Add task")}</button></>}
+     {page==='money'&&can('money')&&<><button className="secondary" data-tour={tab==='transactions'?'add-income':undefined} onClick={()=>open('income')}><Plus size={15}/>{t("Income")}</button><button className="primary" data-tour={tab==='transactions'?'add-expense':undefined} onClick={()=>open('expense')}><Plus size={15}/>{t("Expense")}</button></>}
+     {page==='overview'&&!isToday&&can('money')&&<button className="primary" onClick={()=>open('transactionChoice')}><Plus size={15}/>{t("Add transaction")}</button>}
    </div>
  </div>
  {offlineEnabled&&showOfflinePanel&&<OfflineQueue records={queued} ready={offlineReady} offline={offline} busy={busy} onRetry={()=>void retrySync.current()}/>}
  {needsRefresh&&<div className="info-note" role="status">Refresh the latest records before making more changes.<button className="secondary" disabled={busy} onClick={refreshRecords}>Refresh records</button></div>}
  {error&&!modal&&<div className="error" role="alert">{error}<button className="icon-button" onClick={()=>setError('')} aria-label="Dismiss error"><X size={15}/></button></div>}
- {page==='overview'&&<div className="overview-tabs" aria-label="Overview views">{[['checkin','Today'],['dashboard','Dashboard'],['history','History'],['review','Weekly review'],['calendar','Calendar']].map(([key,title])=><button key={key} data-tour={key==='checkin'?'today-tab':undefined} className={overviewTab===key?'selected':''} onClick={()=>setOverviewTab(key)}>{title}</button>)}</div>}
- {can('money')&&!isToday&&(page==='overview'||page==='money')&&<BudgetAlerts data={data}/>}
+ {page==='overview'&&<nav className="overview-tabs" aria-label="Overview views">
+   {[['checkin','Today'],['dashboard','Dashboard']].map(([key,title])=><button key={key} data-tour={key==='checkin'?'today-tab':undefined}
+     className={overviewTab===key?'selected':''} aria-current={overviewTab===key?'page':undefined} onClick={()=>setOverviewTab(key)}>{t(title)}</button>)}
+   <details className="overview-more">
+     <summary className={['history','review','calendar'].includes(overviewTab)?'selected':undefined}>{t('More views')}<ChevronDown size={15} aria-hidden="true"/></summary>
+     <div className="overview-menu">
+       {[['calendar','Calendar'],['review','Weekly review'],['history','History']].map(([key,title])=><button key={key}
+         aria-current={overviewTab===key?'page':undefined} onClick={event=>{const menu=event.currentTarget.closest('details');menu.open=false;menu.querySelector('summary').focus();setOverviewTab(key);}}>{t(title)}</button>)}
+     </div>
+   </details>
+ </nav>}
+ {can('money')&&!isToday&&(page==='overview'||page==='money')&&<BudgetAlerts language={language} data={data}/>}
 
- {isToday&&(can('money')||can('tasks'))&&<section className="today-actions" aria-label="Today's quick actions">
-   {can('money')&&<section className="card today-panel today-balance" aria-label="Your spending balance">
-     <SpendingBalance data={data} end={current}/>
-     {showFirstBalance&&!firstIncome&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('expense',{},'en',()=>setShowFirstBalance(false))}>Log an expense</button>}
-   </section>}
+ {isToday&&(can('money')||can('tasks'))&&<section className="today-actions" aria-label={t("Today's quick actions")}>
+   {can('money')&&<TodayMoneySummary data={data} end={current} language={language}><section className="card today-panel today-balance" aria-label={t("Your spending balance")}>
+     <SpendingBalance data={data} end={current} language={language}/>
+     {showFirstBalance&&!firstIncome&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('expense',{},language==='ar'?'ar':'en',()=>setShowFirstBalance(false))}>{t("Log an expense")}</button>}
+   </section></TodayMoneySummary>}
    <div className="button-row">
-     {can('money')&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('transactionChoice')}><Plus size={17}/>Add transaction</button>}
-     {can('tasks')&&<button type="button" className={can('money')?'secondary':'primary'} disabled={busy||needsRefresh} onClick={()=>open('task',{due:current})}><Plus size={17}/>Add task</button>}
-     {can('money')&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('expense')}>Log expense</button>}
+     {can('money')&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>open('transactionChoice')}><Plus size={17}/>{t("Add transaction")}</button>}
+     {can('tasks')&&<button type="button" className={can('money')?'secondary':'primary'} disabled={busy||needsRefresh} onClick={()=>open('task',{due:current})}><Plus size={17}/>{t("Add task")}</button>}
+     {can('money')&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>open('expense')}>{t("Log expense")}</button>}
    </div>
    {can('money')&&quickPurchases}
    {savedFirstTask&&<section className="card today-panel first-record" aria-label="Your first task">
-     <h3>Task saved</h3>
+     <h3>{t("Task saved")}</h3>
      <p><strong>{savedFirstTask.title}</strong> · Due {dateLabel(savedFirstTask.due)}</p>
    </section>}
    {(firstTask||firstIncome)&&<section className="card today-panel first-record">
-     <h3>Create your first record</h3>
-     <p>Pick what’s useful today. You can set up the rest whenever you’re ready.</p>
+     <h3>{t("Create your first record")}</h3>
+     <p>{t("Pick what’s useful today. You can set up the rest whenever you’re ready.")}</p>
      <div className="button-row">
-       {firstTask&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>startFirstRecord('task')}>Add my first task</button>}
-       {firstIncome&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>startFirstRecord('income')}>Set up my money</button>}
+       {firstTask&&<button type="button" className="primary" disabled={busy||needsRefresh} onClick={()=>startFirstRecord('task')}>{t("Add my first task")}</button>}
+       {firstIncome&&<button type="button" className="secondary" disabled={busy||needsRefresh} onClick={()=>startFirstRecord('income')}>{t("Set up my money")}</button>}
      </div>
    </section>}
  </section>}
- {isToday&&can('money')&&<BudgetAlerts data={data}/>}
+ {isToday&&can('money')&&<BudgetAlerts language={language} data={data}/>}
  <GettingStarted firstTask={firstTask} firstIncome={firstIncome} onStartRecord={startFirstRecord} user={user} mode={mode} page={page} tab={tab} overviewTab={overviewTab} can={can} open={gettingStarted} onClose={()=>setGettingStarted(false)} onOpen={showGuide} onTutorials={()=>{setGettingStarted(false);showTutorials();}} onTrailer={()=>{setGettingStarted(false);showTrailer();}} onNavigate={step=>{go(step.page);if(step.overviewTab)setOverviewTab(step.overviewTab);if(step.tab)setTab(step.tab);}} onTourChange={setGuideActive}/>
- {page==='overview'&&overviewTab==='checkin'&&<TodayScreen data={data} user={user} busy={busy} error={error} renderTask={renderTask} onReviewPayment={subscription=>open('renew',subscription)} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
- {page==='overview'&&overviewTab==='checkin'&&<Everyday data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/>}
+ {page==='overview'&&overviewTab==='checkin'&&<TodayScreen language={language} data={data} user={user} busy={busy} error={error} renderTask={renderTask} onReviewPayment={subscription=>open('renew',subscription)} onAddTask={due=>open('task',{due})} onPlan={savePlan} onToggle={toggleTask} onSubtask={toggleSubtask} onCloseDay={finishToday} onReopen={reopenToday} tools={can('tasks')&&<DailyLife language={language} data={data} busy={busy} onPlan={savePlan} onCapture={captureNote} onArchive={archiveNote} onConvert={convertNote} onAdd={v=>add('tasks',v)} onToggle={toggleTask} onSubtask={toggleSubtask} onReschedule={moveTask}/>}/>}
+ {page==='overview'&&overviewTab==='checkin'&&<details className="card overview-disclosure"><summary>{t('Suggestions and setup')}</summary><div className="overview-details"><Everyday language={language} data={data} user={user} current={current} mode={mode} open={open} busy={busy} moveTask={moveTask} cancelTask={cancelTask}/></div></details>}
  {page==='overview'&&overviewTab==='history'&&<History data={data} user={user} busy={busy} onVoid={voidEntry} onReopen={toggleTask}/>}
  {page==='overview'&&overviewTab==='review'&&<WeeklyReview data={data} user={user}/>}
  {page==='reports'&&allowed('reports')&&<Suspense fallback={pageLoading}><Reports data={data} user={user} current={current} reportAPI={mode==='live'?api:null} busy={busy} onAddItem={category=>open('item',{category})}/></Suspense>}
  {page==='overview'&&overviewTab==='calendar'&&<PlanningCalendar data={data} user={user} onOpen={event=>{if(event.kind==='task'){go('tasks');setTaskFilter('all');setCategoryFilter('');setQuery(data.tasks.find(t=>t.id===event.sourceId)?.title||event.title);}else{go('money');setTab('subscriptions');}}}/>}
- {((page==='overview'&&overviewTab==='dashboard')||page==='money')&&<div className="filterbar"><div className="segmented">{(page==='overview'?['all','money','tasks'].filter(f=>f==='all'?(can('money')&&can('tasks')):can(f)):['transactions','savings','goals','items','budgets','subscriptions']).map(t=><button key={t} className={(page==='overview'?filter:tab)===t?'selected':''} onClick={()=>page==='overview'?setFilter(t):setTab(t)}>{t==='all'?'All overview':t[0].toUpperCase()+t.slice(1)}</button>)}</div><div className="date-range"><CalendarDays size={15}/><input aria-label="Start date" type="date" value={start} max={end} onChange={e=>setStart(e.target.value)}/><span>–</span><input aria-label="End date" type="date" min={start} value={end} onChange={e=>setEnd(e.target.value)}/></div></div>}
- {page==='overview'&&overviewTab==='dashboard'&&<>{can('money')&&filter!=='tasks'&&<><CurrencyReport data={data} start={start} end={end}/><div className="money-overview-grid"><MonthlyMoney data={data} current={current} end={end} onSetLimit={value=>open('budget',value)} onManage={()=>{go('money');setTab('budgets');}}/><BudgetOverview data={data} start={start} end={end} onManage={()=>{go('money');setTab('budgets');}}/></div></>}
+ {((page==='overview'&&overviewTab==='dashboard')||page==='money')&&<div className="filterbar"><div className="segmented">{(page==='overview'?['all','money','tasks'].filter(f=>f==='all'?(can('money')&&can('tasks')):can(f)):['transactions','savings','goals','items','budgets','subscriptions']).map(key=><button key={key} className={(page==='overview'?filter:tab)===key?'selected':''} onClick={()=>page==='overview'?setFilter(key):setTab(key)}>{key==='all'?'All overview':t(key[0].toUpperCase()+key.slice(1))}</button>)}</div><div className="date-range" dir="ltr" lang="en-US"><CalendarDays size={15}/><input aria-label={t("Start date")} type="date" value={start} max={end} onChange={e=>setStart(e.target.value)}/><span>–</span><input aria-label={t("End date")} type="date" min={start} value={end} onChange={e=>setEnd(e.target.value)}/></div></div>}
+ {page==='overview'&&overviewTab==='dashboard'&&<>{can('money')&&filter!=='tasks'&&<><div className="money-overview-grid"><MonthlyMoney language={language} data={data} current={current} end={end} onSetLimit={value=>open('budget',value)} onManage={()=>{go('money');setTab('budgets');}}/><BudgetOverview language={language} data={data} start={start} end={end} onManage={()=>{go('money');setTab('budgets');}}/></div></>}
  <div className="stat-grid">{can('tasks')&&filter!=='money'&&<Stat icon={CheckSquare} label="Tasks completed" value={<>{summary.completed}<em> / {summary.tasks.length}</em></>} foot={summary.tasks.length?`${Math.round(summary.completed/summary.tasks.length*100)}% of your plans, done`:'A fresh start for your plans'} color="blue"/>}</div>
- <div className="dashboard-grid"><div className="dashboard-left">
+ <div className="dashboard-essentials">
  {can('tasks')&&filter!=='money'&&<section className="card"><CardTitle title="Upcoming tasks" action={<button className="text-button" onClick={()=>go('tasks')}>All tasks <ArrowRight size={14}/></button>}/><div className="task-list">{data.tasks.filter(t=>!t.completed).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,3).map(renderTask)}{!data.tasks.some(t=>!t.completed)&&<Empty text="All caught up. Enjoy a little breathing room."/>}</div><button className="add-inline" onClick={()=>open('task')}><Plus size={16}/>Add a task</button></section>}
  {can('tasks')&&filter==='tasks'&&<section className="card"><CardTitle title="Task completion" subtitle="Tasks due in your selected period."/><div className="budget-content"><Donut percent={summary.tasks.length?summary.completed/summary.tasks.length*100:0} center={`${summary.completed}/${summary.tasks.length}`} label="tasks completed"/><div><h2>{summary.tasks.length-summary.completed} to go</h2><p className="muted">Every completed task is a step forward.</p></div></div></section>}
+ </div>
+ <details className="card overview-disclosure"><summary>{t('More dashboard details')}</summary><div className="overview-details">
+ {can('money')&&filter!=='tasks'&&<CurrencyReport language={language} data={data} start={start} end={end}/>}
  {can('tasks')&&filter!=='money'&&<TaskCategoryBreakdown tasks={summary.tasks} subtitle={`Tasks due ${dateLabel(start)} – ${dateLabel(end)}. See where your effort goes.`}/>}
- </div><div className="dashboard-right">{can('money')&&filter!=='tasks'&&<section className="card"><CardTitle title="Upcoming subscriptions" action={<span className="count-badge">{upcoming.length}</span>}/><div className="subscription-list">{upcoming.slice(0,3).map((s,i)=><div className="subscription-row" key={s.id}><span className={'subscription-logo logo-'+i}>{s.title.includes('ChatGPT')?<Sparkles size={21}/>:s.title.includes('Gym')?<Target size={22}/>:<Repeat size={20}/>}</span><div className="grow"><strong>{s.title}</strong><small>{dateLabel(s.renewal)} <span className={daysUntil(s.renewal)<=1?'urgent-text':''}>· {daysUntil(s.renewal)<0?'Overdue':`in ${daysUntil(s.renewal)} days`}</span></small></div><div><strong>{money(cents(s.amount))}</strong><small className="right">{s.cycle}</small></div></div>)}{!upcoming.length&&<Empty text="No upcoming subscriptions."/>}</div><button className="card-link" onClick={()=>{go('money');setTab('subscriptions');}}>View all subscriptions <ArrowRight size={15}/></button></section>}
+ {can('money')&&filter!=='tasks'&&<section className="card"><CardTitle title="Upcoming subscriptions" action={<span className="count-badge">{upcoming.length}</span>}/><div className="subscription-list">{upcoming.slice(0,3).map((s,i)=><div className="subscription-row" key={s.id}><span className={'subscription-logo logo-'+i}>{s.title.includes('ChatGPT')?<Sparkles size={21}/>:s.title.includes('Gym')?<Target size={22}/>:<Repeat size={20}/>}</span><div className="grow"><strong>{s.title}</strong><small>{dateLabel(s.renewal)} <span className={daysUntil(s.renewal)<=1?'urgent-text':''}>· {daysUntil(s.renewal)<0?'Overdue':`in ${daysUntil(s.renewal)} days`}</span></small></div><div><strong>{money(cents(s.amount))}</strong><small className="right">{s.cycle}</small></div></div>)}{!upcoming.length&&<Empty text="No upcoming subscriptions."/>}</div><button className="card-link" onClick={()=>{go('money');setTab('subscriptions');}}>View all subscriptions <ArrowRight size={15}/></button></section>}
 
- {can('money')&&filter!=='tasks'&&quickPurchases}
- </div></div>{can('money')&&filter!=='tasks'&&<section className="card recent-card"><CardTitle title="Recent transactions" action={<button className="text-button" onClick={()=>go('money')}>View all <ArrowRight size={14}/></button>}/><TransactionTable entries={filteredEntries.slice(0,5)}/></section>}
+ {can('money')&&filter!=='tasks'&&<section className="card recent-card"><CardTitle title="Recent transactions" action={<button className="text-button" onClick={()=>go('money')}>View all <ArrowRight size={14}/></button>}/><TransactionTable entries={filteredEntries.slice(0,5)}/></section>}
+
+ </div></details>
  </>}
  {page==='money'&&<>
- <CurrencyReport data={data} start={start} end={end} featured/>
- {tab==='transactions'&&<div className="money-overview-grid"><MonthlyMoney data={data} current={current} end={end} onSetLimit={value=>open('budget',value)} onManage={()=>{go('money');setTab('budgets');}}/><BudgetOverview data={data} start={start} end={end} onManage={()=>{go('money');setTab('budgets');}}/></div>}
- {tab==='transactions'&&<section className="card"><CardTitle title="Transactions" subtitle="Income, expenses, and savings transfers."/><div className="search-box"><Search size={17}/><input placeholder="Search transactions, categories or notes…" value={query} onChange={e=>setQuery(e.target.value)}/></div><TransactionTable entries={filteredEntries}/></section>}
- {tab==='savings'&&<section className="card"><CardTitle title="Savings activity" subtitle="Withdrawals always include a reason and date. Transfers do not count as expenses." action={<div className="button-row"><button data-tour="add-savings" className="secondary" onClick={()=>open('opening')}>Add existing savings</button><button className="primary" onClick={()=>open('withdrawal')}>Withdraw savings</button></div>}/><TransactionTable entries={filteredEntries.filter(e=>e.type==='withdrawal'||e.type==='opening'||(e.type==='income'&&e.saved>0))}/></section>}
- {tab==='goals'&&<><Forecasts data={data} busy={busy} onSave={saveDetail}/><SavingsGoals data={data} busy={busy} error={error} clearError={()=>setError('')} onCreate={value=>add('goals',value)} onMove={moveGoal}/></>}
- {tab==='items'&&<SavedItems items={data.items} categories={[...new Set([...categories,...data.entries.filter(entry=>entry.type==='expense'&&entry.category).map(entry=>entry.category)])]}
+ <CurrencyReport language={language} data={data} start={start} end={end} featured/>
+ {tab==='transactions'&&<div className="money-overview-grid"><MonthlyMoney language={language} data={data} current={current} end={end} onSetLimit={value=>open('budget',value)} onManage={()=>{go('money');setTab('budgets');}}/><BudgetOverview language={language} data={data} start={start} end={end} onManage={()=>{go('money');setTab('budgets');}}/></div>}
+ {tab==='transactions'&&<section className="card"><CardTitle title={t("Transactions")} subtitle={t("Income, expenses, and savings transfers.")}/><div className="search-box"><Search size={17}/><input placeholder={t("Search transactions, categories or notes…")} value={query} onChange={e=>setQuery(e.target.value)}/></div><TransactionTable entries={filteredEntries}/></section>}
+ {tab==='savings'&&<section className="card"><CardTitle title={t("Savings activity")} subtitle={t("Withdrawals always include a reason and date. Transfers do not count as expenses.")} action={<div className="button-row"><button data-tour="add-savings" className="secondary" onClick={()=>open('opening')}>{t("Add existing savings")}</button><button className="primary" onClick={()=>open('withdrawal')}>{t("Withdraw savings")}</button></div>}/><TransactionTable entries={filteredEntries.filter(e=>e.type==='withdrawal'||e.type==='opening'||(e.type==='income'&&e.saved>0))}/></section>}
+ {tab==='goals'&&<><Forecasts language={language} data={data} busy={busy} onSave={saveDetail}/><SavingsGoals language={language} data={data} busy={busy} error={error} clearError={()=>setError('')} onCreate={value=>add('goals',value)} onMove={moveGoal}/></>}
+ {tab==='items'&&<SavedItems language={language} items={data.items} categories={[...new Set([...categories,...data.entries.filter(entry=>entry.type==='expense'&&entry.category).map(entry=>entry.category)])]}
   busy={busy} needsRefresh={needsRefresh} onAdd={category=>open('item',category?{category}:{})}
   onLog={logSavedPurchase} onAdjust={item=>open('expense',{...item,currency:'USD'})}/>}
- {tab==='budgets'&&<section className="card"><CardTitle title="Spending limits" subtitle="USD limits. Spending is approximately converted using each transaction’s saved rate." action={<button data-tour="add-budget" className="primary" onClick={()=>open('budget')}><Plus size={15}/>New budget</button>}/><div className="tile-grid">{data.budgets.map(budget=>{const spent=periodSummary(data,budget.start,budget.end).spent,limit=cents(budget.amount);return <div className="item-tile" key={budget.id}><span className="eyebrow">{dateLabel(budget.start)} — {dateLabel(budget.end)}</span><h3>{budget.title}</h3><h2>{money(spent)} <small>/ {money(limit)}</small></h2><div className="progress-track"><div className={spent>limit?'over':spent>=limit*.8?'near':undefined} style={{width:Math.min(spent/limit*100,100)+'%'}}/></div><p className={spent>limit?'urgent-text':'muted'}>{money(Math.abs(limit-spent))} {spent>limit?'over budget':'remaining'}</p></div>;})}</div>{!data.budgets.length&&<Empty text="Try a $400 spending limit from your $700 income."/>}</section>}
+ {tab==='budgets'&&<section className="card"><CardTitle title={t("Spending limits")} subtitle={t("USD limits. Spending is approximately converted using each transaction’s saved rate.")} action={<button data-tour="add-budget" className="primary" onClick={()=>open('budget')}><Plus size={15}/>{t("New budget")}</button>}/><div className="tile-grid">{data.budgets.map(budget=>{const spent=periodSummary(data,budget.start,budget.end).spent,limit=cents(budget.amount);return <div className="item-tile" key={budget.id}><span className="eyebrow">{dateLabel(budget.start)} — {dateLabel(budget.end)}</span><h3>{budget.title}</h3><h2>{money(spent)} <small>/ {money(limit)}</small></h2><div className="progress-track"><div className={spent>limit?'over':spent>=limit*.8?'near':undefined} style={{width:Math.min(spent/limit*100,100)+'%'}}/></div><p className={spent>limit?'urgent-text':'muted'}>{money(Math.abs(limit-spent))} {spent>limit?t("over budget"):t("remaining")}</p></div>;})}</div>{!data.budgets.length&&<Empty text={t("Try a $400 spending limit from your $700 income.")}/>}</section>}
  {tab==='subscriptions'&&<SubscriptionReview data={data} busy={busy} onSave={saveDetail}/>}
- {tab==='subscriptions'&&<section className="card"><CardTitle title="Subscriptions" subtitle="Email reminders 3 days and 1 day before renewal." action={<button data-tour="add-subscription" className="primary" onClick={()=>open('subscription')}><Plus size={15}/>Subscription</button>}/>{!data.connections?.email&&<div className="info-note"><Mail size={16}/>Email delivery needs SMTP configuration and your email in Settings.{mode==='demo'?' Demo mode does not send emails.':''}</div>}<div className="tile-grid">{data.subscriptions.map((s,i)=><div className={'item-tile '+(!s.active?'paused':'')} key={s.id}><div className="tile-top"><span className="subscription-logo"><Repeat size={21}/></span><span className={'badge '+(s.active?'low':'medium')}>{s.active?'Active':'Paused'}</span></div><h3>{s.title}</h3><h2>{money(cents(s.amount))}<small> / {s.cycle}</small></h2><p className="muted">Next renewal · {dateLabel(s.renewal)}</p><div className="button-row"><button disabled={busy||!s.active} className="secondary" onClick={()=>open('renew',s)}>Record payment</button><button disabled={busy} className="text-button" onClick={()=>setSubscriptionActive(s,!s.active)}>{s.active?'Pause':'Resume'}</button></div></div>)}</div>{!data.subscriptions.length&&<Empty text="Add your gym, learning, AI or other subscriptions."/>}</section>}
+ {tab==='subscriptions'&&<section className="card"><CardTitle title={t("Subscriptions")} subtitle={t("Email reminders 3 days and 1 day before renewal.")} action={<button data-tour="add-subscription" className="primary" onClick={()=>open('subscription')}><Plus size={15}/>{t("Subscription")}</button>}/>{!data.connections?.email&&<div className="info-note"><Mail size={16}/>{t("Email delivery needs SMTP configuration and your email in Settings.")}{mode==='demo'?t(" Demo mode does not send emails."):''}</div>}<div className="tile-grid">{data.subscriptions.map((s,i)=><div className={'item-tile '+(!s.active?'paused':'')} key={s.id}><div className="tile-top"><span className="subscription-logo"><Repeat size={21}/></span><span className={'badge '+(s.active?'low':'medium')}>{s.active?t("Active"):t("Paused")}</span></div><h3>{s.title}</h3><h2>{money(cents(s.amount))}<small> / {t(s.cycle)}</small></h2><p className="muted">{t("Next renewal · {date}",{date:dateLabel(s.renewal)})}</p><div className="button-row"><button disabled={busy||!s.active} className="secondary" onClick={()=>open('renew',s)}>{t("Record payment")}</button><button disabled={busy} className="text-button" onClick={()=>setSubscriptionActive(s,!s.active)}>{s.active?t("Pause"):t("Resume")}</button></div></div>)}</div>{!data.subscriptions.length&&<Empty text={t("Add your gym, learning, AI or other subscriptions.")}/>}</section>}
  </>}
  {page==='tasks'&&<><div className="stat-grid three"><Stat icon={CheckSquare} label="Completed" value={data.tasks.filter(t=>t.completed).length} foot="Completed tasks" color="green"/><Stat icon={CalendarDays} label="Due today" value={data.tasks.filter(t=>t.due===current&&!t.completed).length} foot="A little focus for today" color="blue"/><Stat icon={Target} label="Still to do" value={data.tasks.filter(t=>!t.completed).length} foot="One step at a time" color="purple"/></div><section className="card"><CardTitle title="Task list" subtitle="Filter and manage your tasks."/><div className="task-toolbar"><label className="category-filter"><span>Category</span><select aria-label="Filter tasks by category" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">All categories</option>{taskCategories.map(category=><option key={category} value={category}>{category}</option>)}</select></label><div className="segmented">{['all','today','pending','completed'].map(f=><button className={taskFilter===f?'selected':''} key={f} onClick={()=>setTaskFilter(f)}>{f[0].toUpperCase()+f.slice(1)}</button>)}</div><div className="search-box"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a task…"/></div></div><div className="task-list">{filteredTasks.map(renderTask)}{!filteredTasks.length&&<Empty text="No tasks here. A little room for something new."/>}</div><button className="add-inline" onClick={()=>open('task')}><Plus size={15}/>Add a task</button></section><TaskCategoryBreakdown tasks={data.tasks} subtitle="All your tasks, grouped by category. Use Overview for a date-filtered summary."/></>}
 
@@ -522,9 +538,10 @@ export default function App({session}){
 
  {mode==='demo'&&(page==='overview'||page==='tasks'||page==='money')&&<DemoGuides can={app=>app===page||page==='overview'&&can(app)}/>}{page==='users'&&user.role==='admin'&&<Suspense fallback={pageLoading}><UserManager mode={mode} api={api} onPreview={onPreview}/></Suspense>}
 
- </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal data={data} modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
+ </main></div>{tutorials&&<TutorialDialog can={can} close={()=>setTutorials(false)}/>}{trailer&&<DemoTrailer close={()=>setTrailer(false)}/>}{toast&&<div className="toast"><span role="status"><Check size={17}/>{toast.message}</span>{toast.undoId!=null&&<button type="button" className="toast-undo" disabled={busy||needsRefresh} onClick={undoQuickPurchase}>Undo</button>}</div>}{modal?.type==='transactionChoice'?<TransactionChoice language={modal.language} onChoose={open} onClose={()=>setModal(null)}/>:modal?.type==='companionChange'?<CompanionChangeReview proposal={modal.proposal} data={data} user={user} current={current} language={modal.language} busy={busy} error={error} onClose={()=>{setModal(null);setError('');}} onConfirm={confirmCompanionChange}/>:modal&&<EntryModal data={data} modal={modal} close={()=>{setModal(null);setError('');}} error={error} busy={busy} current={current} addEntry={addEntry} add={add} renew={renew} balance={b} settings={data.settings} taskCategories={taskCategories} recategorize={recategorize}/>}</div>;
 }
-function TransactionChoice({onChoose,onClose}){
+function TransactionChoice({language,onChoose,onClose}){
+ const t=workspaceText(language);
  const dialog=useRef(null);
  useEffect(()=>{dialog.current.showModal();},[]);
  const choices=[
@@ -533,14 +550,14 @@ function TransactionChoice({onChoose,onClose}){
   ['opening','Existing savings','Record money you already had set aside.',PiggyBank],
   ['withdrawal','Withdraw from savings','Move money from savings to your spending balance.',ArrowUpRight],
  ];
- return <dialog ref={dialog} aria-labelledby="transaction-choice-title" onCancel={event=>{event.preventDefault();onClose();}}>
+ return <dialog ref={dialog} dir={language==='ar'?'rtl':'ltr'} aria-labelledby="transaction-choice-title" onCancel={event=>{event.preventDefault();onClose();}}>
   <div className="modal-heading">
-   <h2 id="transaction-choice-title">Add transaction</h2>
-   <button type="button" className="icon-button" aria-label="Close transaction options" onClick={onClose}><X size={20}/></button>
+   <h2 id="transaction-choice-title">{t("Add transaction")}</h2>
+   <button type="button" className="icon-button" aria-label={t("Close transaction options")} onClick={onClose}><X size={20}/></button>
   </div>
   <div className="transaction-choices">
    {choices.map(([type,label,description,Icon])=><button key={type} type="button" className="secondary" onClick={()=>onChoose(type)}>
-    <Icon size={20} aria-hidden="true"/><span><strong>{label}</strong><small>{description}</small></span>
+    <Icon size={20} aria-hidden="true"/><span><strong>{t(label)}</strong><small>{t(description)}</small></span>
    </button>)}
   </div>
  </dialog>;

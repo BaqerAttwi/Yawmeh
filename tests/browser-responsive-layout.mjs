@@ -1,3 +1,4 @@
+import {workspaceText} from '../client/src/lib/workspace-text.js';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {isAbsolute} from 'node:path';
@@ -21,6 +22,7 @@ let browser;
 try {
  browser=await chromium.launch({headless:true,channel:'msedge'});
  for(const [width,height] of sizes)for(const rtl of [false,true]){
+  const t=workspaceText(rtl?'ar':'en');
   const context=await browser.newContext({viewport:{width,height},locale:rtl?'ar-LB':'en-US',colorScheme:rtl?'dark':'light',reducedMotion:'reduce'});
   await context.route('https://**/*',route=>route.abort());
   await context.route('**/api/system/status',route=>route.fulfill({json:{database:{reachable:true,ready:true,missing:[]},email:{configured:false},ai:{},timezone:'Asia/Beirut'}}));
@@ -97,18 +99,22 @@ try {
    await page.locator('.sidebar').getByRole('button',{name,exact:true}).click();
   }
   for(const tab of ['Today','Dashboard','Calendar','Weekly review','History']){
-   await page.locator('.overview-tabs').getByRole('button',{name:tab,exact:true}).click();
+   if(['Calendar','Weekly review','History'].includes(tab)){
+    await page.locator('.overview-more>summary').click();
+    await check('More overview views','.overview-menu');
+   }
+   await page.locator('.overview-tabs').getByRole('button',{name:t(tab),exact:true}).click();
    if(tab==='Dashboard')await page.locator('.budget-overview-row').getByText(longBudgetTitle,{exact:true}).waitFor();
    await check(tab);
   }
   await go('Money');
   for(const tab of ['Transactions','Savings','Goals','Items','Budgets','Subscriptions']){
-   await page.locator('.filterbar').getByRole('button',{name:tab,exact:true}).click();
+   await page.locator('.filterbar').getByRole('button',{name:t(tab),exact:true}).click();
    await check('Money / '+tab);
   }
   await go('Tasks');
   await check('Tasks');
-  await page.getByRole('button',{name:'Add task',exact:true}).click();
+  await page.getByRole('button',{name:t('Add task'),exact:true}).click();
   await page.locator('dialog[open]').waitFor();
   await check('Task dialog','dialog[open]');
   await page.locator('dialog[open]').getByRole('button',{name:'Cancel',exact:true}).click();

@@ -1,14 +1,16 @@
+import {workspaceText} from "../../lib/workspace-text.js";
 import React from 'react';
 import {cents,periodSummary} from '../../../../shared/domain.js';
 import {formatMoney} from '../../../../shared/currency.js';
 import {CardTitle} from '../../components/ui.jsx';
 
-export function BudgetOverview({data,start,end,onManage}){
+export function BudgetOverview({language,data,start,end,onManage}){
+ const t=workspaceText(language);
   const budgets=data.budgets.filter(budget=>budget.start<=end&&budget.end>=start);
   return <section className="card budget-overview" aria-label="Budget overview">
-    <CardTitle title="Budgets" subtitle="Budgets that overlap the selected dates" action={<button className="secondary" onClick={onManage}>Manage</button>}/>
+    <CardTitle title={t("Budgets")} subtitle={t("Budgets that overlap the selected dates")} action={<button className="secondary" onClick={onManage}>{t("Manage")}</button>}/>
     <div className="budget-overview-list">
-      {budgets.length===0&&<p>No budgets for these dates.</p>}
+      {budgets.length===0&&<p>{t("No budgets for these dates.")}</p>}
       {budgets.map(budget=>{
         const limit=cents(budget.amount);
         const spent=periodSummary(data,budget.start,budget.end).spent;

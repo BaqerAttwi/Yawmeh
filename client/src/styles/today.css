@@ -92,11 +92,7 @@
   margin-top: var(--space-1);
 }
 
-.today-attention .next-bill {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
+.today-attention .attention-row {border-block-start:1px solid var(--border)}
 
 .next-bill .next-bill-label {
   margin: 0 0 var(--space-1);

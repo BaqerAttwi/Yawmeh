@@ -1,3 +1,4 @@
+import {workspaceText} from '../client/src/lib/workspace-text.js';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {mkdir} from 'node:fs/promises';
@@ -25,6 +26,7 @@ try{
   browser=await chromium.launch({headless:true,channel:'msedge'});
   if(screenshotDir)await mkdir(screenshotDir,{recursive:true});
   for(const width of [1280,360])for(const scheme of ['light','dark'])for(const rtl of [false,true]){
+    const t=workspaceText(rtl?'ar':'en');
     const context=await browser.newContext({viewport:{width,height:900},colorScheme:scheme,reducedMotion:'reduce'});
     await context.route('https://**/*',route=>route.abort());
     if(rtl)await context.addInitScript(()=>localStorage.setItem('yawmeh:workspace-language:live:1','ar'));
@@ -34,8 +36,8 @@ try{
     page.on('pageerror',error=>errors.push(error.message));
     await page.goto(url);
     await page.getByRole('button',{name:'Close getting started'}).click();
-    await page.locator('.overview-tabs').getByRole('button',{name:'Dashboard',exact:true}).click();
-    const monthly=page.getByRole('region',{name:'Monthly money'});
+    await page.locator('.overview-tabs').getByRole('button',{name:t('Dashboard'),exact:true}).click();
+    const monthly=page.getByRole('region',{name:t('Monthly money')});
     const monthButtons=monthly.getByRole('group',{name:'Select a month'}).getByRole('button');
     const chart=monthly.locator('.finance-chart');
     await chart.locator('.recharts-surface').waitFor();
@@ -59,14 +61,14 @@ try{
     await monthButtons.nth(4).click();
     assert.notEqual(await monthHeading.textContent(),initialMonth);
     assert.equal(await monthButtons.nth(4).getAttribute('aria-pressed'),'true');
-    assert.match(await budget.textContent(),/\$50\.00Over the limit/);
+    assert.ok((await budget.textContent()).includes('$50.00'+t('Over the limit')));
     await chart.locator('.recharts-bar-rectangle path[fill="var(--danger)"]:visible').waitFor();
-    await monthly.getByText('Compare monthly totals',{exact:true}).click();
-    assert.match(await monthly.locator('tbody tr').nth(4).textContent(),/\$150\.00Over budget.*\$100\.00/);
+    await monthly.getByText(t('Compare monthly totals'),{exact:true}).click();
+    assert.ok((await monthly.locator('tbody tr').nth(4).textContent()).includes('$150.00'+t('Over budget')));
     const tableBox=await monthly.locator('table').boundingBox();
     const monthlyBox=await monthly.boundingBox();
     assert.ok(tableBox.x>=monthlyBox.x&&tableBox.x+tableBox.width<=monthlyBox.x+monthlyBox.width);
-    await monthly.getByText('Compare monthly totals',{exact:true}).click();
+    await monthly.getByText(t('Compare monthly totals'),{exact:true}).click();
     const highlight=await monthly.locator('.monthly-money-highlight span').boundingBox();
     const selectedButton=await monthButtons.nth(4).boundingBox();
     assert.ok(highlight&&selectedButton&&Math.abs(highlight.x+highlight.width/2-selectedButton.x-selectedButton.width/2)<1);
@@ -87,8 +89,9 @@ try{
     assert.ok(ringBox.y+ringBox.height<=cardBox.y+cardBox.height);
     await page.locator('.filterbar').getByRole('button',{name:'All overview',exact:true}).click();
 
-    const currency=page.getByRole('heading',{name:'Money report',exact:true}).locator('xpath=ancestor::section[1]');
-    await currency.getByText('Chart breakdown',{exact:true}).click();
+    await page.getByText(t('More dashboard details'),{exact:true}).click();
+    const currency=page.getByRole('heading',{name:t('Money report'),exact:true}).locator('xpath=ancestor::section[1]');
+    await currency.getByText(t('Chart breakdown'),{exact:true}).click();
     await currency.locator('.recharts-surface').waitFor();
 
     async function go(name){
@@ -96,15 +99,27 @@ try{
       await page.locator('.sidebar').getByRole('button',{name,exact:true}).click();
     }
     await go('Money');
-    await page.locator('.page-heading').getByRole('button',{name:'Income',exact:true}).click();
+    const range=page.locator('.date-range');
+    assert.equal(await range.getAttribute('dir'),'ltr');
+    const [startBox,endBox]=await Promise.all([range.locator('input').first().boundingBox(),range.locator('input').last().boundingBox()]);
+    assert.ok(startBox.x<endBox.x);
+    if(rtl)await page.getByText('5 مصاريف',{exact:true}).waitFor();
+    await page.locator('.page-heading').getByRole('button',{name:t('Income'),exact:true}).click();
     let dialog=page.locator('dialog[open]');
     await dialog.locator('[name=amount]').fill('500');
     await dialog.locator('[name=saved]').fill('200');
     await dialog.locator('.finance-detail-chart .recharts-surface').waitFor();
-    await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+    await dialog.getByRole('button',{name:/^(Cancel|إلغاء|إلغِ)$/}).click();
 
     await go('Overview');
-    await page.locator('.overview-tabs').getByRole('button',{name:'Today',exact:true}).click();
+    await page.locator('.overview-tabs').getByRole('button',{name:t('Today'),exact:true}).click();
+    const summaryCards=page.locator('.today-money-summary > section');
+    assert.equal(await summaryCards.count(),3);
+    const positions=await summaryCards.evaluateAll(items=>items.map(item=>item.getBoundingClientRect().y));
+    assert.equal(positions.every(y=>y===positions[0]),width>700);
+    await summaryCards.nth(1).getByRole('progressbar').waitFor();
+    assert.equal(await page.locator('.today-more').getAttribute('open'),null);
+    await page.locator('.today-more>summary').click();
     await page.locator('.spending-breakdown summary').click();
     await page.locator('.spending-breakdown .recharts-surface').waitFor();
     await page.locator('.today-metrics .recharts-pie-sector').first().waitFor();
@@ -118,20 +133,40 @@ try{
     const swatches=page.getByRole('group',{name:rtl?'لون التطبيق':'App color'});
     const labels=rtl?['ليموني','محيطي','مرجاني','زمردي']:['Lime','Ocean','Coral','Emerald'];
     const paletteNames=['ocean','coral','emerald'];
+    const lightCards=[[248,254,230],[229,236,253],[255,235,231],[225,242,237]];
+    const darkCards=[[19,49,31],[16,36,77],[30,30,37],[5,150,105]];
+    const paletteCardColor=()=>page.evaluate(()=>{
+      const probe=document.createElement('span');
+      probe.style.backgroundColor='var(--spend-card)';
+      document.body.append(probe);
+      const context=document.createElement('canvas').getContext('2d');
+      context.fillStyle=getComputedStyle(probe).backgroundColor;
+      context.fillRect(0,0,1,1);
+      probe.remove();
+      return [...context.getImageData(0,0,1,1).data].slice(0,3);
+    });
+    const cards=scheme==='dark'?darkCards:lightCards;
+    const matchesColor=(actual,expected)=>actual.every((channel,i)=>Math.abs(channel-expected[i])<=1);
+    assert.ok(matchesColor(await paletteCardColor(),cards[0]));
     for(const [index,name] of paletteNames.entries()){
       const swatch=swatches.getByRole('button',{name:labels[index+1]});
       await swatch.focus();
       await swatch.press('Space');
       assert.equal(await swatch.getAttribute('aria-pressed'),'true');
       assert.equal(await page.locator('html').getAttribute('data-palette'),name);
+      const actualCard=await paletteCardColor();
+      assert.ok(matchesColor(actualCard,cards[index+1]));
     }
     await page.reload();
     await go('Settings');
     assert.equal(await swatches.getByRole('button',{name:labels[3]}).getAttribute('aria-pressed'),'true');
     await go('Overview');
-    const heroColor=await page.locator('.spending-breakdown summary').evaluate(el=>getComputedStyle(el).backgroundColor);
-    assert.equal(heroColor,'rgb(5, 150, 105)');
-    await page.locator('.overview-tabs').getByRole('button',{name:'Dashboard',exact:true}).click();
+    const [heroColor,amountColor]=await page.locator('.spending-breakdown summary').evaluate(el=>[
+      getComputedStyle(el).backgroundColor,getComputedStyle(el.querySelector('.balance-hero-value')).color,
+    ]);
+    assert.equal(heroColor,scheme==='dark'?'rgb(5, 150, 105)':'color(srgb 0.882353 0.950588 0.929412)');
+    assert.equal(amountColor,scheme==='dark'?'rgb(255, 255, 255)':'rgb(15, 17, 21)');
+    await page.locator('.overview-tabs').getByRole('button',{name:t('Dashboard'),exact:true}).click();
     await chart.locator('.recharts-surface').waitFor();
     assert.deepEqual(await chartColors(),originalChartColors);
     await go('Settings');

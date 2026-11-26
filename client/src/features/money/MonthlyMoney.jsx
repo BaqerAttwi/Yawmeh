@@ -1,3 +1,4 @@
+import {workspaceText} from "../../lib/workspace-text.js";
 import React,{useMemo,useState} from 'react';
 import {CalendarDays,Plus} from 'lucide-react';
 import {monthlyMoney} from '../../../../shared/monthly-money.js';
@@ -14,7 +15,8 @@ const display=value=>value===null?'No limit':Number.isFinite(value)?formatMoney(
 const series=[{key:'expenses',name:'Total spent',color:'var(--expense)'},{key:'savings',name:'Saved from income',color:'var(--savings)'}];
 const isOverBudget=month=>Number.isFinite(month.limit)&&month.expenses>month.limit;
 
-export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
+export function MonthlyMoney({language,data,current,end,onSetLimit,onManage}){
+ const t=workspaceText(language);
   const months=useMemo(()=>monthlyMoney(data,current,end),[data.entries,data.budgets,current,end]);
   const [selected,setSelected]=useState(null);
   const month=months.find(item=>item.key===selected)||months.at(-1);
@@ -28,7 +30,7 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
   const budgetUsed=month.limit>0&&Number.isFinite(month.expenses)?month.expenses/month.limit: null;
   return <section className="card monthly-money" aria-labelledby="monthly-money-title">
     <header className="monthly-money-header">
-      <div><h2 id="monthly-money-title">Monthly money</h2><p>Expenses, savings and spending limits in USD</p></div>
+      <div><h2 id="monthly-money-title">{t("Monthly money")}</h2><p>{t("Expenses, savings and spending limits in USD")}</p></div>
       <div className="monthly-money-range"><CalendarDays size={17} aria-hidden="true"/>{shortMonth.format(date(months[0]))}–{shortMonth.format(date(months.at(-1)))}</div>
     </header>
     <div className="monthly-money-detail">
@@ -36,16 +38,16 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
         <div>
           <h3>{monthName}</h3>
           <div className="monthly-money-budget" aria-live="polite">
-            <strong className={remaining<0?'monthly-money-over':undefined}><bdi>{Number.isFinite(remaining)?formatMoney(Math.abs(remaining)):display(remaining)}</bdi></strong>
-            {Number.isFinite(remaining)&&<span>{remaining<0?'Over the limit':'Left to spend'}</span>}
+            <strong className={remaining<0?'monthly-money-over':undefined}><bdi>{Number.isFinite(remaining)?formatMoney(Math.abs(remaining)):t(display(remaining))}</bdi></strong>
+            {Number.isFinite(remaining)&&<span>{remaining<0?t("Over the limit"):t("Left to spend")}</span>}
           </div>
         </div>
-        {month.budget?<button type="button" className="secondary" onClick={onManage}>Manage budgets</button>:<button type="button" className="primary" onClick={()=>onSetLimit({title:monthName+' spending limit',start:month.start,end:month.end})}><Plus size={15}/>Set monthly limit</button>}
+        {month.budget?<button type="button" className="secondary" onClick={onManage}>{t("Manage budgets")}</button>:<button type="button" className="primary" onClick={()=>onSetLimit({title:monthName+' spending limit',start:month.start,end:month.end})}><Plus size={15}/>{t("Set monthly limit")}</button>}
       </div>
-      <dl>{metrics.map(([key,label])=><div key={key} className={key==='expenses'&&isOverBudget(month)?'monthly-money-over':undefined}><dt>{label}</dt><dd><bdi>{display(month[key])}</bdi></dd></div>)}</dl>
+      <dl>{metrics.map(([key,label])=><div key={key} className={key==='expenses'&&isOverBudget(month)?'monthly-money-over':undefined}><dt>{t(label)}</dt><dd><bdi>{t(display(month[key]))}</bdi></dd></div>)}</dl>
       {budgetUsed!==null&&<div className="monthly-money-budget-use" data-over={isOverBudget(month)}>
-        <span>{Math.round(budgetUsed*100)}% of monthly budget spent</span>
-        <progress aria-label="Monthly budget used" value={Math.min(budgetUsed,1)} max={1}/>
+        <span>{t("{percent}% of monthly budget spent",{percent:Math.round(budgetUsed*100)})}</span>
+        <progress aria-label={t("Monthly budget used")} value={Math.min(budgetUsed,1)} max={1}/>
       </div>}
     </div>
     <ul className="monthly-money-key" aria-label="Chart legend">
@@ -66,17 +68,17 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
       </div>
     </div>
     <details className="monthly-money-compare">
-      <summary>Compare monthly totals</summary>
+      <summary>{t("Compare monthly totals")}</summary>
       <table>
-        <thead><tr><th scope="col">Month</th>{metrics.map(([key,label])=><th key={key} scope="col">{label}</th>)}</tr></thead>
+        <thead><tr><th scope="col">{t("Month")}</th>{metrics.map(([key,label])=><th key={key} scope="col">{t(label)}</th>)}</tr></thead>
         <tbody>{months.map(item=><tr key={item.key}>
           <th scope="row">{shortMonth.format(date(item))}</th>
           {metrics.map(([key])=><td key={key} className={key==='expenses'&&isOverBudget(item)?'monthly-money-over':undefined}>
-            <bdi>{display(item[key])}</bdi>{key==='expenses'&&isOverBudget(item)&&<small>Over budget</small>}
+            <bdi>{t(display(item[key]))}</bdi>{key==='expenses'&&isOverBudget(item)&&<small>{t("Over budget")}</small>}
           </td>)}
         </tr>)}</tbody>
       </table>
     </details>
-    <p className="monthly-money-note">The chart groups records by calendar month. Each limit uses the latest budget for that full month. Converted amounts use saved transaction rates.</p>
+    <p className="monthly-money-note">{t("The chart groups records by calendar month. Each limit uses the latest budget for that full month. Converted amounts use saved transaction rates.")}</p>
   </section>;
 }
