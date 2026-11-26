@@ -1,17 +1,27 @@
 .finance-chart {min-inline-size:0;width:100%}
 .finance-chart :is(.recharts-wrapper,svg.recharts-surface) {direction:ltr}
+[data-slot="chart"] .recharts-cartesian-grid line {stroke-dasharray:3 4}
 .finance-tooltip {
   max-inline-size:min(240px,70vw);
   padding:var(--space-2) var(--space-3);
   border:1px solid var(--border);
-  border-radius:var(--radius-md);
+  border-radius:var(--radius-card);
   background:var(--surface);
   color:var(--text);
   box-shadow:var(--shadow-sm);
   font-size:var(--font-xs);
 }
-.finance-tooltip>div {display:flex;justify-content:space-between;gap:var(--space-3);margin-block-start:var(--space-1)}
-.finance-tooltip bdi {font-variant-numeric:tabular-nums;white-space:nowrap}
+.finance-tooltip>strong {display:block;margin-block-end:var(--space-1);font-weight:600;overflow-wrap:anywhere}
+.finance-tooltip-row {display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3);margin-block-start:var(--space-1)}
+.finance-tooltip-label {display:flex;align-items:center;gap:var(--space-2);min-inline-size:0;color:var(--text-muted);overflow-wrap:anywhere}
+.finance-tooltip-indicator {
+  flex:none;inline-size:8px;block-size:8px;border-radius:2px;
+  background:var(--indicator-color,var(--text-muted));
+}
+.finance-tooltip-indicator[data-indicator="dashed"] {
+  block-size:0;border-block-start:2px dashed var(--indicator-color);border-radius:0;
+}
+.finance-tooltip bdi {font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
 .donut>.finance-ring {
   position:absolute;inset:0;min-inline-size:0;overflow:hidden;
   width:100%;height:100%;background:transparent;direction:inherit;

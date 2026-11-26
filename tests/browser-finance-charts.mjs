@@ -75,6 +75,8 @@ try{
     const bar=chart.locator('.recharts-bar-rectangle path[fill="var(--expense)"]:visible').last();
     await bar.hover();
     await chart.getByRole('status').getByText(/\$\d/).first().waitFor();
+    assert.equal(await chart.getAttribute('data-slot'),'chart');
+    assert.ok(await chart.locator('[data-slot="chart-tooltip"] [data-indicator="dot"]').count()>0);
     await bar.click();
     assert.equal(await monthButtons.last().getAttribute('aria-pressed'),'true');
     assert.equal(await chart.locator('line[stroke="var(--budget-limit)"][stroke-dasharray]').count(),2);
