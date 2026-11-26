@@ -3,16 +3,17 @@ body {background:var(--bg);color:var(--text);line-height:1.45}
 h1,h2,h3 {font-weight:600}
 :lang(ar) {font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;line-height:1.6;letter-spacing:normal}
 
+.app-shell {--workspace-sidebar-width:232px}
 .app-shell .sidebar {
   inset-inline-start:0;
-  width:232px;
+  width:var(--workspace-sidebar-width);
   padding:var(--space-4) var(--space-3);
   background:var(--surface);
   border:0;
   border-inline-end:1px solid var(--border);
   overflow-y:auto;
 }
-.sidebar-open .main-shell {margin-inline-start:232px;width:calc(100% - 232px);min-width:0}
+.sidebar-open .main-shell {margin-inline-start:var(--workspace-sidebar-width);width:calc(100% - var(--workspace-sidebar-width));min-width:0}
 .app-shell .sidebar .brand {justify-content:flex-start;gap:10px;padding:var(--space-2) var(--space-2) var(--space-4)}
 .app-shell .sidebar .brand .brand-logo {width:28px;height:28px}
 .app-shell .sidebar .brand .brand-name {display:inline;font-size:16px;font-weight:700;letter-spacing:0;color:var(--text)}
@@ -60,6 +61,7 @@ h1,h2,h3 {font-weight:600}
   position:absolute;z-index:60;inset-inline-end:0;inset-block-start:calc(100% + var(--space-2));width:max-content;min-width:144px;
   max-width:min(310px,calc(100vw - 24px));padding:var(--space-2);border:1px solid var(--border);
   border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow-sm);
+  max-block-size:calc(100dvh - 64px);overflow-y:auto;
 }
 .topbar-popover :is(button,summary) {justify-content:flex-start;text-align:start;width:100%;border-radius:var(--radius-md);padding:var(--space-2);font-size:var(--font-sm)}
 .topbar-popover :is(button,summary):hover {background:var(--surface-2)}
@@ -136,19 +138,24 @@ h1,h2,h3 {font-weight:600}
 .currency-report-note {padding:10px 18px}
 .money-overview-grid {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start;gap:var(--space-5);margin-block-end:var(--space-5)}
 .app-shell .monthly-money {padding:0;margin:0}
-.app-shell .monthly-money-range {background:transparent;color:var(--text-muted)}
+.app-shell .monthly-money-range {background:var(--surface-2);color:var(--text-muted)}
 .app-shell .monthly-money-key {margin:14px 18px}
 .app-shell .monthly-money-plot {margin:0 18px}
 .app-shell .monthly-money-column {background:transparent;color:var(--text-muted)}
-.app-shell .monthly-money-column:hover,.app-shell .monthly-money-column[aria-pressed="true"] {background:transparent;color:var(--text)}
+.app-shell .monthly-money-column:hover {color:var(--text);text-decoration:underline;text-underline-offset:3px}
+.app-shell .monthly-money-column[aria-pressed="true"] {color:var(--primary)}
 .app-shell .monthly-money-month {font-weight:500}
 .app-shell .monthly-money-column[aria-pressed="true"] .monthly-money-month {font-weight:700}
-.app-shell .monthly-money-detail {background:transparent;border:0;border-block-start:1px solid var(--border);border-radius:0;margin:12px 0 0;padding:var(--space-3) 18px}
-.app-shell .monthly-money-detail dl {border-color:var(--border)}
-.app-shell .monthly-money-detail dd {font-size:var(--font-lg);font-weight:600}
-.app-shell .monthly-money-note {padding:0 18px var(--space-3);color:var(--text-muted)}
+.app-shell .monthly-money-detail {background:var(--surface-2);margin:var(--space-4) 18px 0;padding:var(--space-3)}
+.app-shell .monthly-money-detail dl {border:0;padding-block-start:0}
+.app-shell .monthly-money-detail dl>div {min-inline-size:0;border-block-start:2px solid var(--expense);padding-block-start:var(--space-2)}
+.app-shell .monthly-money-detail dl>div:nth-child(2) {border-color:var(--savings)}
+.app-shell .monthly-money-detail dl>div:nth-child(3) {border-block-start:2px dashed var(--budget-limit)}
+.app-shell .monthly-money-detail dd {font-size:clamp(var(--font-md),2.2vw,var(--font-lg));font-weight:650}
+.app-shell .monthly-money-note {margin-block-start:var(--space-3);padding:0 18px var(--space-3);color:var(--text-muted)}
 .budget-overview-list {padding:var(--space-4) 18px;display:grid;gap:var(--space-4);font-size:var(--font-sm)}
 .budget-overview-row>div:first-child {display:flex;justify-content:space-between;gap:var(--space-2);margin-bottom:6px}
+.budget-overview-row>div:first-child span {min-inline-size:0;overflow-wrap:anywhere}
 .budget-overview-row>div:first-child span:last-child {color:var(--text-muted);font-variant-numeric:tabular-nums}
 .app-shell .progress-track {height:6px;background:var(--surface-2)}
 .app-shell .progress-track>div {background:var(--primary)}
@@ -204,7 +211,7 @@ h1,h2,h3 {font-weight:600}
   .app-shell .main-shell {margin-inline-start:0;width:100%}
   .app-shell.sidebar-open .sidebar {width:min(250px,calc(100vw - 48px));padding:var(--space-5) var(--space-3) var(--space-3)}
   .app-shell.sidebar-open .sidebar nav>button {padding:7px 10px!important;min-height:38px}
-  .app-shell .topbar {padding-inline:var(--space-2);gap:var(--space-1)}
+  .app-shell .topbar {position:relative;padding-inline:var(--space-2);gap:var(--space-1)}
   .app-shell .topbar-leading,.app-shell .topbar-actions {gap:var(--space-1)}
   .app-shell .topbar .breadcrumb {font-size:var(--font-xs)}
   .app-shell .topbar .breadcrumb>svg {display:none}
@@ -212,7 +219,8 @@ h1,h2,h3 {font-weight:600}
   .app-shell .topbar .breadcrumb>span {font-size:var(--font-xs)}
   .app-shell .topbar .sync-status span {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   .app-shell .topbar .sync-status {min-width:24px;min-height:32px;justify-content:center}
-  .sync-menu .topbar-popover {inset-inline-end:auto;inset-inline-start:-50px}
+  .topbar .sync-menu {position:static}
+  .sync-menu .topbar-popover {inset-inline-end:var(--space-2)}
   .app-shell main {padding-block-start:var(--space-5)}
   .app-shell .currency-report-grid,.app-shell .stat-grid,.app-shell .stat-grid.three {grid-template-columns:repeat(2,minmax(0,1fr))}
   .app-shell .stat-grid.three .stat-card:last-child {grid-column:auto}

@@ -16,7 +16,8 @@
 .companion-launcher.is-speaking .companion-launcher-label{background:var(--primary);color:var(--on-primary)}.companion-voice-choice{margin-bottom:var(--space-2)}.companion-voice[open]{overflow-y:auto;max-height:42dvh}@media(prefers-reduced-motion:reduce){.companion-launcher.is-speaking .companion-launcher-label{}}
 
 /* Conversation-first companion. Keep the composer visible as replies grow. */
-.sidebar .companion-chat-panel.companion-redesign{width:440px;height:min(740px,calc(100dvh - 28px));max-height:calc(100dvh - 28px);overflow:hidden;border-radius:var(--radius-lg);border-color:var(--border);background:var(--surface)}
+.sidebar .companion-chat-panel.companion-redesign{width:440px;height:min(740px,calc(100dvh - 28px));max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain;border-radius:var(--radius-lg);border-color:var(--border);background:var(--surface)}
+@media(min-width:701px){.app-shell .sidebar .companion-chat-panel{--companion-sidebar-width:var(--workspace-sidebar-width)}}
 .companion-redesign .companion-panel-header{padding:var(--space-4) 18px;gap:10px;background:var(--surface);border-bottom:1px solid var(--border)}
 .companion-header-avatar{width:43px;height:48px;background:var(--surface-2);border-radius:var(--radius-lg);overflow:hidden;flex-shrink:0;display:flex;justify-content:center}
 .companion-header-avatar .waving-character{display:block;width:30px;height:60px;background-size:400% 100%;background-repeat:no-repeat;background-position:0 0;flex-shrink:0}

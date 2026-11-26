@@ -29,8 +29,24 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
       <div><h2 id="monthly-money-title">Monthly money</h2><p>Expenses, savings and spending limits in USD</p></div>
       <div className="monthly-money-range"><CalendarDays size={17} aria-hidden="true"/>{shortMonth.format(date(months[0]))}–{shortMonth.format(date(months.at(-1)))}</div>
     </header>
+    <div className="monthly-money-detail">
+      <div className="monthly-money-detail-head">
+        <div>
+          <h3>{monthName}</h3>
+          <div className="monthly-money-budget" aria-live="polite">
+            <strong className={remaining<0?'monthly-money-over':undefined}><bdi>{Number.isFinite(remaining)?formatMoney(Math.abs(remaining)):display(remaining)}</bdi></strong>
+            {Number.isFinite(remaining)&&<span>{remaining<0?'Over the limit':'Left to spend'}</span>}
+          </div>
+        </div>
+        {month.budget?<button type="button" className="secondary" onClick={onManage}>Manage budgets</button>:<button type="button" className="primary" onClick={()=>onSetLimit({title:monthName+' spending limit',start:month.start,end:month.end})}><Plus size={15}/>Set monthly limit</button>}
+      </div>
+      <dl>{metrics.map(([key,label])=><div key={key}><dt>{label}</dt><dd><bdi>{display(month[key])}</bdi></dd></div>)}</dl>
+    </div>
     <ul className="monthly-money-key" aria-label="Chart legend">{metrics.map(([key,label])=><li key={key}><span className={key} aria-hidden="true"/>{label}</li>)}</ul>
     <div className="monthly-money-plot">
+      <div className="monthly-money-highlight" aria-hidden="true" style={{insetInlineStart:periodAxisWidth}}>
+        <span style={{gridColumn:months.indexOf(month)+1}}/>
+      </div>
       <PeriodChart key={months.at(-1).key} data={chartData} series={series} format={display} axis={value=>compactMoney.format(value/100)}
        tooltipLabel={key=>fullMonth.format(date({start:key+'-01'}))} label="Monthly expenses, savings, and limits" limitLabel="Monthly limit"
        domain={[0,ceiling]} onSelect={select} externalLabels height={176}/>
@@ -39,13 +55,6 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
           <span className="monthly-money-month">{shortMonth.format(date(item))}</span>
         </button>)}
       </div>
-    </div>
-    <div className="monthly-money-detail" aria-live="polite">
-      <div className="monthly-money-detail-head">
-        <div><h3>{monthName}</h3>{Number.isFinite(remaining)&&<p className={remaining<0?'monthly-money-over':''}>{formatMoney(Math.abs(remaining))} {remaining<0?'over the limit':'left to spend'}</p>}</div>
-        {month.budget?<button type="button" className="secondary" onClick={onManage}>Manage budgets</button>:<button type="button" className="primary" onClick={()=>onSetLimit({title:monthName+' spending limit',start:month.start,end:month.end})}><Plus size={15}/>Set monthly limit</button>}
-      </div>
-      <dl>{metrics.map(([key,label])=><div key={key}><dt>{label}</dt><dd>{display(month[key])}</dd></div>)}</dl>
     </div>
     <p className="monthly-money-note">The chart groups records by calendar month. Each limit uses the latest budget for that full month. Converted amounts use saved transaction rates.</p>
   </section>;

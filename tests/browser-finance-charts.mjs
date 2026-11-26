@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
+import {mkdir} from 'node:fs/promises';
 import {isAbsolute} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createApp} from '../server/src/app.js';
@@ -13,10 +14,12 @@ const records=Object.fromEntries(Object.entries(demoData()).filter(([,value])=>A
 const server=createApp({db:memoryDatabase(records,[user]),authStore:{session:async()=>user},recoveryOptions:null}).listen(0,'127.0.0.1');
 await once(server,'listening');
 const url=`http://127.0.0.1:${server.address().port}`;
+const screenshotDir=process.env.CHART_SCREENSHOT_DIR;
 let browser;
 try{
   browser=await chromium.launch({headless:true,channel:'msedge'});
-  for(const [width,scheme,rtl] of [[1280,'light',false],[360,'dark',true]]){
+  if(screenshotDir)await mkdir(screenshotDir,{recursive:true});
+  for(const [width,scheme,rtl] of [[1280,'light',false],[360,'light',false],[360,'dark',false],[360,'light',true],[360,'dark',true]]){
     const context=await browser.newContext({viewport:{width,height:900},colorScheme:scheme,reducedMotion:'reduce'});
     await context.route('https://**/*',route=>route.abort());
     if(rtl)await context.addInitScript(()=>localStorage.setItem('yawmeh:workspace-language:live:1','ar'));
@@ -31,6 +34,12 @@ try{
     const monthButtons=monthly.getByRole('group',{name:'Select a month'}).getByRole('button');
     const chart=monthly.locator('.finance-chart');
     await chart.locator('.recharts-surface').waitFor();
+    const budget=monthly.locator('.monthly-money-budget');
+    const monthHeading=monthly.locator('.monthly-money-detail h3');
+    const initialMonth=await monthHeading.textContent();
+    const [summaryBounds,chartBounds]=await Promise.all([budget.boundingBox(),chart.boundingBox()]);
+    assert.ok(summaryBounds&&chartBounds&&summaryBounds.y+summaryBounds.height<chartBounds.y);
+    if(screenshotDir&&width===360)await monthly.screenshot({path:`${screenshotDir}/${rtl?'ar':'en'}-${scheme}.png`});
     assert.equal(await chart.getAttribute('data-rtl'),String(rtl));
     const axis=chart.locator('.recharts-surface text').first();
     await axis.waitFor();
@@ -41,7 +50,11 @@ try{
     assert.equal(axisSide.x>axisSide.midpoint,rtl,JSON.stringify(axisSide));
     assert.equal(await monthButtons.count(),6);
     await monthButtons.nth(4).click();
+    assert.notEqual(await monthHeading.textContent(),initialMonth);
     assert.equal(await monthButtons.nth(4).getAttribute('aria-pressed'),'true');
+    const highlight=await monthly.locator('.monthly-money-highlight span').boundingBox();
+    const selectedButton=await monthButtons.nth(4).boundingBox();
+    assert.ok(highlight&&selectedButton&&Math.abs(highlight.x+highlight.width/2-selectedButton.x-selectedButton.width/2)<1);
     const bar=chart.locator('.recharts-bar-rectangle path[fill="var(--expense)"]:visible').last();
     await bar.hover();
     await chart.getByRole('status').getByText(/\$\d/).first().waitFor();
