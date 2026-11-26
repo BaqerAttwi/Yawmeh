@@ -113,7 +113,7 @@ for(const plan of plans){
  `;
  const filter=path.join(output,plan.file+"-filter.txt");
  await fs.writeFile(filter,graph);
- const run=spawnSync(ff,["-hide_banner","-loglevel","error","-y","-filter_complex_threads","2","-i",plan.raw,"-i","client/public/branding/yawmeh-logo.png","-stream_loop","1","-i","docs/social-ad/english/original-music.wav","-filter_complex_script",filter,"-map","[out]","-map","2:a","-af","afade=t=in:d=0.2,afade=t=out:st=28.5:d=1.5","-c:v","libx264","-preset","fast","-crf","17","-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-t","30","-movflags","+faststart",path.join(output,plan.file+".mp4")],{stdio:"inherit"});
+ const run=spawnSync(ff,["-hide_banner","-loglevel","error","-y","-filter_complex_threads","2","-i",plan.raw,"-i","client/public/branding/yawmeh-logo-512.webp","-stream_loop","1","-i","docs/social-ad/english/original-music.wav","-filter_complex_script",filter,"-map","[out]","-map","2:a","-af","afade=t=in:d=0.2,afade=t=out:st=28.5:d=1.5","-c:v","libx264","-preset","fast","-crf","17","-pix_fmt","yuv420p","-c:a","aac","-b:a","160k","-t","30","-movflags","+faststart",path.join(output,plan.file+".mp4")],{stdio:"inherit"});
  if(run.status!==0)throw Error("Export failed "+plan.file);
  console.log("Exported "+plan.file);
 }

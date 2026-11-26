@@ -3,7 +3,7 @@ import React from 'react';
 export function WorkspaceLoading(){
  return <div className="workspace-loading" role="status" aria-live="polite">
   <div className="workspace-loading-heading">
-   <img src="/branding/yawmeh-logo-small.webp" width="48" height="48" alt=""/>
+   <img src="/branding/yawmeh-logo-192.webp" width="48" height="48" alt="" decoding="async"/>
    <div><strong>yawmeh.me</strong><p>Opening your workspace…</p></div>
   </div>
   <div className="workspace-skeleton" aria-hidden="true">

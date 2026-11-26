@@ -14,8 +14,8 @@ const plans=[
  {file:"03-one-workspace",hook:"Your day. In one place.",scenes:[["Today","Start with your daily overview.","today"],["Tasks","Organize the work ahead.","tasks"],["Money","Keep your finances in view.","money"],["Calendar","See your week ahead.","calendar"],["Smart Assistant","A helper for your everyday plans.","companion"]]}
 ];
 const browser=await chromium.launch({channel:"chrome",headless:true,args:["--allow-file-access-from-files"]});
-const embed=async file=>"data:image/png;base64,"+(await fs.readFile(file)).toString("base64");
-const logo=await embed("client/public/branding/yawmeh-logo.png");
+const embed=async file=>"data:image/"+(file.endsWith(".webp")?"webp":"png")+";base64,"+(await fs.readFile(file)).toString("base64");
+const logo=await embed("client/public/branding/yawmeh-logo-512.webp");
 const iconcss=await fs.readFile("client/src/features/assistant/assistant-icon.css","utf8");
 async function setup(width,height){
  const page=await browser.newPage({viewport:{width,height}});

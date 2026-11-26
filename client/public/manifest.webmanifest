@@ -2,5 +2,5 @@
  "id":"/", "name":"yawmeh.me", "short_name":"yawmeh.me",
  "description":"Your money and your plans, together.",
  "start_url":"/", "scope":"/", "display":"standalone",
- "icons":[{"src":"/branding/app-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}]
+ "icons":[{"src":"/branding/app-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"/branding/app-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}]
 }

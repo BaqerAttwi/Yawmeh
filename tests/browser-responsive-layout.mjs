@@ -34,6 +34,16 @@ try {
    localStorage.setItem('daywell-companion:live:1:language','ar');
   });
   const page=await context.newPage();
+  const brandingErrors=[];
+  page.on('response',response=>{
+   if(new URL(response.url()).pathname.startsWith('/branding/')&&response.status()>=400)brandingErrors.push(response.url());
+  });
+  async function checkLogo(selector,asset,pixels){
+   const logo=page.locator(selector);
+   assert.equal(await logo.getAttribute('src'),'/branding/'+asset);
+   assert.equal(await logo.getAttribute('decoding'),'async');
+   assert.equal(await logo.evaluate(async img=>{await img.decode();return img.naturalWidth;}),pixels);
+  }
   page.setDefaultTimeout(8000);
   page.on('pageerror',error=>issues.push({width,height,rtl,name:'Page error',error:error.message}));
   async function check(name,selector){
@@ -81,10 +91,16 @@ try {
   }
   await page.goto(url);
   await page.getByRole('heading',{name:'Welcome back.'}).waitFor();
+  await checkLogo('.login-story .brand-logo','yawmeh-logo-512.webp',512);
+  assert.deepEqual(await page.locator('link[rel="icon"]').evaluateAll(icons=>icons.map(icon=>icon.getAttribute('href'))),[
+   '/branding/favicon-32.png','/branding/favicon-48.png','/branding/yawmeh-logo.svg',
+  ]);
   await check('Login');
   await context.addCookies([{name:'daywell_session',value:'a'.repeat(64),url}]);
   await page.reload();
   await page.getByRole('button',{name:'Close getting started'}).click();
+  await checkLogo('.sidebar .brand-logo','yawmeh-logo-192.webp',192);
+  await checkLogo('.companion-launcher .assistant-icon-logo','yawmeh-logo-192.webp',192);
   await check('Top bar','.topbar');
   for(const [label,toggle,popup] of [
    ['Sync','.sync-status','.sync-menu .topbar-popover'],
@@ -169,6 +185,7 @@ try {
    await page.locator('.companion-chat-panel').waitFor();
    await check('Companion from navigation','.companion-chat-panel');
   }
+  assert.deepEqual(brandingErrors,[]);
   await context.close();
   console.log(width+'×'+height,rtl?'RTL':'LTR');
  }

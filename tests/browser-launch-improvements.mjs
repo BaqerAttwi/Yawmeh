@@ -37,7 +37,20 @@ try{
  const returningHtml=await returning.text();
  assert.match(returningHtml,/data-check-session="true"/);
  assert.match(returningHtml,/data-has-session-cookie="true"/);
- assert.ok((await (await fetch(base+'/branding/yawmeh-logo-small.webp')).arrayBuffer()).byteLength<10000);
+ const smallLogo=await fetch(base+'/branding/yawmeh-logo-192.webp');
+ assert.equal(smallLogo.status,200);
+ assert.ok((await smallLogo.arrayBuffer()).byteLength<30000);
+ for(const [file,type] of [
+  ['yawmeh-logo.svg','image/svg+xml'],['yawmeh-logo-512.webp','image/webp'],
+  ...['app-icon-192.png','app-icon-512.png','apple-touch-icon.png','favicon-32.png','favicon-48.png'].map(file=>[file,'image/png']),
+ ]){
+  const response=await fetch(base+'/branding/'+file);
+  assert.equal(response.status,200,file);
+  assert.ok(response.headers.get('content-type').startsWith(type),file);
+  await response.arrayBuffer();
+ }
+ const manifest=await (await fetch(base+'/manifest.webmanifest')).json();
+ assert.deepEqual(manifest.icons,[192,512].map(size=>({src:'/branding/app-icon-'+size+'.png',sizes:size+'x'+size,type:'image/png',purpose:'any'})));
  const cached=await fetch(base+asset);assert.match(cached.headers.get('cache-control'),/max-age=31536000, immutable/);
  const privateResponse=await fetch(base+'/api/data');assert.equal(privateResponse.headers.get('cache-control'),'no-store');
  for(const width of [375,1440]){
@@ -58,6 +71,10 @@ try{
   const workspaceDownload=page.waitForResponse(response=>isWorkspaceAsset(response.url())&&response.ok());
   await page.goto(base);
   await page.locator('.workspace-loading img').waitFor();
+  assert.deepEqual(await page.locator('.workspace-loading img').evaluate(async img=>{
+   await img.decode();
+   return [img.getAttribute('src'),img.width,img.height,img.naturalWidth];
+  }),['/branding/yawmeh-logo-192.webp',48,48,192]);
   assert.equal(await page.locator('.workspace-loading strong').innerText(),'yawmeh.me');
   await page.locator('.workspace-skeleton').waitFor();
   await workspaceDownload;

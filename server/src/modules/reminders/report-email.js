@@ -4,7 +4,7 @@ import {currencyCatalog,formatMoney} from '../../../../shared/currency.js';
 import {addDays} from '../../../../shared/planner.js';
 import {buildWorkspaceReport,reportPreset,workspaceOverview,workspaceReports} from '../../../../shared/workspace-reports.js';
 
-const avatar=fileURLToPath(new URL('../../../../client/public/branding/yawmeh-logo-small.png',import.meta.url));
+const avatar=fileURLToPath(new URL('../../../../client/public/branding/app-icon-192.png',import.meta.url));
 const avatarCid='yawmeh-avatar@yawmeh.me';
 const moneySections=['comparison','expenses','income','transactions','balances','budgets','goals','goal-activity','subscriptions','reversals'];
 const taskSections=['task-categories','tasks','completions','check-ins'];

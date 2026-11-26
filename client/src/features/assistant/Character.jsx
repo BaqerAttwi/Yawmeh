@@ -14,7 +14,7 @@ export function Character({state='idle',className='',look='logo'}) {
  const Badge=state==='speaking'?Volume2:state==='guide'?Compass:['thinking','preparing'].includes(state)?Ellipsis:null;
  return <i aria-hidden="true" className={`assistant-icon ${className}`} data-state={state} data-look={artwork?'classic':'logo'}>
   {artwork?<span className="assistant-icon-face assistant-icon-artwork" style={{backgroundImage:`url(/characters/${artwork}-wave.webp)`}}/>:
-   <img className="assistant-icon-face assistant-icon-logo" src="/branding/yawmeh-logo-small.webp" alt="" decoding="async"/>}
+   <img className="assistant-icon-face assistant-icon-logo" src="/branding/yawmeh-logo-192.webp" alt="" decoding="async"/>}
   {Badge&&<Badge className="assistant-icon-badge" strokeWidth={2}/>}
  </i>;
 }
