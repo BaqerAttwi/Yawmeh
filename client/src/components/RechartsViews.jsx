@@ -82,12 +82,12 @@ export function RingChart({value,total,name,color,format}){
  const slices=total>0
   ?[{name,value:displayed,amount:value,fill:color},{name:'Remaining',value:total-displayed,fill:'var(--surface-2)'}]
   :[{name:'Remaining',value:1,fill:'var(--surface-2)'}];
- return <div className="finance-ring" ref={ref}>
+ return <div className="finance-ring" ref={ref} aria-hidden="true" data-interactive={Boolean(format)}>
   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-   <PieChart>
+   <PieChart accessibilityLayer={false}>
     <Pie data={slices}
      dataKey="value" stroke="none" innerRadius="78%" outerRadius="94%" startAngle={90} endAngle={rtl?450:-270} {...motion}/>
-    {total>0&&<Tooltip content={<ChartTooltip format={format}/>} isAnimationActive={false}/>}
+    {format&&total>0&&<Tooltip content={<ChartTooltip format={format}/>} isAnimationActive={false}/>}
    </PieChart>
   </ResponsiveContainer>
  </div>;

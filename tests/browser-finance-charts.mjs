@@ -11,6 +11,11 @@ const module=process.env.PLAYWRIGHT_MODULE||'playwright';
 const {chromium}=await import(isAbsolute(module)?pathToFileURL(module).href:module);
 const user={id:1,name:'Chart Tester',email:'charts@test.local',role:'user',active:true,permissions:['money','tasks'],current_rate:89000};
 const records=Object.fromEntries(Object.entries(demoData()).filter(([,value])=>Array.isArray(value)).map(([key,value])=>[key,value.map(row=>({...row,user_id:1}))]));
+const previousMonthEnd=new Date(records.budgets[0].start+'T00:00:00Z');
+previousMonthEnd.setUTCDate(0);
+const previousEnd=previousMonthEnd.toISOString().slice(0,10),previousStart=previousEnd.slice(0,7)+'-01';
+records.entries.push({...records.entries[3],id:999,date:previousEnd,amount:150,currency:'USD'});
+records.budgets.push({...records.budgets[0],id:999,start:previousStart,end:previousEnd,amount:100});
 const server=createApp({db:memoryDatabase(records,[user]),authStore:{session:async()=>user},recoveryOptions:null}).listen(0,'127.0.0.1');
 await once(server,'listening');
 const url=`http://127.0.0.1:${server.address().port}`;
@@ -52,6 +57,14 @@ try{
     await monthButtons.nth(4).click();
     assert.notEqual(await monthHeading.textContent(),initialMonth);
     assert.equal(await monthButtons.nth(4).getAttribute('aria-pressed'),'true');
+    assert.match(await budget.textContent(),/\$50\.00Over the limit/);
+    await chart.locator('.recharts-bar-rectangle path[fill="var(--danger)"]:visible').waitFor();
+    await monthly.getByText('Compare monthly totals',{exact:true}).click();
+    assert.match(await monthly.locator('tbody tr').nth(4).textContent(),/\$150\.00Over budget.*\$100\.00/);
+    const tableBox=await monthly.locator('table').boundingBox();
+    const monthlyBox=await monthly.boundingBox();
+    assert.ok(tableBox.x>=monthlyBox.x&&tableBox.x+tableBox.width<=monthlyBox.x+monthlyBox.width);
+    await monthly.getByText('Compare monthly totals',{exact:true}).click();
     const highlight=await monthly.locator('.monthly-money-highlight span').boundingBox();
     const selectedButton=await monthButtons.nth(4).boundingBox();
     assert.ok(highlight&&selectedButton&&Math.abs(highlight.x+highlight.width/2-selectedButton.x-selectedButton.width/2)<1);
@@ -60,7 +73,17 @@ try{
     await chart.getByRole('status').getByText(/\$\d/).first().waitFor();
     await bar.click();
     assert.equal(await monthButtons.last().getAttribute('aria-pressed'),'true');
-    await chart.locator('line[stroke="var(--budget-limit)"][stroke-dasharray]').waitFor({state:'attached'});
+    assert.equal(await chart.locator('line[stroke="var(--budget-limit)"][stroke-dasharray]').count(),2);
+    await page.locator('.filterbar').getByRole('button',{name:'Tasks',exact:true}).click();
+    const completion=page.locator('.card').filter({has:page.getByRole('heading',{name:'Task completion',exact:true})});
+    const ring=completion.locator('.finance-ring svg');
+    await ring.waitFor();
+    const [ringBox,cardBox,headingBox]=await Promise.all([
+      ring.boundingBox(),completion.boundingBox(),completion.locator('.card-heading').boundingBox(),
+    ]);
+    assert.ok(ringBox.y>=headingBox.y+headingBox.height&&ringBox.x>=cardBox.x&&ringBox.x+ringBox.width<=cardBox.x+cardBox.width);
+    assert.ok(ringBox.y+ringBox.height<=cardBox.y+cardBox.height);
+    await page.locator('.filterbar').getByRole('button',{name:'All overview',exact:true}).click();
 
     const currency=page.getByRole('heading',{name:'Money report',exact:true}).locator('xpath=ancestor::section[1]');
     await currency.getByText('Chart breakdown',{exact:true}).click();

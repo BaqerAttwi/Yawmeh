@@ -20,5 +20,5 @@ export function ValueChart(props){
 }
 
 export function RingChart(props){
- return <Suspense fallback={<div className="finance-ring"/>}><RingView {...props}/></Suspense>;
+ return <Suspense fallback={<div className="finance-ring" aria-hidden="true"/>}><RingView {...props}/></Suspense>;
 }

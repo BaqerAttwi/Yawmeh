@@ -116,6 +116,22 @@ try {
    await go(name);
    if(name==='Reports')await page.locator('.reports-workspace').waitFor();
    await check(name);
+   if(name==='Settings'){
+    const form=page.locator('.currency-home');
+    const select=form.getByRole('combobox',{name:'Home currency'});
+    const save=form.getByRole('button',{name:'Save home currency'});
+    const [row,field,button]=await Promise.all([form.boundingBox(),select.boundingBox(),save.boundingBox()]);
+    assert.ok(row&&field&&button);
+    assert.ok(field.x+field.width<=button.x||button.x+button.width<=field.x||field.y+field.height<=button.y);
+    assert.ok([field,button].every(box=>box.x>=row.x&&box.x+box.width<=row.x+row.width&&box.y+box.height<=row.y+row.height));
+    if(width===360){
+     const next=await select.inputValue()==='USD'?'LBP':'USD';
+     await select.selectOption(next);
+     await save.click();
+     await page.getByText('Home currency updated',{exact:true}).waitFor();
+     assert.equal(await page.locator('.settings-currency-code').textContent(),next);
+    }
+   }
   }
   await page.locator('.companion-launcher').click();
   await page.locator('.companion-chat-panel').waitFor();

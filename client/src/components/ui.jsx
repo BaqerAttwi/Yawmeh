@@ -7,8 +7,8 @@ export function Empty({text}){return <div className="empty"><p>{text}</p></div>;
 export function Donut({percent,center,label,tone='chart-1',accessibleLabel,value,total,format}){
  const progress=Math.min(Math.max(percent,0),100);
  return <div className="donut" role="img" aria-label={accessibleLabel||`${center} ${label}`}>
-  <RingChart value={value??progress} total={total??100} name={label} color={`var(--${tone})`} format={format||(number=>number+'%')}/>
-  <div><strong>{center}</strong><small>{label}</small></div>
+  <RingChart value={value??progress} total={total??100} name={label} color={`var(--${tone})`} format={format}/>
+  <div className="donut-label"><strong>{center}</strong><small>{label}</small></div>
  </div>;
 }
 export function Field({label,...props}){return <label className="field"><span>{label}</span><input {...props}/></label>;}

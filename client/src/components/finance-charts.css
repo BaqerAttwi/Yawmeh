@@ -12,11 +12,18 @@
 }
 .finance-tooltip>div {display:flex;justify-content:space-between;gap:var(--space-3);margin-block-start:var(--space-1)}
 .finance-tooltip bdi {font-variant-numeric:tabular-nums;white-space:nowrap}
-.finance-ring {position:absolute;inset:0;direction:inherit}
-.donut>.finance-ring {width:auto;height:auto;background:transparent}
-.donut>.finance-ring svg {position:static;fill:initial;stroke-width:initial;pointer-events:auto}
+.donut>.finance-ring {
+  position:absolute;inset:0;min-inline-size:0;overflow:hidden;
+  width:100%;height:100%;background:transparent;direction:inherit;
+}
+.donut>.finance-ring svg {position:static;fill:initial;stroke-width:initial;pointer-events:none}
+.donut>.finance-ring[data-interactive="true"] {overflow:visible}
+.donut>.finance-ring[data-interactive="true"] svg {pointer-events:auto}
 .donut .finance-ring .recharts-sector {stroke:none}
-.donut>.finance-ring+div {pointer-events:none}
+.donut>.donut-label {
+  position:relative;z-index:1;pointer-events:none;text-align:center;
+  max-inline-size:70%;padding-inline:var(--space-1);overflow-wrap:anywhere;
+}
 .finance-detail-chart {margin:var(--space-3) 0}
 .currency-report-chart {padding:var(--space-2) 18px;border-block-end:1px solid var(--border)}
 .currency-report-chart summary {font-size:var(--font-xs);color:var(--primary)}

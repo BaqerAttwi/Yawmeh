@@ -151,6 +151,7 @@ h1,h2,h3 {font-weight:600}
 .app-shell .monthly-money-detail dl>div {min-inline-size:0;border-block-start:2px solid var(--expense);padding-block-start:var(--space-2)}
 .app-shell .monthly-money-detail dl>div:nth-child(2) {border-color:var(--savings)}
 .app-shell .monthly-money-detail dl>div:nth-child(3) {border-block-start:2px dashed var(--budget-limit)}
+.app-shell .monthly-money-detail dl>div.monthly-money-over {border-color:var(--danger)}
 .app-shell .monthly-money-detail dd {font-size:clamp(var(--font-md),2.2vw,var(--font-lg));font-weight:650}
 .app-shell .monthly-money-note {margin-block-start:var(--space-3);padding:0 18px var(--space-3);color:var(--text-muted)}
 .budget-overview-list {padding:var(--space-4) 18px;display:grid;gap:var(--space-4);font-size:var(--font-sm)}

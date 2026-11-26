@@ -9,9 +9,10 @@ const shortMonth=new Intl.DateTimeFormat('en',{month:'short',timeZone:'UTC'});
 const fullMonth=new Intl.DateTimeFormat('en',{month:'long',year:'numeric',timeZone:'UTC'});
 const compactMoney=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:1});
 const date=month=>new Date(month.start+'T00:00:00Z');
-const metrics=[['expenses','Expenses'],['savings','Saved from income'],['limit','Monthly limit']];
+const metrics=[['expenses','Total spent'],['savings','Saved from income'],['limit','Monthly limit']];
 const display=value=>value===null?'No limit':Number.isFinite(value)?formatMoney(value):'Unavailable';
-const series=[{key:'expenses',name:'Expenses',color:'var(--expense)'},{key:'savings',name:'Saved from income',color:'var(--savings)'}];
+const series=[{key:'expenses',name:'Total spent',color:'var(--expense)'},{key:'savings',name:'Saved from income',color:'var(--savings)'}];
+const isOverBudget=month=>Number.isFinite(month.limit)&&month.expenses>month.limit;
 
 export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
   const months=useMemo(()=>monthlyMoney(data,current,end),[data.entries,data.budgets,current,end]);
@@ -20,10 +21,11 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
   const peak=Math.max(100,...months.flatMap(item=>metrics.map(([key])=>item[key]).filter(Number.isFinite)));
   const unit=10**Math.floor(Math.log10(peak));
   const ceiling=unit*[1,2,2.5,5,10].find(step=>step*unit>=peak);
-  const chartData=months.map(item=>({...item,expenses:Number.isFinite(item.expenses)?item.expenses:null,savings:Number.isFinite(item.savings)?item.savings:null,over:item.limit!==null&&item.expenses>item.limit}));
+  const chartData=months.map(item=>({...item,expenses:Number.isFinite(item.expenses)?item.expenses:null,savings:Number.isFinite(item.savings)?item.savings:null,over:isOverBudget(item)}));
   const select=key=>{if(months.some(item=>item.key===key))setSelected(key);};
   const monthName=fullMonth.format(date(month));
   const remaining=month.limit===null?null:month.limit-month.expenses;
+  const budgetUsed=month.limit>0&&Number.isFinite(month.expenses)?month.expenses/month.limit: null;
   return <section className="card monthly-money" aria-labelledby="monthly-money-title">
     <header className="monthly-money-header">
       <div><h2 id="monthly-money-title">Monthly money</h2><p>Expenses, savings and spending limits in USD</p></div>
@@ -40,9 +42,16 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
         </div>
         {month.budget?<button type="button" className="secondary" onClick={onManage}>Manage budgets</button>:<button type="button" className="primary" onClick={()=>onSetLimit({title:monthName+' spending limit',start:month.start,end:month.end})}><Plus size={15}/>Set monthly limit</button>}
       </div>
-      <dl>{metrics.map(([key,label])=><div key={key}><dt>{label}</dt><dd><bdi>{display(month[key])}</bdi></dd></div>)}</dl>
+      <dl>{metrics.map(([key,label])=><div key={key} className={key==='expenses'&&isOverBudget(month)?'monthly-money-over':undefined}><dt>{label}</dt><dd><bdi>{display(month[key])}</bdi></dd></div>)}</dl>
+      {budgetUsed!==null&&<div className="monthly-money-budget-use" data-over={isOverBudget(month)}>
+        <span>{Math.round(budgetUsed*100)}% of monthly budget spent</span>
+        <progress aria-label="Monthly budget used" value={Math.min(budgetUsed,1)} max={1}/>
+      </div>}
     </div>
-    <ul className="monthly-money-key" aria-label="Chart legend">{metrics.map(([key,label])=><li key={key}><span className={key} aria-hidden="true"/>{label}</li>)}</ul>
+    <ul className="monthly-money-key" aria-label="Chart legend">
+      {metrics.map(([key,label])=><li key={key}><span className={key} aria-hidden="true"/>{label}</li>)}
+      {chartData.some(item=>item.over)&&<li><span className="over-budget" aria-hidden="true"/>Over budget</li>}
+    </ul>
     <div className="monthly-money-plot">
       <div className="monthly-money-highlight" aria-hidden="true" style={{insetInlineStart:periodAxisWidth}}>
         <span style={{gridColumn:months.indexOf(month)+1}}/>
@@ -56,6 +65,18 @@ export function MonthlyMoney({data,current,end,onSetLimit,onManage}){
         </button>)}
       </div>
     </div>
+    <details className="monthly-money-compare">
+      <summary>Compare monthly totals</summary>
+      <table>
+        <thead><tr><th scope="col">Month</th>{metrics.map(([key,label])=><th key={key} scope="col">{label}</th>)}</tr></thead>
+        <tbody>{months.map(item=><tr key={item.key}>
+          <th scope="row">{shortMonth.format(date(item))}</th>
+          {metrics.map(([key])=><td key={key} className={key==='expenses'&&isOverBudget(item)?'monthly-money-over':undefined}>
+            <bdi>{display(item[key])}</bdi>{key==='expenses'&&isOverBudget(item)&&<small>Over budget</small>}
+          </td>)}
+        </tr>)}</tbody>
+      </table>
+    </details>
     <p className="monthly-money-note">The chart groups records by calendar month. Each limit uses the latest budget for that full month. Converted amounts use saved transaction rates.</p>
   </section>;
 }

@@ -18,6 +18,7 @@
 .monthly-money-key .expenses {background:var(--expense)}
 .monthly-money-key .savings {background:var(--savings)}
 .monthly-money-key .limit {width:16px;height:0;border-bottom:2px dashed var(--budget-limit);border-radius:0}
+.monthly-money-key .over-budget {background:var(--danger)}
 .monthly-money-plot {min-width:0;position:relative}
 .monthly-money-highlight {
   position:absolute;inset-block:0;inset-inline-end:0;pointer-events:none;
@@ -41,11 +42,29 @@
   font-weight:650;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;
 }
 .monthly-money-budget span {font-size:var(--font-xs);color:var(--text-muted)}
-.monthly-money-budget .monthly-money-over {color:var(--danger-text)}
+.monthly-money .monthly-money-over {color:var(--danger-text)}
+.monthly-money-budget-use {
+  display:grid;gap:var(--space-1);margin-block-start:var(--space-3);
+  color:var(--text-muted);font-size:var(--font-xs);
+}
+.monthly-money-budget-use progress {width:100%;height:var(--space-2);accent-color:var(--expense)}
+.monthly-money-budget-use[data-over="true"] {color:var(--danger-text)}
+.monthly-money-budget-use[data-over="true"] progress {accent-color:var(--danger)}
 .monthly-money-detail dl {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);margin:13px 0 0;padding-top:var(--space-3);border-top:1px solid var(--border)}
 .monthly-money-detail dt {font-size:var(--font-xs);color:var(--text)}
 .monthly-money-detail dd {font-size:clamp(var(--font-md),2.2vw,23px);margin:var(--space-1) 0 0;font-weight:750;letter-spacing:-.025em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .monthly-money-note {margin-top:15px;color:var(--text);font-size:var(--font-xs);line-height:1.55}
+.monthly-money-compare {
+  margin:var(--space-3) 18px 0;border-block-start:1px solid var(--border);
+  padding-block-start:var(--space-2);font-size:var(--font-xs);
+}
+.monthly-money-compare summary {color:var(--primary);cursor:pointer;padding-block:var(--space-1)}
+.monthly-money-compare table {width:100%;min-width:0;table-layout:fixed;margin-block-start:var(--space-2)}
+.monthly-money-compare :is(th,td) {
+  padding:var(--space-2) var(--space-1);text-align:start;white-space:normal;overflow-wrap:anywhere;
+  font-size:var(--font-xs);
+}
+.monthly-money-compare td small {display:block}
 @media(max-width:400px){
   .monthly-money-key {gap:var(--space-2) var(--space-3);font-size:var(--font-xs)}
   .monthly-money-detail dl {gap:var(--space-2)}

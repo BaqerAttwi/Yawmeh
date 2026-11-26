@@ -1,0 +1,47 @@
+.settings-workspace {
+  display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+  align-items:start;gap:var(--space-6);
+}
+.settings-group,.settings-side {display:grid;min-inline-size:0;gap:var(--space-4)}
+.settings-side {gap:var(--space-6)}
+.settings-group>h2 {
+  display:flex;align-items:center;gap:var(--space-2);
+  font-size:var(--font-lg);font-weight:650;
+}
+.settings-group>h2 svg {color:var(--primary);flex:none}
+.settings-workspace .settings-group>.card {min-inline-size:0;margin:0;overflow-wrap:anywhere}
+.settings-workspace .card-heading {gap:var(--space-3)}
+.settings-workspace .settings-form {padding-block-start:var(--space-4)}
+.settings-workspace .field-pair {grid-template-columns:repeat(2,minmax(0,1fr))}
+.settings-workspace .connection-line {flex-wrap:wrap;gap:var(--space-2)}
+.settings-workspace .everyday-card {display:grid;justify-items:start;gap:var(--space-2)}
+.settings-currencies {container-type:inline-size}
+.settings-currency-code {
+  border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--primary-soft);
+  color:var(--primary);padding:var(--space-1) var(--space-2);font-size:var(--font-xs);
+  font-weight:650;max-inline-size:100%;overflow-wrap:anywhere;
+}
+.settings-currency-body {padding:var(--space-4)}
+.settings-currencies .currency-home {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;
+  gap:var(--space-3);padding:var(--space-3);border:1px solid var(--border);
+  border-radius:var(--radius-md);background:var(--surface-2);
+}
+.settings-currencies .currency-home .field {margin:0;min-inline-size:0}
+.settings-currencies .currency-home button {min-block-size:40px;white-space:normal}
+.settings-currency-body>.form-hint {margin:var(--space-3) 0 0}
+.settings-currency-body>details {border-block:1px solid var(--border);margin-block-start:var(--space-3)}
+.settings-currency-body summary {padding-block:var(--space-2);color:var(--primary);cursor:pointer;font-size:var(--font-sm)}
+.settings-currencies .currency-rate-list {gap:var(--space-3)}
+.settings-currencies .currency-rate-list article {min-inline-size:0;background:var(--surface-2)}
+.settings-currencies .currency-rate-list article>p {color:var(--text-muted)}
+
+@container (max-width:390px) {
+  .settings-currencies .currency-home {grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:1000px) {
+  .settings-workspace {grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:400px) {
+  .settings-workspace .field-pair {grid-template-columns:minmax(0,1fr);gap:0}
+}
