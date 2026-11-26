@@ -63,6 +63,15 @@ const UserManager=lazy(()=>import('../features/users/UserManager.jsx').then(modu
 const pageLoading=<p className="muted" role="status">Loading…</p>;
 const money=formatMoney;
 const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const pageDateFormats={
+ en:new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}),
+ ar:new Intl.DateTimeFormat('ar',{month:'short',day:'numeric',year:'numeric',numberingSystem:'latn',timeZone:'UTC'}),
+};
+function pageDateLabel(language,start,end=start){
+ const format=pageDateFormats[language==='ar'?'ar':'en'];
+ const from=new Date(start+'T12:00:00Z'),to=new Date(end+'T12:00:00Z');
+ return from<=to?format.formatRange(from,to):[from,to].filter(date=>Number.isFinite(+date)).map(date=>format.format(date)).join(' – ');
+}
 const categories=['Food & drinks','Groceries','Transport','Shopping','Health','Learning','Entertainment','Bills','Work','Freelance','Savings','Other'];
 const pages={overview:{name:'Overview',icon:LayoutDashboard},money:{name:'Money',icon:Wallet},tasks:{name:'Tasks',icon:CheckSquare},reports:{name:'Reports',icon:FileChartColumn},users:{name:'Users & access',icon:Users},settings:{name:'Settings',icon:Settings}};
 export default function App({session}){
@@ -391,7 +400,7 @@ export default function App({session}){
    <h3>{t("Quick purchases")}</h3><p>{t("Tap an item to record one purchase today.")}</p>
    <div className="quick-items">{data.items.slice(0,4).map((item,i)=><button type="button" key={item.id} className="secondary" disabled={busy||needsRefresh} onClick={()=>logSavedPurchase(item)}>
      <span>{i===0?<Coffee size={18}/>:<ShoppingBag size={18}/>}</span>
-     <strong>{t("Log {item}",{item:item.title})}</strong><small><bdi>{money(cents(item.amount))} USD</bdi></small>
+     <strong>{t("Log {item}",{item:item.title})}</strong><small dir="ltr"><bdi>{money(cents(item.amount))} USD</bdi></small>
    </button>)}</div>
  </section>;
  const renderTask=task=><PlanningTaskRow language={language} key={task.id} task={task} parts={taskIndex.parts.get(task.id)||[]} hasNext={taskIndex.parents.has(task.id)} busy={busy} onToggle={toggleTask} onCategory={t=>open('taskCategory',t)} onRecurrence={changeRecurrence} onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onSaveDetail={saveDetail} onReschedule={moveTask}/>;
@@ -427,7 +436,7 @@ export default function App({session}){
    </div>
  </div></header>
  <main className={page==='overview'&&overviewTab==='dashboard'?'dashboard-page':undefined}>{mode==='demo'&&<section className="demo-welcome-actions"><strong>You’re exploring demo data.</strong><button className="secondary" onClick={()=>session.onSignup?.()}>Create your account</button></section>}{mode==='demo'&&user.role!=='admin'&&<div className="preview-note"><span>Previewing {user.name}’s access: {user.permissions.filter(p=>p!=='assistant').map(p=>APP_LABELS[p]).join(', ')}</span><button className="text-button" onClick={()=>onPreview(demoAdmin)}>Back to admin demo <ArrowRight size={14}/></button></div>}<div className="page-heading">
-   <div><p className="page-date">{page==='money'||page==='overview'&&overviewTab==='dashboard'?dateLabel(start)+' – '+dateLabel(end)+', '+end.slice(0,4):dateLabel(current)+', '+current.slice(0,4)}</p>
+   <div><p className="page-date">{page==='money'||page==='overview'&&overviewTab==='dashboard'?pageDateLabel(language||document.documentElement.lang,start,end):pageDateLabel(language||document.documentElement.lang,current)}</p>
    <h1>{t(page==='overview'?({checkin:'Today',dashboard:'Dashboard',history:'History',review:'Weekly review',calendar:'Calendar'}[overviewTab]):pages[page].name)}</h1></div>
    <div className="button-row">
      {page==='tasks'&&<><button className="secondary" onClick={showTrailer}><Play size={15}/>Watch demo</button><button data-tour="add-task" className="primary" onClick={()=>open('task')}><Plus size={15}/>{t("Add task")}</button></>}

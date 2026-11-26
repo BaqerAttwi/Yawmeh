@@ -1,6 +1,6 @@
 .saved-item-category{border-top:1px solid var(--border)}
 .saved-item-category-heading{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2) var(--space-3);padding:10px 22px}
-.saved-item-category-heading h3{font-size:var(--font-md);color:var(--text);overflow-wrap:anywhere}
+.saved-item-category-heading h3{font-size:var(--fs-base);color:var(--text);overflow-wrap:anywhere}
 .saved-item-category-heading button{min-height:38px;padding:7px 10px}
 @media(max-width:560px){
  .saved-item-category-heading{padding-inline:var(--space-4)}

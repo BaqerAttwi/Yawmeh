@@ -6,7 +6,7 @@
 .settings-side {gap:var(--space-6)}
 .settings-group>h2 {
   display:flex;align-items:center;gap:var(--space-2);
-  font-size:var(--font-lg);font-weight:600;
+  font-size:var(--fs-md);font-weight:600;
 }
 .settings-group>h2 svg {color:var(--primary);flex:none}
 .settings-workspace .settings-group>.card {min-inline-size:0;margin:0;overflow-wrap:anywhere}
@@ -16,12 +16,12 @@
 .settings-workspace .connection-line {flex-wrap:wrap;gap:var(--space-2)}
 .settings-workspace .everyday-card {display:grid;justify-items:start;gap:var(--space-2)}
 .appearance-palettes {display:grid;gap:var(--space-2);padding-block-start:var(--space-2);border-block-start:1px solid var(--border)}
-.appearance-palette-label {font-size:var(--font-sm);font-weight:600}
+.appearance-palette-label {font-size:var(--fs-sm);font-weight:600}
 .appearance-swatches {display:flex;flex-wrap:wrap;gap:var(--space-2)}
 .palette-swatch {
   display:grid;justify-items:center;align-content:start;gap:var(--space-2);
   padding:var(--space-2) 0;min-inline-size:44px;border-radius:var(--radius-sm);
-  font-size:var(--font-xs);color:var(--text);
+  font-size:var(--fs-xs);color:var(--text);
 }
 .palette-swatch[data-color="lime"] {--swatch:var(--palette-lime)}
 .palette-swatch[data-color="ocean"] {--swatch:var(--palette-ocean)}
@@ -31,8 +31,8 @@
 .palette-swatch[aria-pressed="true"] .palette-dot {outline:2px solid var(--text);outline-offset:2px}
 .settings-currencies {container-type:inline-size}
 .settings-currency-code {
-  border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--primary-soft);
-  color:var(--primary);padding:var(--space-1) var(--space-2);font-size:var(--font-xs);
+  border:1px solid var(--border);border-radius:var(--radius-md);background:var(--primary-soft);
+  color:var(--primary);padding:var(--space-1) var(--space-2);font-size:var(--fs-xs);
   font-weight:600;max-inline-size:100%;overflow-wrap:anywhere;
 }
 .settings-currency-body {padding:var(--space-4)}
@@ -45,7 +45,7 @@
 .settings-currencies .currency-home button {min-block-size:40px;white-space:normal}
 .settings-currency-body>.form-hint {margin:var(--space-3) 0 0}
 .settings-currency-body>details {border-block:1px solid var(--border);margin-block-start:var(--space-3)}
-.settings-currency-body summary {padding-block:var(--space-2);color:var(--primary);cursor:pointer;font-size:var(--font-sm)}
+.settings-currency-body summary {padding-block:var(--space-2);color:var(--primary);cursor:pointer;font-size:var(--fs-sm)}
 .settings-currencies .currency-rate-list {gap:var(--space-3)}
 .settings-currencies .currency-rate-list article {min-inline-size:0;background:var(--surface-2)}
 .settings-currencies .currency-rate-list article>p {color:var(--text-muted)}

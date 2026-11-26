@@ -13,6 +13,8 @@ const user={id:1,name:'Alex Responsiveness Tester',email:'alex.responsive@exampl
 const data=demoData();
 const records=Object.fromEntries(Object.entries(data).filter(([,value])=>Array.isArray(value)).map(([key,value])=>[key,value.map(row=>({...row,user_id:1}))]));
 const longBudgetTitle='A_Long_Unbroken_Budget_Label_That_Must_Wrap_Inside_Its_Panel';
+const longItemTitle='قهوةومشترياتلجميعأفرادالعائلةفيعطلةنهايةالأسبوع';
+records.items.unshift({...records.items[0],id:999,title:longItemTitle,amount:123456.78});
 records.budgets.push({id:999,user_id:1,title:longBudgetTitle,amount:95000000,start:data.budgets[0].start,end:data.budgets[0].end});
 const server=createApp({db:memoryDatabase(records,[user]),authStore:{session:async()=>user,listSessions:async()=>[],list:async()=>[user]},recoveryOptions:null}).listen(0,'127.0.0.1');
 await once(server,'listening');
@@ -104,6 +106,19 @@ try {
     await check('More overview views','.overview-menu');
    }
    await page.locator('.overview-tabs').getByRole('button',{name:t(tab),exact:true}).click();
+   if(rtl&&(tab==='Today'||tab==='Dashboard')){
+    assert.match(await page.locator('.page-date').textContent(),/\p{Script=Arabic}/u);
+   }
+   if(rtl&&tab==='Today'){
+    const purchase=page.locator('.quick-purchase-card button').filter({hasText:longItemTitle});
+    assert.equal(await purchase.locator('small').getAttribute('dir'),'ltr');
+    const fits=await purchase.evaluate(row=>{
+     const {left,right}=row.getBoundingClientRect();
+     const label=row.querySelector('strong').getBoundingClientRect(),price=row.querySelector('small').getBoundingClientRect();
+     return price.left>=left&&label.right<=right&&price.right<=label.left+1;
+    });
+    assert.ok(fits,'Arabic purchase label and price fit in the row');
+   }
    if(tab==='Dashboard')await page.locator('.budget-overview-row').getByText(longBudgetTitle,{exact:true}).waitFor();
    await check(tab);
   }

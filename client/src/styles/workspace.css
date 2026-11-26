@@ -16,25 +16,25 @@ h1,h2,h3 {font-weight:600}
 .sidebar-open .main-shell {margin-inline-start:var(--workspace-sidebar-width);width:calc(100% - var(--workspace-sidebar-width));min-width:0}
 .app-shell .sidebar .brand {justify-content:flex-start;gap:10px;padding:var(--space-2) var(--space-2) var(--space-4)}
 .app-shell .sidebar .brand .brand-logo {width:28px;height:28px}
-.app-shell .sidebar .brand .brand-name {display:inline;font-size:var(--font-lg);font-weight:600;letter-spacing:0;color:var(--text)}
-.app-shell .sidebar .workspace {display:flex;margin:0 0 var(--space-3);padding:var(--space-2) 10px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
-.app-shell .workspace strong {font-size:var(--font-md);font-weight:600}
-.app-shell .workspace small {font-size:var(--font-xs);margin:1px 0 0}
+.app-shell .sidebar .brand .brand-name {display:inline;font-size:var(--fs-md);font-weight:600;letter-spacing:0;color:var(--text)}
+.app-shell .sidebar .workspace {display:flex;margin:0 0 var(--space-3);padding:var(--space-2) 10px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface)}
+.app-shell .workspace strong {font-size:var(--fs-base);font-weight:600}
+.app-shell .workspace small {font-size:var(--fs-xs);margin:1px 0 0}
 .app-shell .sidebar nav {margin:0;gap:1px}
 .app-shell .sidebar nav button,.app-shell .sidebar .settings-nav,.app-shell .sidebar .companion-launcher {
   width:100%;padding:7px 10px;min-height:40px;justify-content:flex-start;gap:10px;border:0;border-radius:var(--radius-sm);
-  font-size:var(--font-md);font-weight:500;color:var(--text-muted);background:transparent;
+  font-size:var(--fs-base);font-weight:500;color:var(--text-muted);background:transparent;
 }
 .app-shell .sidebar nav button svg,.app-shell .sidebar .settings-nav svg {color:inherit;width:16px;height:16px}
 .app-shell .sidebar nav button:hover,.app-shell .sidebar .settings-nav:hover,.app-shell .sidebar .companion-launcher:hover {background:var(--surface-2);color:var(--text)}
 .app-shell .sidebar nav button.active,.app-shell .sidebar .settings-nav.active {background:var(--text);color:var(--bg);font-weight:500}
 .app-shell .sidebar nav button.active::after {display:none}
-.app-shell .sidebar .nav-label {display:block;margin:var(--space-2) 10px var(--space-1);font-size:var(--font-xs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+.app-shell .sidebar .nav-label {display:block;margin:var(--space-2) 10px var(--space-1);font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
 .app-shell .sidebar .sidebar-bottom {padding:var(--space-3) 0 0;margin-top:auto}
 .app-shell .sidebar .settings-nav,.app-shell .sidebar .profile {display:flex}
 .app-shell .sidebar .profile {padding:10px;margin:var(--space-2) 0 0;border-color:var(--border)}
-.app-shell .sidebar .profile strong,.app-shell .sidebar .profile small {font-size:var(--font-xs)}
-.app-shell .avatar,.app-shell .workspace-avatar {background:var(--surface-2);color:var(--text-muted);font-size:var(--font-xs)}
+.app-shell .sidebar .profile strong,.app-shell .sidebar .profile small {font-size:var(--fs-xs)}
+.app-shell .avatar,.app-shell .workspace-avatar {background:var(--surface-2);color:var(--text-muted);font-size:var(--fs-xs)}
 .app-shell .sidebar-open .sidebar-close {inset-block-start:9px;inset-inline-end:9px}
 .app-shell.sidebar-closed .sidebar {width:0;padding:0;border:0;overflow:visible}
 .app-shell.sidebar-closed .sidebar>.companion-dock {display:flex;position:fixed}
@@ -50,10 +50,10 @@ h1,h2,h3 {font-weight:600}
 
 .app-shell .topbar {height:52px;padding:0 var(--space-8);border-bottom:1px solid var(--border);background:var(--surface)}
 .app-shell .topbar-leading,.app-shell .topbar-actions {gap:var(--space-2)}
-.app-shell .topbar .breadcrumb {font-size:var(--font-sm);gap:var(--space-2);color:var(--text-muted)}
+.app-shell .topbar .breadcrumb {font-size:var(--fs-sm);gap:var(--space-2);color:var(--text-muted)}
 .app-shell .topbar .breadcrumb>span {color:var(--text);font-weight:600}
 .app-shell .topbar .sidebar-toggle,.app-shell .sidebar-close,.app-shell .topbar .icon-button {
-  display:inline-grid;place-items:center;min-width:32px;min-height:32px;padding:var(--space-1);border:0;border-radius:var(--radius-md);background:transparent;color:var(--text-muted);
+  display:inline-grid;place-items:center;min-width:32px;min-height:32px;padding:var(--space-1);border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);
 }
 .app-shell .topbar :is(.icon-button,.sidebar-toggle):hover {background:var(--surface-2);color:var(--text)}
 .topbar-menu,.launcher-wrap {position:relative}
@@ -62,21 +62,21 @@ h1,h2,h3 {font-weight:600}
 .topbar-popover {
   position:absolute;z-index:60;inset-inline-end:0;inset-block-start:calc(100% + var(--space-2));width:max-content;min-width:144px;
   max-width:min(310px,calc(100vw - 24px));padding:var(--space-2);border:1px solid var(--border);
-  border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow-sm);
+  border-radius:var(--radius-md);background:var(--surface);box-shadow:var(--shadow-sm);
   max-block-size:calc(100dvh - 64px);overflow-y:auto;
 }
-.topbar-popover :is(button,summary) {justify-content:flex-start;text-align:start;width:100%;border-radius:var(--radius-md);padding:var(--space-2);font-size:var(--font-sm)}
+.topbar-popover :is(button,summary) {justify-content:flex-start;text-align:start;width:100%;border-radius:var(--radius-sm);padding:var(--space-2);font-size:var(--fs-sm)}
 .topbar-popover :is(button,summary):hover {background:var(--surface-2)}
 .topbar-popover button[aria-pressed="true"] {color:var(--primary);background:var(--primary-soft)}
-.topbar-popover.account-menu strong {display:block;padding:var(--space-2);font-size:var(--font-sm)}
+.topbar-popover.account-menu strong {display:block;padding:var(--space-2);font-size:var(--fs-sm)}
 .account-app-links {padding-inline-start:var(--space-3)}
-.language-switch {padding:4px 8px;min-height:28px;border:1px solid var(--border-strong);border-radius:var(--radius-md);font-size:var(--font-xs)}
+.language-switch {padding:4px 8px;min-height:28px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:var(--fs-xs)}
 .language-switch:hover {background:var(--surface-2)}
-.sync-status {display:flex;align-items:center;gap:6px;padding:var(--space-1);font-size:var(--font-xs);color:var(--text-muted);white-space:nowrap}
+.sync-status {display:flex;align-items:center;gap:6px;padding:var(--space-1);font-size:var(--fs-xs);color:var(--text-muted);white-space:nowrap}
 .sync-status i {inline-size:6px;block-size:6px;border-radius:50%;background:var(--success);flex:none}
 .sync-status .is-offline {background:var(--text-subtle)}
 .sync-status .is-pending {background:var(--warning)}
-.offline-menu-content {padding:var(--space-2);font-size:var(--font-xs)}
+.offline-menu-content {padding:var(--space-2);font-size:var(--fs-xs)}
 .offline-menu-content a {color:var(--primary)}
 .offline-menu-content .recovery-row {overflow-wrap:anywhere}
 .app-shell .topbar .avatar {display:grid;place-items:center;min-width:29px;min-height:29px}
@@ -84,7 +84,7 @@ h1,h2,h3 {font-weight:600}
 .app-shell main {max-width:1120px;padding:var(--space-7) var(--space-8) 56px;margin-inline:auto}
 .app-shell .page-heading,.app-shell .dashboard-page .page-heading {align-items:flex-end;margin-bottom:var(--space-4);gap:var(--space-4)}
 .app-shell .main-shell .page-heading h1 {font-size:var(--font-page);line-height:1.25;font-weight:600;letter-spacing:-.02em}
-.app-shell .page-heading .page-date {font-size:var(--font-sm);margin-block:0 var(--space-1);color:var(--text-muted)}
+.app-shell .page-heading .page-date {font-size:var(--fs-sm);margin-block:0 var(--space-1);color:var(--text-muted)}
 .app-shell .eyebrow,.modal-heading .eyebrow,.login-page .eyebrow {display:none}
 
 .app-shell .card,.app-shell .stat-card,.card,.stat-card {background:var(--surface);border:0;border-radius:var(--radius-card);box-shadow:none}
@@ -92,20 +92,20 @@ h1,h2,h3 {font-weight:600}
 .app-shell :is(.monthly-money,.currency-report,.today-metric,.today-balance) {border:1px solid transparent}
 .app-shell .card .card {background:transparent;border:0;border-block-start:1px solid var(--border);border-radius:0}
 .card-heading,.currency-report-heading,.monthly-money-header {padding:14px 18px;border-block-end:1px solid var(--border)}
-.app-shell .card-heading h3,.currency-report-heading h3,.app-shell .monthly-money .monthly-money-header h2 {font-size:var(--font-md);font-weight:600;letter-spacing:0}
-.app-shell .card-heading p,.currency-report-heading p,.monthly-money-header p {font-size:var(--font-xs);margin-block-start:2px;color:var(--text-muted)}
+.app-shell .card-heading h3,.currency-report-heading h3,.app-shell .monthly-money .monthly-money-header h2 {font-size:var(--fs-base);font-weight:600;letter-spacing:0}
+.app-shell .card-heading p,.currency-report-heading p,.monthly-money-header p {font-size:var(--fs-xs);margin-block-start:2px;color:var(--text-muted)}
 .app-shell .stat-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);background:transparent;border:0}
 .app-shell .stat-grid:empty {display:none}
 .app-shell .stat-grid .stat-card {border:0;border-radius:var(--radius-card);padding:var(--space-5)}
-.app-shell .stat-card h2 {font-size:var(--font-2xl);font-weight:600;font-variant-numeric:tabular-nums}
-.app-shell .stat-card p,.app-shell .stat-card>div>span:first-child {font-size:var(--font-xs);color:var(--text-muted)}
+.app-shell .stat-card h2 {font-size:var(--fs-xl);font-weight:600;font-variant-numeric:tabular-nums}
+.app-shell .stat-card p,.app-shell .stat-card>div>span:first-child {font-size:var(--fs-xs);color:var(--text-muted)}
 .app-shell :is(.primary,.secondary),.login-page :is(.primary,.secondary) {
-  min-block-size:40px;padding:var(--space-2) var(--space-4);border-radius:var(--radius-pill);font-size:var(--font-sm);font-weight:600;line-height:1.35;
+  min-block-size:40px;padding:var(--space-2) var(--space-4);border-radius:var(--radius-pill);font-size:var(--fs-sm);font-weight:600;line-height:1.35;
 }
 .app-shell .secondary,.login-page .secondary {background:var(--surface);border-color:var(--border);color:var(--text)}
 .app-shell .secondary:hover:not(:disabled),.login-page .secondary:hover:not(:disabled) {background:var(--surface-2)}
 .app-shell .text-button {color:var(--primary)}
-.app-shell .badge,.category {border:0;border-radius:var(--radius-pill);background:var(--surface-2);color:var(--text-muted);font-size:var(--font-xs)}
+.app-shell .badge,.category {border:0;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-muted);font-size:var(--fs-xs)}
 .app-shell .badge:is(.high,.overdue) {background:var(--warning-soft);color:var(--warning)}
 :is(input,select,textarea) {border-color:var(--border-strong);border-radius:var(--radius-sm)}
 input:is([type="checkbox"],[type="radio"]) {accent-color:var(--accent-strong)}
@@ -123,7 +123,7 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 }
 .app-shell .segmented button,.app-shell .overview-tabs button {
   margin:0;padding:10px;border:0;border-block-end:2px solid transparent;background:transparent;border-radius:0;color:var(--text-muted);
-  font-size:var(--font-sm);font-weight:500;white-space:nowrap;box-shadow:none;
+  font-size:var(--fs-sm);font-weight:500;white-space:nowrap;box-shadow:none;
 }
 .app-shell .segmented button:hover,.app-shell .overview-tabs button:hover {color:var(--text)}
 .app-shell .segmented button.selected,.app-shell .overview-tabs button.selected {background:transparent;border-block-end-color:var(--accent-strong);color:var(--text);font-weight:600}
@@ -131,14 +131,14 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .overview-more {position:relative}
 .overview-more>summary {
   display:flex;align-items:center;gap:var(--space-1);min-height:42px;list-style:none;
-  padding:var(--space-2);color:var(--text-muted);font-size:var(--font-sm);cursor:pointer;
+  padding:var(--space-2);color:var(--text-muted);font-size:var(--fs-sm);cursor:pointer;
   border-block-end:2px solid transparent;
 }
 .overview-more>summary::-webkit-details-marker {display:none}
 .overview-more>summary.selected {color:var(--text);border-block-end-color:var(--accent-strong);font-weight:600}
 .overview-menu {
   position:absolute;inset-inline-end:0;inset-block-start:100%;min-inline-size:148px;z-index:10;
-  display:grid;padding:var(--space-1);border:1px solid var(--border);border-radius:var(--radius-sm);
+  display:grid;padding:var(--space-1);border:1px solid var(--border);border-radius:var(--radius-md);
   background:var(--surface);box-shadow:var(--shadow-sm);
 }
 .app-shell .overview-menu button {justify-content:flex-start;border:0;border-radius:var(--radius-sm)}
@@ -155,7 +155,7 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .overview-details>.card {margin:0}
 .today-screen>.overview-disclosure {margin-block-start:0}
 .app-shell .date-range {margin-block:0 var(--space-2);border-color:var(--border-strong);background:var(--surface)}
-.app-shell .date-range input {font-size:var(--font-xs)}
+.app-shell .date-range input {font-size:var(--fs-xs)}
 
 .app-shell .currency-report:has(.currency-report-grid) {padding:0;margin-bottom:var(--space-5)}
 .currency-report-heading .field {margin:0}
@@ -163,11 +163,11 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .currency-report-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
 .app-shell .currency-report-grid>div {gap:var(--space-1);padding:var(--space-4) 18px;border-inline-end:1px solid var(--border);border-block-end:1px solid var(--border)}
 .currency-report-grid>div:nth-child(3n) {border-inline-end:0}
-.app-shell .currency-report-grid [data-money] strong {font-size:var(--font-xl);font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.app-shell .currency-report-grid [data-money] strong {font-size:var(--fs-lg);font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .app-shell .currency-report-grid [data-money="income"] strong {color:var(--income)}
-.currency-report-grid :is([data-money="savings"],[data-money="spent"]) small::before {content:"";display:inline-block;width:8px;height:8px;margin-inline-end:6px;border-radius:2px;background:var(--savings)}
+.currency-report-grid :is([data-money="savings"],[data-money="spent"]) small::before {content:"";display:inline-block;width:8px;height:8px;margin-inline-end:6px;border-radius:var(--radius-sm);background:var(--savings)}
 .currency-report-grid [data-money="spent"] small::before {background:var(--expense)}
-.app-shell .currency-report-grid :is(small,span),.currency-report-note {font-size:var(--font-xs);color:var(--text-muted)}
+.app-shell .currency-report-grid :is(small,span),.currency-report-note {font-size:var(--fs-xs);color:var(--text-muted)}
 .currency-report-note {padding:10px 18px}
 
 .app-shell .currency-report:has(.featured-currency-summary) {background:transparent}
@@ -175,14 +175,14 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .featured-currency-summary {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:var(--space-3)}
 .app-shell .featured-currency-summary .currency-report-grid {gap:var(--space-3)}
 .app-shell .featured-currency-summary .currency-report-grid>div {
-  min-inline-size:0;border:0;border-radius:var(--radius-card);background:var(--surface);
+  min-inline-size:0;border:0;border-radius:var(--radius-md);background:var(--surface);
 }
 .currency-report:has(.featured-currency-summary) .currency-report-chart {
-  margin-block-start:var(--space-3);border:0;border-radius:var(--radius-card);background:var(--surface);
+  margin-block-start:var(--space-3);border:0;border-radius:var(--radius-md);background:var(--surface);
 }
 .balance-hero,.today-balance .spending-breakdown>summary {
   display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:var(--space-2);
-  min-inline-size:0;padding:var(--space-5);border-radius:var(--radius-card);
+  min-inline-size:0;padding:var(--space-5);border-radius:var(--radius-md);
   background:var(--hero);color:var(--hero-fg);text-align:start;
 }
 .today-balance .spending-breakdown>summary {
@@ -191,14 +191,14 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 }
 .app-shell .today-balance:not(:has(.spending-breakdown[open])) {padding:0;background:transparent}
 .today-balance .spending-breakdown>summary::-webkit-details-marker {display:none}
-.balance-hero-label,.today-balance .spending-breakdown>summary>.balance-hero-label {color:var(--hero-2);font-size:var(--font-md)}
+.balance-hero-label,.today-balance .spending-breakdown>summary>.balance-hero-label {color:var(--hero-2);font-size:var(--fs-base)}
 .balance-hero-value,.today-balance .spending-breakdown>summary>.balance-hero-value {
-  font-size:var(--font-display);line-height:1.15;font-weight:600;letter-spacing:-.04em;
+  font-size:var(--fs-2xl);line-height:1.15;font-weight:600;letter-spacing:-.04em;
   color:var(--hero-fg);overflow-wrap:anywhere;
 }
 .balance-hero-pill,.today-balance .spending-breakdown>summary>.balance-hero-pill {
-  padding:var(--space-1) var(--space-2);border-radius:var(--radius-pill);
-  background:var(--hero-accent);color:var(--hero);font-size:var(--font-xs);font-weight:600;
+  padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);
+  background:var(--hero-accent);color:var(--hero);font-size:var(--fs-xs);font-weight:600;
 }
 .today-balance .spending-breakdown>summary>:is(.balance-hero-label,.spending-currencies) {color:var(--spend-label)}
 .today-balance .spending-breakdown>summary>.balance-hero-value {color:var(--spend-value)}
@@ -215,13 +215,13 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
   text-align:start;white-space:normal;gap:var(--space-2);padding:var(--space-1) var(--space-2);
 }
-.app-shell .quick-purchase-card .quick-items button small {text-align:end}
-.app-shell .quick-purchase-card .quick-items button strong {font-weight:500}
+.app-shell .quick-purchase-card .quick-items button small {text-align:end;white-space:nowrap}
+.app-shell .quick-purchase-card .quick-items button strong {min-width:0;overflow-wrap:anywhere;font-weight:500}
 .today-money-summary {display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:var(--space-3);margin-block-end:var(--space-3)}
 .today-money-summary .today-balance {margin:0}
 .today-money-summary .spending-breakdown>summary {min-block-size:154px}
 .today-money-stat {display:grid;align-content:center;gap:var(--space-2);padding:var(--space-5);overflow-wrap:anywhere}
-.today-money-stat strong {font-size:var(--font-2xl);font-weight:600}
+.today-money-stat strong {font-size:var(--fs-xl);font-weight:600}
 .today-money-stat progress {inline-size:100%;block-size:var(--space-1)}
 .today-money-stat small {color:var(--text-muted)}
 .money-overview-grid {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start;gap:var(--space-5);margin-block-end:var(--space-5)}
@@ -237,9 +237,9 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .monthly-money-detail {background:transparent;border:0;border-radius:0;margin:var(--space-4) 18px 0;padding:0}
 .app-shell .monthly-money-detail dl {border:0;padding-block-start:0}
 .app-shell .monthly-money-detail dl>div {min-inline-size:0;border-block-start:1px solid var(--border);padding-block-start:var(--space-2)}
-.app-shell .monthly-money-detail dd {font-size:var(--font-lg);font-weight:600}
+.app-shell .monthly-money-detail dd {font-size:var(--fs-md);font-weight:600}
 .app-shell .monthly-money-note {margin-block-start:var(--space-3);padding:0 18px var(--space-3);color:var(--text-muted)}
-.budget-overview-list {padding:var(--space-4) 18px;display:grid;gap:var(--space-4);font-size:var(--font-sm)}
+.budget-overview-list {padding:var(--space-4) 18px;display:grid;gap:var(--space-4);font-size:var(--fs-sm)}
 .budget-overview-row>div:first-child {display:flex;justify-content:space-between;gap:var(--space-2);margin-bottom:6px}
 .budget-overview-row>div:first-child span {min-inline-size:0;overflow-wrap:anywhere}
 .budget-overview-row>div:first-child span:last-child {color:var(--text-muted);font-variant-numeric:tabular-nums}
@@ -252,8 +252,8 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .donut svg circle:first-child {stroke:var(--surface-2)}
 .donut>div {transform:none;background:transparent}
 
-.app-shell table th {padding:9px 18px;background:var(--surface-2);font-size:var(--font-xs);font-weight:500;color:var(--text-muted)}
-.app-shell table td {padding:11px 18px;border-color:var(--border);font-size:var(--font-sm)}
+.app-shell table th {padding:9px 18px;background:var(--surface-2);font-size:var(--fs-xs);font-weight:500;color:var(--text-muted)}
+.app-shell table td {padding:11px 18px;border-color:var(--border);font-size:var(--fs-sm)}
 .app-shell table tbody tr:hover {background:var(--surface-2)}
 .app-shell table :is(.right,.report-number) {text-align:end;font-variant-numeric:tabular-nums}
 .app-shell .amount:not(.positive) {color:var(--text)}
@@ -262,29 +262,29 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .empty {padding:var(--space-5);color:var(--text-muted)}
 .app-shell .report-chart,.app-shell .report-review-chart {border:0;border-block-start:1px solid var(--border);border-radius:0;background:transparent}
 .app-shell .report-overview-header {border-block-end:1px solid var(--border)}
-.app-shell .report-overview h2 {font-size:var(--font-md)}
+.app-shell .report-overview h2 {font-size:var(--fs-base)}
 .app-shell .report-metrics {padding:0;gap:0;margin-block-end:var(--space-4);border-block-end:1px solid var(--border)}
 .app-shell .report-metrics>div {background:transparent;border-radius:0;border-inline-end:1px solid var(--border);padding:var(--space-4) 18px}
 .app-shell .report-metrics>div:last-child {border-inline-end:0}
-.app-shell .report-metrics dt {font-size:var(--font-xs);color:var(--text-muted)}
-.app-shell .report-metrics dd {font-size:var(--font-xl);font-weight:600}
+.app-shell .report-metrics dt {font-size:var(--fs-xs);color:var(--text-muted)}
+.app-shell .report-metrics dd {font-size:var(--fs-lg);font-weight:600}
 .app-shell .today-hero {padding:var(--space-4) 18px}
-.app-shell .today-hero h2,.app-shell .today-panel h3 {font-size:var(--font-md);margin:0 0 var(--space-2)}
+.app-shell .today-hero h2,.app-shell .today-panel h3 {font-size:var(--fs-base);margin:0 0 var(--space-2)}
 .app-shell .today-hero p {margin:0 0 var(--space-2);color:var(--text-muted)}
 .app-shell .today-date {background:transparent;padding:0;color:var(--text-muted)}
 .app-shell .today-hero .eyebrow {display:none}
-.app-shell .companion-chat-panel {background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)}
+.app-shell .companion-chat-panel {background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md)}
 .app-shell .companion-reply {background:var(--surface);border:0;border-block-start:1px solid var(--border);border-radius:0}
 .app-shell .companion-question,.app-shell .companion-chat-message.user {background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text)}
 .app-shell .companion-welcome .companion-eyebrow {display:none}
-.app-shell .companion-welcome h2 {font-size:var(--font-lg);font-weight:600}
+.app-shell .companion-welcome h2 {font-size:var(--fs-md);font-weight:600}
 .app-shell .companion-chat-panel .companion-tools {background:var(--surface);border-color:var(--border)}
 .app-shell .toast {background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:none}
 .app-shell .toast-undo {color:var(--primary)}
 .login-page .login-story {background:var(--surface-2);color:var(--text)}
-.login-page .login-preview {background:var(--surface);border-color:var(--border);border-radius:var(--radius-card);box-shadow:none;transform:none}
-.login-page .login-story h1 {font-size:var(--font-2xl);letter-spacing:-.02em}
-.login-page .login-form-wrap h2 {font-size:var(--font-2xl);font-weight:600;letter-spacing:-.02em}
+.login-page .login-preview {background:var(--surface);border-color:var(--border);border-radius:var(--radius-md);box-shadow:none;transform:none}
+.login-page .login-story h1 {font-size:var(--fs-xl);letter-spacing:-.02em}
+.login-page .login-form-wrap h2 {font-size:var(--fs-xl);font-weight:600;letter-spacing:-.02em}
 .login-page .login-story .brand-name {color:var(--primary)}
 
 @media(max-width:900px){
@@ -299,10 +299,10 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   .app-shell.sidebar-open .sidebar nav>button {padding:7px 10px!important;min-height:38px}
   .app-shell .topbar {position:relative;padding-inline:var(--space-2);gap:var(--space-1)}
   .app-shell .topbar-leading,.app-shell .topbar-actions {gap:var(--space-1)}
-  .app-shell .topbar .breadcrumb {font-size:var(--font-xs)}
+  .app-shell .topbar .breadcrumb {font-size:var(--fs-xs)}
   .app-shell .topbar .breadcrumb>svg {display:none}
   .app-shell .topbar .breadcrumb {font-size:0}
-  .app-shell .topbar .breadcrumb>span {font-size:var(--font-xs)}
+  .app-shell .topbar .breadcrumb>span {font-size:var(--fs-xs)}
   .app-shell .topbar .sync-status span {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   .app-shell .topbar .sync-status {min-width:24px;min-height:32px;justify-content:center}
   .topbar .sync-menu {position:static}
@@ -314,10 +314,10 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   .currency-report-grid>div:nth-child(3n) {border-inline-end:1px solid var(--border)}
   .currency-report-grid>div:nth-child(2n) {border-inline-end:0}
   .app-shell .currency-report-grid>div {padding:var(--space-3)}
-  .app-shell .currency-report-grid [data-money] strong {font-size:var(--font-xl)}
+  .app-shell .currency-report-grid [data-money] strong {font-size:var(--fs-lg)}
   .app-shell .sidebar-closed .companion-dock {inset-inline-end:var(--space-2)}
   .app-shell .filterbar .segmented {flex-wrap:nowrap}
-  .app-shell .filterbar .segmented button {font-size:var(--font-xs)}
+  .app-shell .filterbar .segmented button {font-size:var(--fs-xs)}
   .app-shell .quick-purchase-card .quick-items {grid-template-columns:minmax(0,1fr)}
   .today-money-summary {grid-template-columns:minmax(0,1fr)}
 }
