@@ -27,7 +27,9 @@ try{
   };
   await page.goto(base);await press(page.getByRole('button',{name:'Try admin demo',exact:true}));
   await navigate(page,'Settings');await page.getByText('Your account & access',{exact:true}).waitFor();
-  await press(page.getByRole('button',{name:'Open app launcher',exact:true}));await press(page.locator('.launcher').getByRole('button',{name:'Tasks',exact:true}));
+  await press(page.getByRole('button',{name:'Account menu',exact:true}));
+  await press(page.locator('.account-menu summary').filter({hasText:'Open app launcher'}));
+  await press(page.locator('.account-menu').getByRole('button',{name:'Tasks',exact:true}));
   await press(page.getByRole('button',{name:'Add task',exact:true}));let dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Mobile task '+width);await press(dialog.getByRole('button',{name:'Save task',exact:true}));await dialog.waitFor({state:'detached'});
   const guide=page.locator('.demo-guides');await press(guide.getByRole('button',{name:'Watch guide · English / عربي',exact:true}));assert.match(await guide.locator('source').getAttribute('src'),/create-task/);await press(guide.getByRole('button',{name:'Watch guide · English / عربي',exact:true}));
   await navigate(page,'Money');await press(page.getByRole('button',{name:'Income',exact:true}));dialog=page.locator('dialog[open]');await dialog.locator('input[name=title]').fill('Mobile income');await dialog.locator('input[name=amount]').fill('100');await press(dialog.getByRole('button',{name:'Save transaction',exact:true}));await dialog.waitFor({state:'detached'});

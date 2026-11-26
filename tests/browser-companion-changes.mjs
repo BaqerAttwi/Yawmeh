@@ -15,8 +15,8 @@ try {
   for (const width of [320,375,768,1440]) {
     const page = await browser.newPage({viewport:{width,height:900}});
     await page.goto(url);
-    await page.getByRole('heading',{name:'A space for your kind of day.'}).waitFor();
-    assert.equal(await page.locator('.login-story h1').innerText(),'A space for your kind of day.');
+    await page.getByRole('heading',{name:'Money and tasks'}).waitFor();
+    assert.equal(await page.locator('.login-story h1').innerText(),'Money and tasks');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
     await page.close();
   }

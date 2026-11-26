@@ -13,7 +13,9 @@ try{
   const navigate=async name=>{await page.locator('.main-shell').waitFor();const button=page.locator('.sidebar').getByRole('button',{name,exact:true});if(!await button.isVisible())await page.locator('.sidebar-toggle').click();await button.click();};
   page.on('pageerror',e=>errors.push(e.message));page.on('request',request=>{if(request.url().includes('/guides/'))media.push(request.url());});
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'Try admin demo'}).click();
-  await navigate('Video tutorials');
+  await navigate('Guide');
+  const guide=page.getByRole('dialog',{name:'Start here',exact:true});
+  await guide.getByRole('button',{name:'Video tutorials',exact:true}).click();
   const tutorials=page.getByRole('dialog',{name:'Video tutorials',exact:true});await tutorials.waitFor();
   assert.equal(await tutorials.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).count(),2);
   await tutorials.getByRole('button',{name:'Watch guide · English / عربي',exact:true}).first().click();

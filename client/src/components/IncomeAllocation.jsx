@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {cents} from '../../../shared/domain.js';
 import {formatMoney} from '../../../shared/currency.js';
 import {Field} from './ui.jsx';
+import {ValueChart} from './FinanceCharts.jsx';
 
 export function IncomeAllocation({initialAmount,currency,language,showExample=false,catalog}) {
  const [amount,setAmount]=useState(initialAmount==null?'':String(initialAmount));
@@ -31,5 +32,9 @@ export function IncomeAllocation({initialAmount,currency,language,showExample=fa
    <div><dt>{ar?'بينضاف للمدخرات':'Added to savings'}</dt><dd>{formatMoney(saved,currency,catalog)}</dd></div>
    <div><dt>{ar?'بينضاف للصرف':'Added to spending'}</dt><dd>{formatMoney(total-saved,currency,catalog)}</dd></div>
   </dl>}
+  {valid&&<div className="finance-detail-chart"><ValueChart data={[
+   {name:ar?'ادخار':'Savings',value:saved,color:'var(--savings)'},
+   {name:ar?'متاح للصرف':'Available to spend',value:total-saved,color:'var(--chart-2)'},
+  ]} label={ar?'المبلغ':'Amount'} format={value=>formatMoney(value,currency,catalog)}/></div>}
  </>;
 }

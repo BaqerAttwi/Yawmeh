@@ -1,3 +1,4 @@
+import {PeriodChart,ValueChart} from '../../components/FinanceCharts.jsx';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus} from 'lucide-react';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
@@ -56,23 +57,17 @@ function ReportTable({report,title,catalog,onAddItem,busy}){
  </>;
 }
 
+const cashFlowSeries=[{key:"income",name:"Income",color:"var(--income)"},{key:"expenses",name:"Expenses",color:"var(--expense)"}];
 function CashFlowChart({report,currency,catalog}){
  const rows=report.rows.slice(-12).filter(([,income,expenses])=>Number.isFinite(income)&&Number.isFinite(expenses));
- const max=Math.max(0,...rows.flatMap(([,income,expenses])=>[income,expenses]));
- if(!max)return null;
+ if(!rows.some(([,income,expenses])=>income>0||expenses>0))return null;
  return <figure className="report-chart">
   <figcaption>Income and expenses · Latest 12 recorded months</figcaption>
   <div className="report-chart-key"><span>Income</span><span>Expenses</span></div>
-  <div className="report-chart-months">{rows.map(([month,income,expenses])=><div key={month} className="report-chart-row">
-   <span>{month}</span>
-   <div>{[[income,'Income'],[expenses,'Expenses']].map(([value,label])=><div key={label}
-    role="img" aria-label={label+' '+formatMoney(value,currency,catalog)} title={label+' '+formatMoney(value,currency,catalog)}>
-    <span style={{width:(value/max*100)+'%'}}/>
-   </div>)}</div>
-  </div>)}</div>
+  <PeriodChart data={rows.map(([key,income,expenses])=>({key,income,expenses}))} series={cashFlowSeries}
+   format={value=>formatMoney(value,currency,catalog)} label="Monthly income and expenses" periodLabel={key=>key.slice(5)+"/"+key.slice(2,4)}/>
  </figure>;
 }
-
 function ReportDetails({data,user,current,reports,initialRange,initialPreset,onAddItem,busy}){
  const [selected,setSelected]=useState(reports[0]?.id);
  const [preset,setPreset]=useState(initialPreset);
@@ -141,17 +136,14 @@ function summarizeReport(area,overview,display,topCategory){
   !Number.isFinite(net)?'Check the original amounts in Balances by currency before setting a spending target.':'Keep recording expenses as they happen so your next report shows where your money went.'};
 }
 
-function ReportReviewChart({title,series,display,scale}){
- const max=scale||Math.max(1,...series.filter(([,value])=>Number.isFinite(value)).map(([,value])=>value));
- return <figure className="report-chart report-review-chart" aria-label={`${title} chart`}>
+function ReportReviewChart({title,series,display,scale,money=true}){
+ const rows=series.map(([name,value,tone])=>({name,value,color:"var(--"+tone+")"}));
+ return <figure className="report-chart report-review-chart" aria-label={title+" chart"}>
   <figcaption>{title}</figcaption>
-  <dl>{series.map(([label,value,tone])=><div key={label}>
-   <div className="report-review-value"><dt>{label}</dt><dd>{display(value)}</dd></div>
-   {Number.isFinite(value)&&<div className="report-review-track" aria-hidden="true"><span data-tone={tone} style={{width:(value/max*100)+'%'}}/></div>}
-  </div>)}</dl>
+  <ValueChart data={rows} label={money?"Amount":"Tasks"} format={display} axis={money?undefined:reportCounts.format} scale={scale}/>
+  <dl>{series.map(([name,value])=><div key={name} className="report-review-value"><dt>{name}</dt><dd>{display(value)}</dd></div>)}</dl>
  </figure>;
 }
-
 function ReportExplanation({api,area,start,end,period}){
  const [answer,setAnswer]=useState(null),[pending,setPending]=useState(false),[error,setError]=useState('');
  const active=useRef(null);
@@ -198,11 +190,11 @@ function ReportSummary({area,overview,display,expenseCategories,children}){
  const {summary,recommendation}=summarizeReport(area,overview,display,expenseCategories[0]);
  const money=area==='money';
  const series=money
-  ?[['Income',overview.income,'green'],['Spending',overview.expenses,'orange']]
-  :[['Completed',overview.completed,'green'],['Open and on schedule',overview.open-overview.overdue,'blue'],['Overdue',overview.overdue,'orange']];
+  ?[['Income',overview.income,'income'],['Spending',overview.expenses,'expense']]
+  :[['Completed',overview.completed,'success'],['Open and on schedule',overview.open-overview.overdue,'chart-2'],['Overdue',overview.overdue,'danger']];
  return <div className="report-summary">
   <p className="report-summary-facts">{summary}</p>
-  <ReportReviewChart title={money?'Income and spending':'Task status'} series={series} display={money?display:reportCounts.format}/>
+  <ReportReviewChart title={money?'Income and spending':'Task status'} series={series} display={money?display:reportCounts.format} money={money}/>
   <details className="report-breakdown">
    <summary>Step-by-step review</summary>
    <div className="report-breakdown-body">
@@ -214,7 +206,7 @@ function ReportSummary({area,overview,display,expenseCategories,children}){
      <li><strong>Count open tasks by due date.</strong> A task counts as overdue if it is still open and its due date has passed.</li>
     </>}</ol>
     {expenseCategories.length>0&&<ReportReviewChart title="Largest spending categories" scale={overview.expenses}
-     series={expenseCategories.map(([name,,total])=>[name,total,'orange'])}
+     series={expenseCategories.map(([name,,total])=>[name,total,'expense'])}
      display={total=>`${display(total)} · ${reportPercent.format(total/overview.expenses)}`}/>}
     <div className="report-next-step"><h3>How to improve</h3><p>{recommendation}</p></div>
    </div>

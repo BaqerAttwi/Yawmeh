@@ -1,5 +1,6 @@
 const storageKey='yawmeh:theme';
 const themes=['light','dark','system'];
+export const themeChanged='yawmeh:theme-changed';
 
 export function getTheme(){
   try{
@@ -17,6 +18,7 @@ export function setTheme(theme){
   if(!themes.includes(theme))return;
   applyTheme(theme);
   try{localStorage.setItem(storageKey,theme);}catch{}
+  window.dispatchEvent(new Event(themeChanged));
 }
 
 applyTheme(getTheme());

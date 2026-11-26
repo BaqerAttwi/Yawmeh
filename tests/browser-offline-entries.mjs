@@ -21,7 +21,7 @@ try{
   await page.goto(url);
   await page.waitForFunction(()=>navigator.serviceWorker.controller&&localStorage.getItem('yawmeh:offline-account'));
   await page.getByRole('button',{name:'Close getting started'}).click();
-  await page.getByText('Offline ready',{exact:true}).waitFor();
+  await page.locator('.sync-status').getByText('Synced · works offline',{exact:true}).waitFor();
   await context.setOffline(true);
   await page.reload();
   await page.getByRole('heading',{name:'Offline capture'}).waitFor();
@@ -51,7 +51,7 @@ try{
   assert.deepEqual(records.tasks.map(task=>task.title),['Offline task']);
   assert.deepEqual(records.inbox.map(note=>note.text),['Offline inbox note']);
   await page.getByRole('link',{name:'Return to workspace'}).click();
-  await page.getByText('Ready',{exact:true}).waitFor();
+  await page.locator('.sync-status').getByText('Synced · works offline',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('yawmeh:offline-entry:')).length),0);
   await context.setOffline(true);
   await page.getByRole('button',{name:'Log expense',exact:true}).click();

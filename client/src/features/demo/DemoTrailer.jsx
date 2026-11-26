@@ -6,7 +6,7 @@ const scenes=[
   {title:'Let a reminder do the remembering.',caption:'Choose an optional email reminder date when creating a task. Add your reminder email in Settings. Email delivery needs the server’s email setup.',icon:Mail,label:'03 · GET A NUDGE',kind:'reminder'},
   {title:'Tick it off. See your progress.',caption:'Click the checkbox beside a finished task. Your totals and progress chart update. Click it again if you need to reopen the task.',icon:CheckSquare,label:'04 · SMALL WINS',kind:'complete'},
   {title:'Give your money a simple plan.',caption:'With Money access, record $700 of income and put $300 into savings. That leaves $400 to spend. Log purchases and keep a reason for every savings withdrawal.',icon:Wallet,label:'05 · MAKE ROOM',kind:'money'},
-  {title:'A little guidance, whenever you need it.',caption:'Use the nine-dot launcher to switch between your allowed apps. Tap your free companion to review your records or prepare a draft. No paid API is needed.',icon:Sparkles,label:'06 · YOUR EVERYDAY',kind:'apps'},
+  {title:'A little guidance, whenever you need it.',caption:'Use the sidebar to switch between your allowed apps. Tap your free companion to review your records or prepare a draft. No paid API is needed.',icon:Sparkles,label:'06 · YOUR EVERYDAY',kind:'apps'},
 ];
 export function DemoTrailer({close}){
   const dialog=useRef(),[index,setIndex]=useState(0),[playing,setPlaying]=useState(false);

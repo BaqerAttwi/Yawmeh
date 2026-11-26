@@ -35,7 +35,11 @@ try {
   const demoCoffees=await demo.evaluate(()=>JSON.parse(localStorage.getItem('daywell-demo')).entries.filter(entry=>entry.title==='Morning coffee'));
   assert.equal(demoCoffees.filter(entry=>!entry.voided_on).length,1);
   assert.equal(demoCoffees.filter(entry=>entry.voided_on).length,1);
-  const openGuide = ()=>demo.locator('.topbar-actions').getByRole('button',{name:'Guide',exact:true}).click();
+  const openGuide=async()=>{
+    const guide=demo.locator('.sidebar').getByRole('button',{name:'Guide',exact:true});
+    if(!await guide.isVisible())await demo.getByRole('button',{name:'Open navigation',exact:true}).click();
+    await guide.click();
+  };
   const coach = demo.getByRole('region',{name:'Guided tour'});
   await openGuide();
   await demo.getByRole('button',{name:'All task steps',exact:true}).click();
@@ -158,8 +162,12 @@ try {
   records.tasks.length=0;
   await live.reload();
   await live.getByRole('button',{name:'Add my first task',exact:true}).waitFor();
-  const guideButton=live.locator('.topbar-actions').getByRole('button',{name:'Guide',exact:true});
-  await guideButton.click();
+  const openLiveGuide=async()=>{
+    const guide=live.locator('.sidebar').getByRole('button',{name:'Guide',exact:true});
+    if(!await guide.isVisible())await live.getByRole('button',{name:'Open navigation',exact:true}).click();
+    await guide.click();
+  };
+  await openLiveGuide();
   await firstGuide.getByRole('button',{name:'Start with Money',exact:true}).click();
   const form=live.locator('dialog[open]');
   await form.getByText(/Example only/).waitFor();
@@ -187,7 +195,7 @@ try {
   await form.getByRole('alert').filter({hasText:'exceeds the savings'}).waitFor();
   assert.equal(await form.locator('.money-effect').count(),0);
   await form.getByRole('button',{name:'Cancel',exact:true}).click();
-  await guideButton.click();
+  await openLiveGuide();
   await firstGuide.getByRole('button',{name:'Start with Tasks',exact:true}).click();
   assert.equal(await form.locator('[name=title]').inputValue(),'');
   await form.locator('[name=title]').fill('My first task');

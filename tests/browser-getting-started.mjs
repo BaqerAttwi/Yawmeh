@@ -21,8 +21,10 @@ try{
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole('button',{name:'Try admin demo'}).click();
   await page.locator('.main-shell').waitFor();await page.waitForFunction(()=>localStorage.getItem('daywell-demo'));
   const before=await page.evaluate(()=>localStorage.getItem('daywell-demo'));
-  assert.equal(await page.getByRole('button',{name:'Guide',exact:true}).count(),width<700?1:2);
-  await page.locator('.topbar-actions').getByRole('button',{name:'Guide',exact:true}).click();
+  if(width<700)await page.getByRole('button',{name:'Open navigation',exact:true}).click();
+  const guide=page.getByRole('button',{name:'Guide',exact:true});
+  assert.equal(await guide.count(),1);
+  await guide.click();
   const menu=page.getByRole('dialog',{name:'Start here',exact:true});await menu.waitFor();
   await page.screenshot({path:`test-results/getting-started/choices-${width}.png`});
   await menu.getByRole('button',{name:/Guide me step by step/}).click();

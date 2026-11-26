@@ -96,11 +96,11 @@ try{
  let workspace=loadWorkspace();
  await loginPage.getByRole('button',{name:'Sign in',exact:true}).click();
  await workspace;
- await loginPage.getByRole('button',{name:'Open app launcher'}).waitFor();
+ await loginPage.getByRole('button',{name:'Account menu'}).waitFor();
  workspace=loadWorkspace();
  await loginPage.reload();
  await workspace;
- await loginPage.getByRole('button',{name:'Open app launcher'}).waitFor();
+ await loginPage.getByRole('button',{name:'Account menu'}).waitFor();
  await loginPage.close();
  const page=await browser.newPage();
  await page.context().addCookies([{name:'daywell_session',value:'a'.repeat(64),url:base,httpOnly:true,sameSite:'Strict'}]);

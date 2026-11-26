@@ -17,7 +17,7 @@ import {ReceiptScan} from './ReceiptScan.jsx';
 import './companion.css';
 import './companion-chat.css';
 
-const avatar={id:'sage',name:'Sage',color:'var(--primary)',intro:'One small step, a calmer day.',ar:'خطوة صغيرة، ونهار أروق.'};
+const avatar={id:'sage',name:'Sage',color:'var(--primary)'};
 const read=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,value);}catch{}};
 const actionNames={task:['Task','مهمة'],expense:['Expense','مصروف'],income:['Income','دخل'],opening:['Existing savings','مدخرات موجودة'],withdrawal:['Withdrawal','سحب'],budget:['Budget','ميزانية'],subscription:['Subscription','اشتراك'],item:['Frequent item','عملية متكرّرة']};
@@ -62,6 +62,11 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
  const [sessionId,setSessionId]=useState(()=>randomId()),[storageError,setStorageError]=useState(false),[restored,setRestored]=useState(false);
  const [viewport,setViewport]=useState({height:window.visualViewport?.height||window.innerHeight,gap:0,keyboard:false});
  const [preference,setPreference]=useState(()=>{const value=read(key+':language','auto');return ['en','ar','auto'].includes(value)?value:'auto';});
+ useEffect(()=>{
+  const select=event=>{setPreference(event.detail);save(key+':language',event.detail);};
+  window.addEventListener('yawmeh:workspace-language',select);
+  return()=>window.removeEventListener('yawmeh:workspace-language',select);
+ },[key]);
  const [lastLanguage,setLastLanguage]=useState(()=>read(key+':last-language',navigator.language?.startsWith('ar')?'ar':'en'));
  const [open,setOpen]=useState(false),[voiceState,setVoiceState]=useState('idle'),[thinking,setThinking]=useState(false),[tools,setTools]=useState(null);
  const [useAI,setUseAI]=useState(()=>read(key+':ai','on')==='on'),[aiAvailable,setAIAvailable]=useState(false),[aiReason,setAIReason]=useState(null),[aiNotice,setAINotice]=useState('');
@@ -165,7 +170,7 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    {tools==='examples'&&<CompanionExamples user={user} language={language} text={text} onChoose={example=>{setText(example);setTools(null);input.current?.focus();}}/>}
    <div className="companion-chat-log" hidden={tools==='history'||tools==='examples'} role="log" aria-label={t('Conversation','المحادثة')} aria-live="polite" aria-busy={thinking}>
     {restored&&<p className="companion-restored-note">{t('Reopened chat · Previous answers show saved snapshots. New questions use your current records. Review dates before saving an unfinished draft.','محادثة سابقة · الأجوبة القديمة بتعكس وقت السؤال. الأسئلة الجديدة بتستعمل سجلاتك الحالية. راجع التواريخ قبل حفظ أي مسودة.')}</p>}
-    {!messages.length&&<div className="companion-welcome"><span className="companion-eyebrow">{t('A LITTLE CLARITY, EVERY DAY','شوي وضوح، كل يوم')}</span><h2>{t(`Hi, I’m ${avatar.name}.`,`أهلا، أنا ${avatar.name}.`)}</h2><p>{t(avatar.intro,avatar.ar)}</p><small>{t('Plan your day, check your money, or prepare something to add.','رتّب نهارك، راجع مصاريك، أو حضّر عملية جديدة.')}</small></div>}
+    {!messages.length&&<div className="companion-welcome"><span className="companion-eyebrow">{t('A LITTLE CLARITY, EVERY DAY','شوي وضوح، كل يوم')}</span><h2>{t(`Hi, I’m ${avatar.name}.`,`أهلا، أنا ${avatar.name}.`)}</h2><small>{t('Plan your day, check your money, or prepare something to add.','رتّب نهارك، راجع مصاريك، أو حضّر عملية جديدة.')}</small></div>}
     {messages.map((message,i)=><React.Fragment key={i}><div className="companion-question" dir="auto"><span className="sr-only">{t('You','أنت')}: </span>{message.question}</div><Reply message={message} avatar={avatar} catalog={catalog} t={t} user={user} busy={thinking} onChoose={i===messages.length-1&&!thinking?(question,label)=>ask(question,label,true):undefined} onReview={()=>{if(inFlight.current)return;close();const saved=()=>{conversation.current=null;setMessages(old=>old.map(m=>m.id===message.id?{...m,action:undefined,change:undefined,saved:true}:m));};if(message.change)onChangeReview(message.change,message.language,saved);else onAction(message.action.type,message.action.initial,message.language,saved);}} onDismiss={()=>{if(inFlight.current)return;conversation.current=null;setMessages(old=>old.map((m,index)=>index===i?{...m,action:undefined,change:undefined,dismissed:true}:m));input.current?.focus();}}/></React.Fragment>)}
     {thinking&&<div className="companion-thinking"><span/><span/><span/><small>{stateLabel}</small></div>}
     <span ref={bottom}/>
@@ -181,6 +186,6 @@ function CompanionSession({data,user,date,mode,onAction,onChangeReview}) {
    </div>
    <small className="companion-chat-note">{storageError?t('Chat could not be saved in this browser.','ما قدرنا نحفظ المحادثة بهالمتصفح.'):t('Based on your records · You review every draft','حسب سجلاتك · بتراجع كل مسودة قبل الحفظ')}</small>
   </section>}
-  <button ref={launcher} className={`companion-launcher${state==='speaking'?' is-speaking':''}`} aria-label={open?t('Close companion chat','إغلاق المحادثة'):t(`Chat with ${avatar.name}`,`احكي مع ${avatar.name}`)} aria-expanded={open} onClick={()=>open?close():setOpen(true)}><strong className="companion-greeting">{state==='idle'?t(avatar.intro,avatar.ar):stateLabel}</strong><Character state={state} look={look}/><span className="companion-launcher-label">{state==='idle'?(open?t('Close','إغلاق'):t('Ask '+avatar.name,'اسأل '+avatar.name)):stateLabel}</span></button>
+  <button ref={launcher} className={`companion-launcher${state==='speaking'?' is-speaking':''}`} aria-label={open?t('Close companion chat','إغلاق المحادثة'):t(`Chat with ${avatar.name}`,`احكي مع ${avatar.name}`)} aria-expanded={open} onClick={()=>open?close():setOpen(true)}><Character state={state} look={look}/><span className="companion-launcher-label">{state==='idle'?(open?t('Close','إغلاق'):t('Ask '+avatar.name,'اسأل '+avatar.name)):stateLabel}</span></button>
  </div>;
 }

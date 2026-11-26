@@ -5,8 +5,8 @@ import {today} from '../../../../shared/domain.js';
 import {Field} from '../../components/ui.jsx';
 import {offlineKind,offlineTitle,removeOfflineEntry,storeOfflineEntry} from '../../lib/offline-entries.js';
 
-export function OfflineQueue({records,ready,offline,busy,onRetry}){
-  return <section className="card everyday-card" aria-label="Offline queue">
+export function OfflineQueue({records,ready,offline,busy,onRetry,compact=false}){
+  return <section className={compact?'offline-menu-content':'card everyday-card'} aria-label="Offline queue">
     <div className="button-row">
       <strong role="status">{offline?'You’re offline':ready?'Offline ready':'Offline capture isn’t ready on this device yet'}</strong>
       {ready&&<a href="/offline.html">Open offline capture</a>}
