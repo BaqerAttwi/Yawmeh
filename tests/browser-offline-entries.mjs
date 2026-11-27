@@ -20,7 +20,6 @@ try{
   const page=await context.newPage();
   await page.goto(url);
   await page.waitForFunction(()=>navigator.serviceWorker.controller&&localStorage.getItem('yawmeh:offline-account'));
-  await page.getByRole('button',{name:'Close getting started'}).click();
   await page.locator('.sync-status').getByText('Synced · works offline',{exact:true}).waitFor();
   await context.setOffline(true);
   await page.reload();

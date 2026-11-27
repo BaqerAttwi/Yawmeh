@@ -1,0 +1,57 @@
+.transaction-balances {
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-1) var(--space-3);
+ margin-block-end:var(--space-3);padding:var(--space-3) var(--space-4);
+ border-radius:var(--radius-card);background:var(--surface);
+}
+.transaction-balances>div {display:grid;gap:var(--space-1);align-content:start;min-inline-size:0}
+.transaction-balances>div>span,.transaction-balances>small {color:var(--text-muted);font-size:var(--fs-xs)}
+.transaction-balances strong {font-size:var(--fs-md);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.transaction-balances .transaction-balance-total strong {font-size:var(--fs-lg)}
+.transaction-balances>small {grid-column:1/-1}
+.app-shell .money-tab-panel {margin-block-end:var(--space-5)}
+.app-shell .money-tab-panel>.card-heading {
+ display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-2) var(--space-3);
+}
+.money-tab-panel>.card-heading>div:first-child {flex:1 1 12rem;min-inline-size:0;overflow-wrap:anywhere}
+.money-tab-panel>.card-heading>.button-row {flex-wrap:wrap;gap:var(--space-2)}
+.transaction-toolbar {
+ display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);
+ padding:var(--space-3) var(--space-4);border-block-end:1px solid var(--border);
+}
+.transaction-toolbar .search-box {flex:1 1 15rem;min-inline-size:0;margin:0}
+.transaction-toolbar .search-box input {min-inline-size:0}
+.transaction-toolbar .date-range {margin:0;max-inline-size:100%}
+.transaction-type select {max-inline-size:100%}
+.transaction-toolbar .money-review,.money-review-empty {margin:0;padding:var(--space-2) var(--space-3)}
+.transaction-toolbar .money-review[open] {flex-basis:100%;background:var(--surface-2);border-radius:var(--radius-md)}
+.transaction-register .register-details {display:grid;gap:2px;color:var(--text-muted);font-size:var(--fs-xs);overflow-wrap:anywhere}
+.transaction-register .register-title {overflow-wrap:anywhere}
+.transaction-register .register-amount,.transaction-register thead th:last-child {text-align:end;font-variant-numeric:tabular-nums}
+.transaction-register .register-amount bdi {white-space:normal;overflow-wrap:anywhere}
+.transaction-register .register-date {white-space:nowrap;color:var(--text-muted)}
+.transaction-register .register-edit button {min-block-size:32px;white-space:nowrap}
+@media(max-width:700px) {
+ .transaction-balances {grid-template-columns:repeat(2,minmax(0,1fr))}
+ .transaction-balances .transaction-balance-total {grid-column:1/-1}
+ .transaction-toolbar {padding-inline:var(--space-3)}
+ .transaction-toolbar .search-box {flex-basis:100%}
+ .transaction-register .register-table-wrap {overflow:visible}
+ .app-shell .transaction-register table {display:block;inline-size:100%;min-inline-size:0}
+ .transaction-register thead {position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%)}
+ .transaction-register tbody {display:block}
+ .transaction-register tbody tr {
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto) minmax(0,auto);
+  grid-template-areas:"title amount amount" "category date edit";
+  align-items:baseline;gap:0 var(--space-2);padding:var(--space-2) var(--space-3);
+  border-block-end:1px solid var(--border);
+ }
+ .transaction-register tbody tr:last-child {border-block-end:0}
+ .app-shell .transaction-register tbody td {min-inline-size:0;padding:0;border:0}
+ .transaction-register .register-title {grid-area:title}
+ .transaction-register .register-amount {grid-area:amount;max-inline-size:min(48vw,15rem);justify-self:end}
+ .transaction-register .register-category {grid-area:category;align-self:center;overflow-wrap:anywhere}
+ .transaction-register .register-date {grid-area:date}
+ .transaction-register .register-edit {grid-area:edit;justify-self:end}
+ .transaction-register .register-edit button {padding-inline:var(--space-2)}
+ .transaction-register .register-details {display:none}
+}

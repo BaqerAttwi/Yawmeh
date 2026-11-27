@@ -1,6 +1,8 @@
 import {PeriodChart,ValueChart} from '../../components/FinanceCharts.jsx';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {ChevronLeft,ChevronRight,Download,FileChartColumn,Plus} from 'lucide-react';
+import {ChevronLeft,ChevronRight,Download,Plus} from 'lucide-react';
+import {Empty} from '../../components/ui.jsx';
+import {workspaceText} from '../../lib/workspace-text.js';
 import {currencyCatalog,currencyLabel,formatMoney} from '../../../../shared/currency.js';
 import {buildWorkspaceReport,reportPreset,reportsFor,validReportRange,workspaceReportCsv,workspaceOverview} from '../../../../shared/workspace-reports.js';
 import {daysUntil} from '../../../../shared/domain.js';
@@ -29,11 +31,14 @@ function exportReport(report,name,start,end){
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-function ReportTable({report,title,catalog,onAddItem,busy}){
+function ReportTable({report,title,catalog,onAddItem,onAddRecord,language,busy}){
+ const t=workspaceText(language);
  const [page,setPage]=useState(0);
  const count=report.rows.length,lastPage=Math.max(0,Math.ceil(count/pageSize)-1);
  const currentPage=Math.min(page,lastPage),offset=currentPage*pageSize;
- if(!count)return <div className="report-empty"><FileChartColumn size={23} aria-hidden="true"/><p>No records match this report.</p></div>;
+ if(!count)return <Empty text={t('No records match this report.')}>
+  <button type="button" className="secondary" disabled={busy} onClick={onAddRecord}>{t('Add a record')}</button>
+ </Empty>;
  return <>
   <div className="report-table-wrap" role="region" aria-label={title+' table'} tabIndex={0}>
    <table className="report-table">
@@ -68,7 +73,7 @@ function CashFlowChart({report,currency,catalog}){
    format={value=>formatMoney(value,currency,catalog)} label="Monthly income and expenses" periodLabel={key=>key.slice(5)+"/"+key.slice(2,4)}/>
  </figure>;
 }
-function ReportDetails({data,user,current,reports,initialRange,initialPreset,onAddItem,busy}){
+function ReportDetails({data,user,current,reports,initialRange,initialPreset,onAddItem,onAddRecord,language,busy}){
  const [selected,setSelected]=useState(reports[0]?.id);
  const [preset,setPreset]=useState(initialPreset);
  const [range,setRange]=useState(initialRange);
@@ -117,7 +122,7 @@ function ReportDetails({data,user,current,reports,initialRange,initialPreset,onA
     {!report?<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>:<>
      {report.note&&<p className="report-note">{report.note}</p>}
      {definition.id==='cash-flow'&&<CashFlowChart report={report} currency={currency} catalog={catalog}/>}
-     <ReportTable key={[definition.id,start,end,currency].join('|')} report={report} title={definition.title} catalog={catalog}
+     <ReportTable key={[definition.id,start,end,currency].join('|')} report={report} title={definition.title} catalog={catalog} language={language} onAddRecord={()=>onAddRecord(definition.area,definition.id)}
       onAddItem={definition.id==='expenses'?onAddItem:undefined} busy={busy}/>
     </>}
    </section>
@@ -215,7 +220,8 @@ function ReportSummary({area,overview,display,expenseCategories,children}){
  </div>;
 }
 
-export function Reports({data,user,current,reportAPI,onAddItem,busy}){
+export function Reports({data,user,current,reportAPI,onAddItem,onAddRecord,language,busy}){
+ const t=workspaceText(language);
  const reports=reportsFor(user);
  const choices=areas.filter(([id])=>reports.some(report=>report.area===id));
  const [selected,setSelected]=useState(choices[0]?.[0]);
@@ -251,8 +257,8 @@ export function Reports({data,user,current,reportAPI,onAddItem,busy}){
      {overviewPresets.map(([id,label])=><option key={id} value={id}>{label}</option>)}
     </select></label>
    </div>
-   {choices.length>1&&<div className="segmented report-area" role="group" aria-label="Report area">
-    {choices.map(([id,label])=><button type="button" key={id} aria-pressed={area===id} className={area===id?'selected':''} onClick={()=>setSelected(id)}>{label}</button>)}
+   {choices.length>1&&<div className="segmented report-area workspace-tabs" role="group" aria-label={t('Report area')}>
+    {choices.map(([id,label])=><button type="button" key={id} aria-pressed={area===id} className={area===id?'selected':''} onClick={()=>setSelected(id)}>{t(label)}</button>)}
    </div>}
    {preset==='date'&&<div className="report-filters">
     <label className="field"><span>Report date</span><input type="date" value={start} onChange={event=>setRange({start:event.target.value,end:event.target.value})}/></label>
@@ -265,7 +271,9 @@ export function Reports({data,user,current,reportAPI,onAddItem,busy}){
     {overview.hasActivity?<ReportSummary key={area} area={area} overview={overview} display={display} expenseCategories={expenseCategories}>
       {reportAPI&&daysUntil(end,start)<=365&&<ReportExplanation key={[start,end].join('|')} api={reportAPI} area={area} start={start} end={end} period={period}/>}
      </ReportSummary>
-     :<p className="report-note">No {area==='money'?'income or expenses':'task activity'} recorded for this period.</p>}
+     :<Empty text={t(area==='money'?'No income or expenses recorded for this period.':'No task activity recorded for this period.')}>
+       <button type="button" className="secondary" disabled={busy} onClick={()=>onAddRecord(area)}>{t(area==='money'?'Add transaction':'Add task')}</button>
+      </Empty>}
    </>:<p className="report-note" role="alert">Choose an ordered date range of up to 3,660 days.</p>}
   </section>
   <details className="card report-details" onToggle={event=>{if(event.currentTarget.open)setDetailsOpened(true);}}>
@@ -273,7 +281,7 @@ export function Reports({data,user,current,reportAPI,onAddItem,busy}){
    {detailsOpened&&<ReportDetails key={[area,preset,start,end].join('|')} data={data} user={user} current={current}
     reports={reports.filter(report=>report.area===area)} initialRange={overview?selectedRange:reportPreset('month',current)}
     initialPreset={overview?(preset==='date'?'custom':preset):'month'}
-    onAddItem={onAddItem} busy={busy}/>}
+    onAddItem={onAddItem} onAddRecord={onAddRecord} language={language} busy={busy}/>}
   </details>
  </div>;
 }

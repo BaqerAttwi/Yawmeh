@@ -102,7 +102,7 @@ try {
   });
   await live.goto(url);
   const firstGuide=live.getByRole('dialog',{name:'Start here'});
-  await firstGuide.getByRole('button',{name:'Close getting started'}).click();
+  await live.locator('.main-shell').waitFor();
   await firstGuide.waitFor({state:'hidden'});
   const attention=live.getByRole('region',{name:'Needs attention'});
   assert.equal(await attention.locator('.attention-row:visible').count(),3);

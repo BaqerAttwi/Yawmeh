@@ -39,7 +39,6 @@ try{
   return route.fulfill({json:{available:false,google:false}});
  });
  await page.goto(`http://127.0.0.1:${server.address().port}`);
- await page.getByRole('button',{name:'Close getting started'}).click();
  await page.locator('.companion-launcher').click();
  await page.locator('#companion-question').fill('ratteb yomi');await page.locator('.companion-chat-input button').click();
  await page.getByText('بلّش بمهمة وحدة وخد استراحة.',{exact:true}).waitFor();assert.equal(calls[0].language,'ar');

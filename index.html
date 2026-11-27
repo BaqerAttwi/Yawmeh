@@ -1,9 +1,27 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta name="theme-color" content="__BRAND_THEME_COLOR__"/>
     <meta charset="UTF-8"/>
+    <meta name="theme-color" content="__BRAND_THEME_COLOR__"/>
     <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <!-- The CSP hash must match this script after every edit. The server recalculates it from the built HTML on startup. -->
+    <script id="appearance-bootstrap">
+      try {
+        const {dataset} = document.documentElement;
+        const theme = localStorage.getItem('yawmeh:theme');
+        const palette = localStorage.getItem('yawmeh.palette');
+        if (theme === 'light' || theme === 'dark') dataset.theme = theme;
+        if (['ocean', 'coral', 'emerald'].includes(palette)) dataset.palette = palette;
+      } catch {}
+    </script>
+    <style>
+      html {color-scheme:light dark;background:light-dark(__BRAND_LIGHT_BG__,__BRAND_DARK_BG__)}
+      html[data-theme="light"] {color-scheme:light}
+      html[data-theme="dark"] {color-scheme:dark}
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&amp;family=Inter:wght@400;500;600&amp;display=swap"/>
     <meta name="author" content="Mohammad Attwi"/>
     <title>yawmeh.me — A little more intentional</title>
     <meta name="description" content="Make your day a little more intentional with Yawmeh. Organize tasks, track income and expenses, manage subscriptions, and work toward your savings goals."/>
@@ -25,7 +43,6 @@
     <meta name="twitter:image:alt" content="Yawmeh app logo"/>
     <link rel="icon" type="image/png" sizes="32x32" href="/branding/favicon-32.png"/>
     <link rel="icon" type="image/png" sizes="48x48" href="/branding/favicon-48.png"/>
-    <link rel="icon" type="image/svg+xml" href="/branding/yawmeh-logo.svg"/>
     <link rel="manifest" href="/manifest.webmanifest"/>
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-capable" content="yes"/>

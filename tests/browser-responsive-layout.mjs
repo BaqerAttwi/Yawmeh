@@ -92,13 +92,23 @@ try {
   await page.goto(url);
   await page.getByRole('heading',{name:'Welcome back.'}).waitFor();
   await checkLogo('.login-story .brand-logo','yawmeh-logo-512.webp',512);
-  assert.deepEqual(await page.locator('link[rel="icon"]').evaluateAll(icons=>icons.map(icon=>icon.getAttribute('href'))),[
-   '/branding/favicon-32.png','/branding/favicon-48.png','/branding/yawmeh-logo.svg',
+  assert.deepEqual(await page.locator('link[rel="icon"]').evaluateAll(icons=>icons.map(icon=>[icon.getAttribute('href'),icon.type,icon.sizes.value])),[
+   ['/branding/favicon-32.png','image/png','32x32'],
+   ['/branding/favicon-48.png','image/png','48x48'],
   ]);
   await check('Login');
   await context.addCookies([{name:'daywell_session',value:'a'.repeat(64),url}]);
   await page.reload();
-  await page.getByRole('button',{name:'Close getting started'}).click();
+  await page.locator('.workspace-page-header').waitFor();
+  assert.equal(await page.getByRole('dialog',{name:'Start here'}).count(),0);
+  if(width<=700){
+   await check('Phone navigation','.phone-navigation');
+   await page.locator('.phone-add').click();
+   const quickAdd=page.getByRole('dialog',{name:t('Quick add')});
+   await quickAdd.getByRole('button',{name:new RegExp(t('Add task'))}).waitFor();
+   await page.keyboard.press('Escape');
+   await quickAdd.waitFor({state:'hidden'});
+  }
   await checkLogo('.sidebar .brand-logo','yawmeh-logo-192.webp',192);
   await checkLogo('.companion-launcher .assistant-icon-logo','yawmeh-logo-192.webp',192);
   await check('Top bar','.topbar');
@@ -113,14 +123,10 @@ try {
    await page.locator(toggle).click();
   }
   async function go(name){
-   if(width<=700)await page.getByRole('button',{name:'Open navigation',exact:true}).click();
+   if(width<=700)await page.locator('.sidebar-toggle').click();
    await page.locator('.sidebar').getByRole('button',{name,exact:true}).click();
   }
   for(const tab of ['Today','Dashboard','Calendar','Weekly review','History']){
-   if(['Calendar','Weekly review','History'].includes(tab)){
-    await page.locator('.overview-more>summary').click();
-    await check('More overview views','.overview-menu');
-   }
    await page.locator('.overview-tabs').getByRole('button',{name:t(tab),exact:true}).click();
    if(rtl&&(tab==='Today'||tab==='Dashboard')){
     assert.match(await page.locator('.page-date').textContent(),/\p{Script=Arabic}/u);
@@ -179,7 +185,7 @@ try {
   assert.equal(await page.locator('#companion-question').evaluate(input=>input===document.activeElement),true);
   await page.locator('.companion-panel-header button').last().click();
   if(width<=700){
-   await page.getByRole('button',{name:'Open navigation',exact:true}).click();
+   await page.locator('.sidebar-toggle').click();
    await check('Navigation drawer','.sidebar');
    await page.locator('.companion-launcher').click();
    await page.locator('.companion-chat-panel').waitFor();

@@ -11,6 +11,7 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import {trustedProxies} from './config/security.js';
+import {createHash} from 'node:crypto';
 
 import {existsSync,readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -27,9 +28,18 @@ import {existingOfflineRecord,offlineSyncId} from './modules/offline-sync.js';
 
 export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions={recovery:recoveryStore(db)},signupOptions,speechOptions,companionOptions,trustProxy=trustedProxies()}={}) {
  const app=express();
+ const indexFile=new URL('../../dist/index.html',import.meta.url);
+ const index=existsSync(indexFile)?readFileSync(indexFile,'utf8'):null;
+ // Authorize the static before-paint script without enabling arbitrary inline scripts.
+ const appearanceScript=index?.match(/<script id="appearance-bootstrap">([\s\S]*?)<\/script>/)?.[1];
+ const scriptSources=["'self'"];
+ if(appearanceScript){
+   const hash=createHash('sha256').update(appearanceScript.replace(/\r\n?/g,'\n')).digest('base64');
+   scriptSources.push(`'sha256-${hash}'`);
+ }
  app.set('trust proxy',trustProxy);
  app.disable('x-powered-by');
- app.use(helmet({contentSecurityPolicy:{directives:{'style-src':["'self'","'unsafe-inline'",'https://fonts.googleapis.com'],'font-src':["'self'",'https://fonts.gstatic.com'],'script-src':["'self'"],'media-src':["'self'",'blob:'],'upgrade-insecure-requests':null}}}));
+ app.use(helmet({contentSecurityPolicy:{directives:{'style-src':["'self'","'unsafe-inline'",'https://fonts.googleapis.com'],'font-src':["'self'",'https://fonts.gstatic.com'],'script-src':scriptSources,'media-src':["'self'",'blob:'],'upgrade-insecure-requests':null}}}));
  app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();});
  app.use('/api',rateLimit({windowMs:60000,limit:120,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many requests. Wait a minute and try again.'}}));
  app.use('/api',protectMutation);
@@ -129,9 +139,7 @@ export function createApp({db=pool,authStore=mysqlAuthStore(db),recoveryOptions=
  });
  app.post('/api/chat',(req,res)=>res.status(403).json({error:'Paid AI chat has been removed. Use the free local companion.'}));
  app.use('/api',(req,res)=>res.status(404).json({error:'API route not found.'}));
- const indexFile=new URL('../../dist/index.html',import.meta.url);
- if(existsSync(indexFile)){
-   const index=readFileSync(indexFile,'utf8');
+ if(index){
    function serveIndex(req,res){
      // These flags describe the request and public configuration. The API still validates the session.
      const hasCookie=auth.hasSessionCookie(req);

@@ -5,7 +5,7 @@ import {ValueChart} from './FinanceCharts.jsx';
 import {monthlyMoney} from '../../../shared/monthly-money.js';
 import {workspaceText} from '../lib/workspace-text.js';
 
-export function TodayMoneySummary({data,end,language,children}){
+export function TodayMoneySummary({data,end,language}){
  const t=workspaceText(language);
  const month=monthlyMoney(data,end).at(-1);
  const limit=month?.limit,spent=month?.expenses;
@@ -13,7 +13,6 @@ export function TodayMoneySummary({data,end,language,children}){
  const currency=data.settings?.home_currency||'USD';
  const available=balances(data.entries.filter(entry=>entry.date<=end),currency).available;
  return <div className="today-money-summary">
-  {children}
   <section className="card today-money-stat">
    <h3>{t('Left this month')}</h3>
    <strong><bdi>{hasBudget?formatMoney(limit-spent):t(limit===null?'No monthly budget':'Unavailable')}</bdi></strong>
@@ -51,10 +50,10 @@ export function SpendingBalance({data,end,language}) {
   <summary>
    <span className="balance-hero-label">{t('Safe to spend today')}</span>
    <strong className="balance-hero-value"><bdi>{byCurrency.length===1?byCurrency[0]:formatted(balance.available)}</bdi></strong>
-   {byCurrency.length>1&&<span className="spending-currencies">{byCurrency.join(' · ')}</span>}
    <span className="balance-hero-pill">{t('See breakdown')}</span>
   </summary>
   <p>{t('Balance through {date}. Spending is tracked separately in each currency.',{date:end})}</p>
+  {byCurrency.length>1&&<p>{byCurrency.map(amount=><bdi key={amount}>{amount} </bdi>)}</p>}
   {converts&&<p>{t('Combined estimate ({currency}): {amount}. Uses saved exchange rates.',{currency:display,amount:formatted(balance.available)})}</p>}
   <dl>{spendingRows.map(({name,value})=><div key={name}>
    <dt>{t(name)}</dt><dd><bdi>{formatted(value)}</bdi></dd>

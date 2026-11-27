@@ -15,7 +15,7 @@ export function SavedItems({language,items,categories,busy,needsRefresh,onAdd,on
   if(!groups.has(category))groups.set(category,[]);
   groups.get(category).push(item);
  }
- return <section className="card">
+ return <section className="card money-tab-panel">
   <CardTitle title={t("Your everyday essentials")} subtitle={t("Log a purchase at its saved price or adjust the details first.")}
    action={<button type="button" data-tour="add-item" className="primary" disabled={busy} onClick={()=>onAdd()}><Plus size={15}/>{t("New item")}</button>}/>
   {[...groups].map(([category,rows])=><section key={category} aria-label={category} className="saved-item-category">

@@ -6,16 +6,13 @@ import {DemoGuides} from './DemoGuides.jsx';
 import {gettingStartedSteps,guideStepReached,guideTopics} from '../../../../shared/getting-started.js';
 import './getting-started.css';
 
-export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,onOpen,onNavigate,onTourChange,onStartRecord,firstTask,firstIncome,onTutorials,onTrailer}) {
- const key=`yawmeh-start-here:v1:${mode}:${user.id}`;
- const [dismissed,setDismissed]=useState(()=>{try{return localStorage.getItem(key)==='done';}catch{return false;}});
+export function GettingStarted({user,page,tab,overviewTab,can,open,onClose,onOpen,onNavigate,onTourChange,onStartRecord,firstTask,firstIncome,onTutorials,onTrailer}) {
  const [view,setView]=useState('choices'),[index,setIndex]=useState(null),[completed,setCompleted]=useState(false);
  const [focus,setFocus]=useState('all');
  const [topic,setTopic]=useState('');
  const dialog=useRef(),next=useRef();const steps=gettingStartedSteps(user,focus),step=index===null?null:steps[index],reached=guideStepReached(step,{page,tab,overviewTab});
- const remember=()=>{setDismissed(true);try{localStorage.setItem(key,'done');}catch{}};
- const showDialog=open||(mode==='live'&&!dismissed&&index===null);
- function dismissGuide(){remember();onClose();}
+ const showDialog=open;
+ function dismissGuide(){onClose();}
  useEffect(()=>{
   if(showDialog){
    setView('choices');
@@ -31,10 +28,9 @@ export function GettingStarted({user,mode,page,tab,overviewTab,can,open,onClose,
   document.addEventListener('keydown',escape);
   return()=>{cancelAnimationFrame(frame);target?.classList.remove('tour-target');document.removeEventListener('keydown',escape);};
  },[step?.id,reached]);
- function begin(topic){remember();onClose();setCompleted(false);setFocus(topic);setIndex(0);}
- function finish(){setIndex(null);remember();setCompleted(true);onOpen();}
+ function begin(topic){onClose();setCompleted(false);setFocus(topic);setIndex(0);}
+ function finish(){setIndex(null);setCompleted(true);onOpen();}
  return <>
-  {page==='overview'&&!dismissed&&index===null&&!showDialog&&<section className="start-here-banner"><div><Compass size={20}/><span><strong>Getting started</strong><small>See where to begin, with a video or your companion.</small></span></div><button className="primary" onClick={onOpen}>Start here <ArrowRight size={16}/></button><button className="icon-button" aria-label="Dismiss getting started" onClick={remember}><X size={16}/></button></section>}
   {showDialog&&<dialog ref={dialog} className="start-here-dialog" aria-label="Start here" onCancel={e=>{e.preventDefault();dismissGuide();}}>
    <header><span className="eyebrow">YOUR FIRST SMALL STEPS</span><button type="button" className="icon-button" aria-label="Close getting started" onClick={dismissGuide}><X size={20}/></button></header>
    <div className="start-here-intro"><GuideAvatar/><div><h2>{completed?'You know your way around.':'Let’s find your starting point.'}</h2><p>{completed?'Come back any time for a refresher.':'I’m Sage. Start with the guided tour, or watch the steps before trying them yourself.'}</p></div></div>

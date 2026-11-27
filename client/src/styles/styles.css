@@ -99,5 +99,5 @@ dialog::backdrop {background:var(--overlay)}
 .currency-report :is([data-money="saved"],[data-money="savings"]) strong,.money-effect>div:nth-child(2) dd,.spending-breakdown dl>div:nth-child(2) dd {color:var(--savings)}
 .currency-report [data-money="spent"] strong,.spending-breakdown dl>div:last-child dd {color:var(--expense)}
 .monthly-money-detail dd,.money-effect dd,.spending-breakdown dd {font-variant-numeric:tabular-nums}
-:lang(ar) {line-height:1.65;letter-spacing:normal}
+:lang(ar) {line-height:1.6;letter-spacing:normal}
 :dir(rtl) :is(.lucide-chevron-left,.lucide-chevron-right,.lucide-chevrons-left,.lucide-chevrons-right,.lucide-arrow-left,.lucide-arrow-right,.lucide-log-out,.lucide-log-in) {scale:-1 1}

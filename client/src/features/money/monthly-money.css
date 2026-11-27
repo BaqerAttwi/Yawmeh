@@ -33,7 +33,7 @@
 .monthly-money-column {flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:0;border-radius:var(--radius-md);color:var(--text)}
 .monthly-money-column:hover,.monthly-money-column[aria-pressed="true"] {background:var(--primary-soft);color:var(--text)}
 .monthly-money-column:focus-visible {outline-offset:2px}
-.monthly-money-month {display:block;padding:var(--space-2) 0;font-size:var(--font-xs);font-weight:750}
+.monthly-money-month {display:block;padding:var(--space-2) 0;font-size:var(--font-badge);font-weight:750}
 .monthly-money-detail {margin-top:var(--space-5);padding:clamp(12px,2.5vw,20px);border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-md)}
 .monthly-money-detail-head h3 {font-size:var(--fs-sm);color:var(--text-muted)}
 .monthly-money-budget {display:grid;gap:var(--space-1);margin-block-start:var(--space-1)}

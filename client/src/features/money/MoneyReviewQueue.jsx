@@ -9,8 +9,8 @@ export function MoneyReviewQueue({drafts,entries,language,busy,onReceipt,onDisca
  const t=workspaceText(language);
  const uncategorized=entries.filter(needsCategoryReview);
  const count=drafts.length+uncategorized.length;
- if(!count)return null;
- return <details className="card money-review">
+ if(!count)return <span className="money-review-empty">{t('Needs review')} <span className="count-badge">0</span></span>;
+ return <details className="money-review">
   <summary>{t('Needs review')} <span className="count-badge">{count}</span></summary>
   <div className="money-review-list">
    {drafts.length>0&&<p className="muted">{t('Receipt drafts are saved in this browser until you record or discard them.')}</p>}

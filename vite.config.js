@@ -11,28 +11,35 @@ async function brandColors(){
     if(!match)throw new Error(`Missing brand color token: ${name}`);
     return match[1];
   };
-  return {theme_color:color('ink'),background_color:color('pwa-background')};
+  return {themeColor:color('ink'),lightBackground:color('pwa-background'),darkBackground:color('charcoal')};
+}
+
+async function manifestColors(){
+  const {themeColor,lightBackground}=await brandColors();
+  return {theme_color:themeColor,background_color:lightBackground};
 }
 
 const brandMetadata={
   name:'brand-metadata',
   async transformIndexHtml(html){
-    const {theme_color}=await brandColors();
-    return html.replace('content="__BRAND_THEME_COLOR__"',`content="${theme_color}"`);
+    const {themeColor,lightBackground,darkBackground}=await brandColors();
+    return html.replace('__BRAND_THEME_COLOR__',themeColor)
+      .replace('__BRAND_LIGHT_BG__',lightBackground)
+      .replace('__BRAND_DARK_BG__',darkBackground);
   },
   configureServer(server){
     server.middlewares.use('/manifest.webmanifest',async(_req,res,next)=>{
       try{
         const template=JSON.parse(await readFile(resolve(server.config.publicDir,'manifest.webmanifest'),'utf8'));
         res.setHeader('Content-Type','application/manifest+json');
-        res.end(JSON.stringify({...template,...await brandColors()}));
+        res.end(JSON.stringify({...template,...await manifestColors()}));
       }catch(error){next(error);}
     });
   },
   async writeBundle({dir}){
     const path=resolve(dir,'manifest.webmanifest');
     const manifest=JSON.parse(await readFile(path,'utf8'));
-    await writeFile(path,JSON.stringify({...manifest,...await brandColors()},null,2)+'\n');
+    await writeFile(path,JSON.stringify({...manifest,...await manifestColors()},null,2)+'\n');
   },
 };
 

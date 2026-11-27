@@ -31,7 +31,6 @@ try{
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(url);
-  await page.getByRole('button',{name:'Close getting started'}).click();
   await page.locator('.companion-launcher').click();
   const beforeHelp=records.entries.length;
   const message=page.locator('#companion-question');
@@ -50,7 +49,7 @@ try{
   await form.locator('.modal-heading button').click();
   assert.equal(records.entries.filter(entry=>entry.title===title).length,0);
   await page.reload();
-  if(width<=700)await page.getByRole('button',{name:'Open navigation',exact:true}).click();
+  if(width<=700)await page.locator('.sidebar-toggle').click();
   await page.locator('.sidebar').getByRole('button',{name:'Money',exact:true}).click();
   const queue=page.locator('.money-review');
   await queue.locator('summary').click();
@@ -71,7 +70,7 @@ try{
   assert.equal(entry.reviewed,true);
   assert.equal(entry.category_review_requested,false);
   assert.equal(entry.amount,12.5);
-  await page.locator('.page-heading').getByRole('button',{name:t('Expense'),exact:true}).click();
+  await page.locator('.transaction-register .card-heading').getByRole('button',{name:t('Expense'),exact:true}).click();
   const deliberateOther='Intentional Other '+language;
   await form.locator('[name=title]').fill(deliberateOther);
   await form.locator('[name=amount]').fill('1.25');

@@ -1,7 +1,17 @@
-:root {font-variant-numeric:tabular-nums}
+:root, :where(button,input,select,textarea,bdi) {font-variant-numeric:tabular-nums}
 body {background:var(--bg);color:var(--text);line-height:1.45}
 h1,h2,h3 {font-weight:600}
-:where([dir="rtl"]):not(svg),html:lang(ar) {font-family:'IBM Plex Sans Arabic',Inter,system-ui,sans-serif;font-size:var(--font-arabic);line-height:1.6;letter-spacing:normal}
+:where([lang="ar"]) {
+  --fs-xs:14px;
+  --fs-sm:15px;
+  --fs-base:var(--font-arabic);
+  --font-xs:var(--fs-xs);
+  --font-sm:var(--fs-sm);
+  --font-md:var(--fs-base);
+  font-family:'IBM Plex Sans Arabic',Inter,system-ui,sans-serif;
+  font-size:var(--font-arabic);line-height:1.6;letter-spacing:normal;
+}
+:where(.badge,.category,.count-badge,.demo-chip,.access-chips>span,.monthly-money-range) {--fs-xs:var(--font-badge)}
 
 .app-shell {--workspace-sidebar-width:232px}
 .app-shell .sidebar {
@@ -114,10 +124,11 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible {outline:2px solid var(--focus);outline-offset:2px}
 .app-shell .sidebar :is(button,a):focus-visible {outline-color:var(--focus)}
 
-.app-shell .overview-tabs,.app-shell .filterbar {
-  display:flex;align-items:center;gap:var(--space-3);border-block-end:1px solid var(--border);margin-block-end:var(--space-5);
-}
-.app-shell .overview-tabs {flex-direction:row;flex-wrap:wrap;overflow:visible}
+.workspace-page-header {position:sticky;inset-block-start:0;z-index:12;background:var(--bg);padding-block:var(--space-2);margin-block-end:var(--space-4)}
+.app-shell .workspace-page-header .page-heading {margin-block-end:var(--space-2)}
+.workspace-page-header .filterbar {display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin:0;border:0}
+.workspace-page-header .date-range {margin:0}
+.phone-navigation {display:none}
 .app-shell .main-shell .filterbar .segmented,.app-shell .segmented {
   padding:0;background:transparent;border:0;border-radius:0;gap:var(--space-1);min-width:0;max-width:100%;overflow-x:auto;
 }
@@ -127,24 +138,57 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 }
 .app-shell .segmented button:hover,.app-shell .overview-tabs button:hover {color:var(--text)}
 .app-shell .segmented button.selected,.app-shell .overview-tabs button.selected {background:transparent;border-block-end-color:var(--accent-strong);color:var(--text);font-weight:600}
-.app-shell .overview-tabs>button {width:auto;min-height:42px}
-.overview-more {position:relative}
-.overview-more>summary {
-  display:flex;align-items:center;gap:var(--space-1);min-height:42px;list-style:none;
-  padding:var(--space-2);color:var(--text-muted);font-size:var(--fs-sm);cursor:pointer;
-  border-block-end:2px solid transparent;
+.app-shell :is(.workspace-page-header,.reports-workspace,.task-toolbar) .workspace-tabs {
+  display:flex;flex:0 1 auto;flex-wrap:nowrap;gap:var(--space-1);inline-size:fit-content;max-inline-size:100%;
+  overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-pill);
+  padding:3px;margin-block-end:var(--space-1);background:var(--surface-2);scroll-padding-inline:3px;
 }
-.overview-more>summary::-webkit-details-marker {display:none}
-.overview-more>summary.selected {color:var(--text);border-block-end-color:var(--accent-strong);font-weight:600}
-.overview-menu {
-  position:absolute;inset-inline-end:0;inset-block-start:100%;min-inline-size:148px;z-index:10;
-  display:grid;padding:var(--space-1);border:1px solid var(--border);border-radius:var(--radius-md);
-  background:var(--surface);box-shadow:var(--shadow-sm);
+.app-shell :is(.workspace-page-header,.reports-workspace,.task-toolbar) .workspace-tabs button {
+  flex:0 0 auto;inline-size:auto;min-block-size:36px;padding:var(--space-1) var(--space-3);margin:0;
+  border:0;border-radius:var(--radius-pill);font-size:var(--fs-sm);
 }
-.app-shell .overview-menu button {justify-content:flex-start;border:0;border-radius:var(--radius-sm)}
-.app-shell .overview-menu button:is(:hover,[aria-current="page"]) {background:var(--surface-2);color:var(--text)}
+.app-shell :is(.workspace-page-header,.reports-workspace,.task-toolbar) .workspace-tabs button.selected {
+  position:relative;isolation:isolate;background:transparent;color:var(--text);
+}
+.workspace-tabs button.selected::before {
+  content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--surface);
+}
+.workspace-tabs button:focus-visible {outline-offset:-2px}
 @media(max-height:400px) {
-  .overview-menu {inset-block-start:auto;inset-block-end:100%;max-block-size:42dvh;overflow-y:auto}
+  .workspace-page-header {position:static}
+}
+@media(max-width:700px) {
+  html:has(.app-shell) {
+    scroll-padding-block-start:min(16rem,34dvh);
+    scroll-padding-block-end:calc(64px + env(safe-area-inset-bottom,0px));
+  }
+  .app-shell {--phone-navigation-size:calc(64px + env(safe-area-inset-bottom, 0px))}
+  .app-shell .main-shell main {padding-block-end:calc(var(--phone-navigation-size) + var(--space-8))}
+  .phone-navigation {
+    position:fixed;inset-inline:0;inset-block-end:0;z-index:42;display:grid;grid-auto-flow:column;
+    grid-auto-columns:minmax(0,1fr);align-items:center;min-block-size:var(--phone-navigation-size);
+    padding:var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom,0px));
+    border-block-start:1px solid var(--border);background:var(--surface);
+  }
+  .phone-navigation button {
+    min-inline-size:0;min-block-size:52px;display:flex;flex-direction:column;gap:2px;
+    padding:2px;border:0;border-radius:var(--radius-sm);background:transparent;
+    color:var(--text-muted);font-size:var(--font-badge);line-height:1.2;
+  }
+  .phone-navigation:lang(ar) button {font-size:13px}
+  .phone-navigation button[aria-current="page"] {background:var(--surface-2);color:var(--text);font-weight:600}
+  .phone-navigation .phone-add svg {background:var(--brand);color:var(--on-brand);padding:3px;box-sizing:content-box;border-radius:50%}
+  .app-shell.sidebar-closed .sidebar>.companion-dock {inset-block-end:calc(var(--phone-navigation-size) + var(--space-2))}
+  .app-shell>.toast,.app-shell .getting-started-coach {inset-block-end:calc(var(--phone-navigation-size) + var(--space-2))}
+  .app-shell.sidebar-closed .sidebar .companion-chat-panel {
+    inset-block-end:calc(var(--phone-navigation-size) + var(--space-2));
+    max-block-size:calc(var(--companion-viewport-height,100dvh) - var(--phone-navigation-size) - var(--space-4));
+  }
+  .app-shell:has(.companion-keyboard-open) .phone-navigation {visibility:hidden}
+  .app-shell.sidebar-closed .sidebar .companion-keyboard-open {
+    inset-block-end:calc(var(--companion-keyboard-gap,0px) + var(--space-2));
+    max-block-size:calc(var(--companion-viewport-height,100dvh) - var(--space-4));
+  }
 }
 .dashboard-essentials {display:grid;gap:var(--space-3);margin-block:var(--space-4)}
 .dashboard-essentials:empty {display:none}
@@ -186,8 +230,7 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   background:var(--hero);color:var(--hero-fg);text-align:start;
 }
 .today-balance .spending-breakdown>summary {
-  list-style:none;background:var(--spend-card);color:var(--spend-value);
-  border:1px solid var(--spend-edge);
+  list-style:none;background:var(--spend-card);min-block-size:154px;
 }
 .app-shell .today-balance:not(:has(.spending-breakdown[open])) {padding:0;background:transparent}
 .today-balance .spending-breakdown>summary::-webkit-details-marker {display:none}
@@ -200,11 +243,10 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);
   background:var(--hero-accent);color:var(--hero);font-size:var(--fs-xs);font-weight:600;
 }
-.today-balance .spending-breakdown>summary>:is(.balance-hero-label,.spending-currencies) {color:var(--spend-label)}
-.today-balance .spending-breakdown>summary>.balance-hero-value {color:var(--spend-value)}
-.today-balance .spending-breakdown>summary>.balance-hero-pill {background:var(--spend-pill);color:var(--spend-pill-text)}
+.today-balance .spending-breakdown>summary>.balance-hero-value {font-size:clamp(32px,5vw,40px)}
+.today-balance .spending-breakdown>summary>.balance-hero-pill {color:var(--spend-card)}
 .today-balance .spending-breakdown>summary>span {text-decoration:none}
-.today-balance .spending-breakdown>summary:hover>.balance-hero-pill {background:var(--spend-pill-hover)}
+.today-balance .spending-breakdown>summary:hover>.balance-hero-pill {background:var(--brand-hover)}
 .balance-hero-value bdi,[data-money] strong bdi,.table-wrap .amount bdi {direction:ltr;unicode-bidi:isolate}
 :dir(rtl) :is(.lucide-chevron-left,.lucide-chevron-right,.lucide-arrow-left,.lucide-arrow-right):not(.report-chart *,.finance-chart *,.priority-chart *) {scale:-1 1}
 .app-shell .quick-purchase-card {
@@ -217,9 +259,14 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 }
 .app-shell .quick-purchase-card .quick-items button small {text-align:end;white-space:nowrap}
 .app-shell .quick-purchase-card .quick-items button strong {min-width:0;overflow-wrap:anywhere;font-weight:500}
-.today-money-summary {display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:var(--space-3);margin-block-end:var(--space-3)}
-.today-money-summary .today-balance {margin:0}
-.today-money-summary .spending-breakdown>summary {min-block-size:154px}
+.today-lead,.today-money-summary {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3)}
+.today-lead {align-items:start}
+.today-lead>.card:only-child {grid-column:1/-1}
+.app-shell .today-lead>.card {margin:0}
+.today-next {display:grid;align-content:center;justify-items:start;gap:var(--space-2);min-block-size:154px;overflow-wrap:anywhere}
+.app-shell .today-next :is(h3,p) {margin:0}
+.today-next p {color:var(--text-muted)}
+.today-money-summary {margin-block-start:var(--space-3)}
 .today-money-stat {display:grid;align-content:center;gap:var(--space-2);padding:var(--space-5);overflow-wrap:anywhere}
 .today-money-stat strong {font-size:var(--fs-xl);font-weight:600}
 .today-money-stat progress {inline-size:100%;block-size:var(--space-1)}
@@ -319,12 +366,37 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
   .app-shell .filterbar .segmented {flex-wrap:nowrap}
   .app-shell .filterbar .segmented button {font-size:var(--fs-xs)}
   .app-shell .quick-purchase-card .quick-items {grid-template-columns:minmax(0,1fr)}
-  .today-money-summary {grid-template-columns:minmax(0,1fr)}
+  .today-lead,.today-money-summary {grid-template-columns:minmax(0,1fr)}
 }
+.task-check[aria-disabled="true"] {cursor:not-allowed}
+.actionable-empty {display:grid;justify-items:center;gap:var(--space-2)}
+.actionable-empty .button-row {justify-content:center}
+.actionable-empty .empty-character {inline-size:52px;block-size:52px}
+.page-loading .workspace-skeleton {max-inline-size:100%;margin:0}
+.workspace-page-content {view-transition-name:workspace-content}
+::view-transition-group(root),::view-transition-new(root) {animation:none}
+::view-transition-old(root) {display:none}
+::view-transition-group(workspace-content) {animation-duration:0s;clip-path:var(--workspace-content-clip,inset(0))}
 @media(prefers-reduced-motion:no-preference){
   :is(button,summary,a) {transition:background-color 120ms,color 120ms,border-color 120ms}
-  dialog[open] {animation:panel-fade 150ms ease-out}
-  .toast {animation:toast-in 180ms ease-out}
+  dialog[open] {animation:panel-in var(--motion-base) var(--motion-ease)}
+  .toast {animation:toast-in var(--motion-base) var(--motion-ease)}
+  .task-feedback svg {animation:task-tick var(--motion-fast) var(--motion-ease)}
+  .workspace-tabs button.selected::before {animation:tab-marker var(--motion-fast) var(--motion-ease)}
+  .transaction-feedback td {animation:row-feedback var(--motion-slow) var(--motion-ease)}
+  .workspace-skeleton-card span {animation:skeleton-pulse 1.6s var(--motion-ease) infinite alternate}
+  ::view-transition-old(workspace-content) {animation:navigation-out 150ms var(--motion-ease) both}
+  ::view-transition-new(workspace-content) {animation:navigation-in 150ms var(--motion-ease) both}
+  @media(max-width:700px) {
+    .quick-add-dialog[open] {animation:sheet-in var(--motion-base) var(--motion-ease)}
+  }
 }
-@keyframes panel-fade {from {opacity:0}}
+@keyframes panel-in {from {translate:0 4px;opacity:0}}
+@keyframes sheet-in {from {translate:calc(8px * var(--inline-direction)) 0;opacity:0}}
 @keyframes toast-in {from {translate:0 8px;opacity:0}}
+@keyframes task-tick {from {opacity:.35;transform:scale(.78)}}
+@keyframes tab-marker {from {opacity:0;translate:calc(-4px * var(--inline-direction)) 0}}
+@keyframes row-feedback {from {background:var(--primary-soft)}}
+@keyframes skeleton-pulse {from {opacity:.6} to {opacity:1}}
+@keyframes navigation-in {from {opacity:0}}
+@keyframes navigation-out {to {opacity:0}}
