@@ -124,12 +124,12 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible {outline:2px solid var(--focus);outline-offset:2px}
 .app-shell .sidebar :is(button,a):focus-visible {outline-color:var(--focus)}
 
-.workspace-page-header {position:sticky;inset-block-start:0;z-index:12;background:var(--bg);padding-block:var(--space-2);margin-block-end:var(--space-4)}
+.workspace-page-header {padding-block:var(--space-2);margin-block-end:var(--space-4)}
 .app-shell .workspace-page-header .page-heading {margin-block-end:var(--space-2)}
 .workspace-page-header .filterbar {display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin:0;border:0}
 .workspace-page-header .date-range {margin:0}
 .phone-navigation {display:none}
-.app-shell .main-shell .filterbar .segmented,.app-shell .segmented {
+.app-shell .main-shell .filterbar .segmented:not(.workspace-tabs),.app-shell .segmented {
   padding:0;background:transparent;border:0;border-radius:0;gap:var(--space-1);min-width:0;max-width:100%;overflow-x:auto;
 }
 .app-shell .segmented button,.app-shell .overview-tabs button {
@@ -139,27 +139,25 @@ progress:not(:is(.report-chart *, .insight-ring *, .priority-chart *, .demo-ring
 .app-shell .segmented button:hover,.app-shell .overview-tabs button:hover {color:var(--text)}
 .app-shell .segmented button.selected,.app-shell .overview-tabs button.selected {background:transparent;border-block-end-color:var(--accent-strong);color:var(--text);font-weight:600}
 .app-shell :is(.workspace-page-header,.reports-workspace,.task-toolbar) .workspace-tabs {
-  display:flex;flex:0 1 auto;flex-wrap:nowrap;gap:var(--space-1);inline-size:fit-content;max-inline-size:100%;
-  overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-pill);
-  padding:3px;margin-block-end:var(--space-1);background:var(--surface-2);scroll-padding-inline:3px;
+  display:flex;flex:0 1 auto;flex-flow:row nowrap;align-items:center;gap:var(--space-1);inline-size:fit-content;max-inline-size:100%;
+  overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:3px;margin-block-end:var(--space-1);background:var(--surface);scroll-padding-inline:3px;
 }
 .app-shell :is(.workspace-page-header,.reports-workspace,.task-toolbar) .workspace-tabs button {
   flex:0 0 auto;inline-size:auto;min-block-size:36px;padding:var(--space-1) var(--space-3);margin:0;
   border:0;border-radius:var(--radius-pill);font-size:var(--fs-sm);
 }
 .app-shell :is(.workspace-page-header,.reports-workspace,.task-toolbar) .workspace-tabs button.selected {
-  position:relative;isolation:isolate;background:transparent;color:var(--text);
+  position:relative;isolation:isolate;background:transparent;color:var(--hero-fg);font-weight:600;
 }
 .workspace-tabs button.selected::before {
-  content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--surface);
+  content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--hero);
+  border:2px solid light-dark(transparent,var(--hero-accent));
 }
 .workspace-tabs button:focus-visible {outline-offset:-2px}
-@media(max-height:400px) {
-  .workspace-page-header {position:static}
-}
+.workspace-tabs button.selected:focus-visible {outline-color:var(--hero-fg);outline-offset:-4px}
 @media(max-width:700px) {
   html:has(.app-shell) {
-    scroll-padding-block-start:min(16rem,34dvh);
     scroll-padding-block-end:calc(64px + env(safe-area-inset-bottom,0px));
   }
   .app-shell {--phone-navigation-size:calc(64px + env(safe-area-inset-bottom, 0px))}

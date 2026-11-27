@@ -455,13 +455,11 @@ export default function App({session}){
    const transition=document.startViewTransition(()=>{
      flushSync(update);
      const content=document.querySelector('.workspace-page-content')?.getBoundingClientRect();
-     const header=document.querySelector('.workspace-page-header')?.getBoundingClientRect();
      const phoneBar=document.querySelector('.phone-navigation')?.getBoundingClientRect();
-     // The snapshot sits above the document. Clip it to keep the sticky header and phone bar visible.
-     if(content&&header){
-       const top=Math.max(0,header.bottom-content.top);
+     // Keep the fixed phone bar visible above the content snapshot.
+     if(content){
        const bottom=Math.max(0,content.bottom-(phoneBar?.top??window.innerHeight));
-       root.style.setProperty('--workspace-content-clip',`inset(${top}px 0 ${bottom}px)`);
+       root.style.setProperty('--workspace-content-clip',`inset(0 0 ${bottom}px)`);
      }
    });
    viewTransition.current=transition;

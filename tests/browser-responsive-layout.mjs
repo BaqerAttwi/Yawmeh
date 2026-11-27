@@ -100,6 +100,9 @@ try {
   await context.addCookies([{name:'daywell_session',value:'a'.repeat(64),url}]);
   await page.reload();
   await page.locator('.workspace-page-header').waitFor();
+  assert.equal(await page.locator('.workspace-page-header').evaluate(header=>getComputedStyle(header).position),'static');
+  const tabRows=await page.locator('.overview-tabs button').evaluateAll(buttons=>new Set(buttons.map(button=>button.getBoundingClientRect().top)).size);
+  assert.equal(tabRows,1,'Overview tabs share one horizontal row');
   assert.equal(await page.getByRole('dialog',{name:'Start here'}).count(),0);
   if(width<=700){
    await check('Phone navigation','.phone-navigation');
